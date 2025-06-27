@@ -21,11 +21,11 @@ services:
       - WAKEDOCK_DEBUG=${WAKEDOCK_DEBUG}
       - CADDY_CONFIG_VOLUME_PATH=${CADDY_CONFIG_VOLUME}
     healthcheck:
-      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health')" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test: [ "CMD", "python", "/app/health_check.py" ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     networks:
       - ${WAKEDOCK_NETWORK}
 
