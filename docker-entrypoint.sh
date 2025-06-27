@@ -1,6 +1,9 @@
 #!/bin/bash
 set -e
 
+# This script runs as root to handle Docker socket permissions
+# then drops privileges to wakedock user
+
 # Handle Docker socket permissions
 if [ -S /var/run/docker.sock ]; then
     DOCKER_SOCK=/var/run/docker.sock
@@ -20,5 +23,5 @@ else
     echo "⚠️ Docker socket not found at /var/run/docker.sock"
 fi
 
-# Execute the main command
-exec "$@"
+# Switch to wakedock user and execute the main command
+exec gosu wakedock "$@"
