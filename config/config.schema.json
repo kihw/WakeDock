@@ -1,0 +1,791 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://wakedock.io/schemas/config.json",
+    "title": "WakeDock Configuration Schema",
+    "description": "Schema for validating WakeDock configuration files",
+    "type": "object",
+    "required": [
+        "wakedock"
+    ],
+    "properties": {
+        "wakedock": {
+            "type": "object",
+            "required": [
+                "domain",
+                "secret_key"
+            ],
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9-]*[a-zA-Z0-9]*\\.[a-zA-Z]{2,}$|^localhost$|^[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}$",
+                    "description": "Main domain for the application"
+                },
+                "app_name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100,
+                    "default": "WakeDock"
+                },
+                "app_description": {
+                    "type": "string",
+                    "maxLength": 500
+                },
+                "admin_password": {
+                    "type": "string",
+                    "minLength": 8,
+                    "description": "Admin password (change in production)"
+                },
+                "secret_key": {
+                    "type": "string",
+                    "minLength": 32,
+                    "description": "Secret key for sessions and encryption"
+                },
+                "session_timeout": {
+                    "type": "integer",
+                    "minimum": 300,
+                    "maximum": 86400,
+                    "default": 3600
+                },
+                "max_login_attempts": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 5
+                },
+                "password_min_length": {
+                    "type": "integer",
+                    "minimum": 6,
+                    "maximum": 128,
+                    "default": 8
+                },
+                "require_strong_passwords": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "host": {
+                    "type": "string",
+                    "default": "0.0.0.0"
+                },
+                "port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535,
+                    "default": 8000
+                },
+                "debug": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "workers": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32,
+                    "default": 1
+                },
+                "max_request_size": {
+                    "type": "integer",
+                    "minimum": 1048576,
+                    "default": 16777216
+                },
+                "cors": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "origins": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        },
+                        "methods": {
+                            "type": "array",
+                            "items": {
+                                "type": "string",
+                                "enum": [
+                                    "GET",
+                                    "POST",
+                                    "PUT",
+                                    "DELETE",
+                                    "OPTIONS",
+                                    "HEAD",
+                                    "PATCH"
+                                ]
+                            }
+                        },
+                        "headers": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "database": {
+            "type": "object",
+            "required": [
+                "url"
+            ],
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "pattern": "^(sqlite://|postgresql://|mysql://)",
+                    "description": "Database connection URL"
+                },
+                "pool_size": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 5
+                },
+                "max_overflow": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "default": 10
+                },
+                "pool_timeout": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300,
+                    "default": 30
+                },
+                "pool_recycle": {
+                    "type": "integer",
+                    "minimum": 300,
+                    "default": 3600
+                },
+                "auto_migrate": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "backup_before_migrate": {
+                    "type": "boolean",
+                    "default": true
+                }
+            }
+        },
+        "caddy": {
+            "type": "object",
+            "required": [
+                "api_endpoint"
+            ],
+            "properties": {
+                "api_endpoint": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Caddy Admin API endpoint"
+                },
+                "admin_api_key": {
+                    "type": "string",
+                    "description": "Optional API key for Caddy admin"
+                },
+                "config_path": {
+                    "type": "string",
+                    "description": "Path to Caddyfile"
+                },
+                "template_path": {
+                    "type": "string",
+                    "description": "Path to Caddyfile templates"
+                },
+                "auto_reload": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "auto_https": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email for Let's Encrypt"
+                },
+                "rate_limit": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "requests_per_minute": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 60
+                        },
+                        "burst": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 100
+                        }
+                    }
+                }
+            }
+        },
+        "docker": {
+            "type": "object",
+            "properties": {
+                "socket_path": {
+                    "type": "string",
+                    "default": "/var/run/docker.sock"
+                },
+                "api_version": {
+                    "type": "string",
+                    "default": "auto"
+                },
+                "timeout": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 300,
+                    "default": 60
+                },
+                "network_name": {
+                    "type": "string",
+                    "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.-]*$",
+                    "default": "wakedock"
+                },
+                "default_restart_policy": {
+                    "type": "string",
+                    "enum": [
+                        "no",
+                        "always",
+                        "on-failure",
+                        "unless-stopped"
+                    ],
+                    "default": "unless-stopped"
+                },
+                "image_pull_policy": {
+                    "type": "string",
+                    "enum": [
+                        "always",
+                        "if-not-present",
+                        "never"
+                    ],
+                    "default": "if-not-present"
+                },
+                "default_memory_limit": {
+                    "type": "string",
+                    "pattern": "^[0-9]+[kmg]?$",
+                    "default": "512m"
+                },
+                "default_cpu_limit": {
+                    "type": "string",
+                    "pattern": "^[0-9]*\\.?[0-9]+$",
+                    "default": "0.5"
+                },
+                "auto_cleanup": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "cleanup_interval": {
+                    "type": "integer",
+                    "minimum": 300,
+                    "default": 3600
+                }
+            }
+        },
+        "security": {
+            "type": "object",
+            "properties": {
+                "rate_limit": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "storage": {
+                            "type": "string",
+                            "enum": [
+                                "redis",
+                                "memory"
+                            ],
+                            "default": "redis"
+                        },
+                        "redis_url": {
+                            "type": "string",
+                            "format": "uri"
+                        },
+                        "global_limit": {
+                            "$ref": "#/definitions/rate_limit_rule"
+                        },
+                        "api_limit": {
+                            "$ref": "#/definitions/rate_limit_rule"
+                        },
+                        "auth_limit": {
+                            "$ref": "#/definitions/rate_limit_rule"
+                        }
+                    }
+                },
+                "validation": {
+                    "type": "object",
+                    "properties": {
+                        "max_string_length": {
+                            "type": "integer",
+                            "minimum": 100,
+                            "default": 1000
+                        },
+                        "max_array_length": {
+                            "type": "integer",
+                            "minimum": 10,
+                            "default": 100
+                        },
+                        "sanitize_html": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "headers": {
+                    "type": "object",
+                    "properties": {
+                        "hsts": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "csp": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "csrf_protection": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "xss_protection": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                }
+            }
+        },
+        "monitoring": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "metrics_retention": {
+                    "type": "string",
+                    "pattern": "^[0-9]+[dhms]$",
+                    "default": "7d"
+                },
+                "collect_interval": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 3600,
+                    "default": 30
+                },
+                "prometheus": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "endpoint": {
+                            "type": "string",
+                            "default": "/metrics"
+                        },
+                        "namespace": {
+                            "type": "string",
+                            "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                            "default": "wakedock"
+                        }
+                    }
+                },
+                "health_checks": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "interval": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "default": 30
+                        },
+                        "timeout": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 10
+                        },
+                        "retries": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 3
+                        }
+                    }
+                },
+                "system_metrics": {
+                    "type": "object",
+                    "properties": {
+                        "cpu": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "memory": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "disk": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "network": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "alerts": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "email": {
+                            "$ref": "#/definitions/email_config"
+                        },
+                        "slack": {
+                            "type": "object",
+                            "properties": {
+                                "webhook_url": {
+                                    "type": "string",
+                                    "format": "uri"
+                                },
+                                "channel": {
+                                    "type": "string",
+                                    "pattern": "^#[a-zA-Z0-9_-]+$"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "logging": {
+            "type": "object",
+            "properties": {
+                "level": {
+                    "type": "string",
+                    "enum": [
+                        "DEBUG",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "CRITICAL"
+                    ],
+                    "default": "INFO"
+                },
+                "format": {
+                    "type": "string",
+                    "enum": [
+                        "json",
+                        "text"
+                    ],
+                    "default": "json"
+                },
+                "file": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "path": {
+                            "type": "string",
+                            "default": "/app/logs/wakedock.log"
+                        },
+                        "max_bytes": {
+                            "type": "integer",
+                            "minimum": 1048576,
+                            "default": 52428800
+                        },
+                        "backup_count": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 10
+                        },
+                        "rotation": {
+                            "type": "string",
+                            "enum": [
+                                "size",
+                                "time"
+                            ],
+                            "default": "time"
+                        },
+                        "rotation_interval": {
+                            "type": "string",
+                            "default": "midnight"
+                        }
+                    }
+                },
+                "console": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "colored": {
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                },
+                "structured": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "correlation_id": {
+                    "type": "boolean",
+                    "default": true
+                },
+                "filters": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": [
+                            "module",
+                            "level"
+                        ],
+                        "properties": {
+                            "module": {
+                                "type": "string"
+                            },
+                            "level": {
+                                "type": "string",
+                                "enum": [
+                                    "DEBUG",
+                                    "INFO",
+                                    "WARNING",
+                                    "ERROR",
+                                    "CRITICAL"
+                                ]
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "services": {
+            "type": "object",
+            "properties": {
+                "defaults": {
+                    "$ref": "#/definitions/service_config"
+                }
+            }
+        },
+        "development": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "debug_toolbar": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "auto_reload": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "mock_services": {
+                    "type": "boolean",
+                    "default": false
+                },
+                "overrides": {
+                    "type": "object",
+                    "description": "Override any configuration for development"
+                }
+            }
+        }
+    },
+    "definitions": {
+        "rate_limit_rule": {
+            "type": "object",
+            "required": [
+                "requests",
+                "window"
+            ],
+            "properties": {
+                "requests": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "window": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "email_config": {
+            "type": "object",
+            "properties": {
+                "smtp_host": {
+                    "type": "string",
+                    "format": "hostname"
+                },
+                "smtp_port": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 65535
+                },
+                "smtp_user": {
+                    "type": "string"
+                },
+                "smtp_password": {
+                    "type": "string"
+                },
+                "from_email": {
+                    "type": "string",
+                    "format": "email"
+                },
+                "to_emails": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                }
+            }
+        },
+        "service_config": {
+            "type": "object",
+            "properties": {
+                "auto_shutdown": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "inactive_minutes": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "default": 30
+                        },
+                        "cpu_threshold": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 100,
+                            "default": 5
+                        },
+                        "memory_threshold": {
+                            "type": "integer",
+                            "minimum": 10,
+                            "default": 100
+                        },
+                        "check_interval": {
+                            "type": "integer",
+                            "minimum": 60,
+                            "default": 300
+                        },
+                        "grace_period": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "default": 60
+                        }
+                    }
+                },
+                "loading_page": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "title": {
+                            "type": "string",
+                            "maxLength": 100
+                        },
+                        "message": {
+                            "type": "string",
+                            "maxLength": 500
+                        },
+                        "theme": {
+                            "type": "string",
+                            "enum": [
+                                "dark",
+                                "light"
+                            ],
+                            "default": "dark"
+                        },
+                        "estimated_time": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 60
+                        },
+                        "show_logs": {
+                            "type": "boolean",
+                            "default": false
+                        }
+                    }
+                },
+                "health_check": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "endpoint": {
+                            "type": "string",
+                            "default": "/health"
+                        },
+                        "timeout": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 30
+                        },
+                        "retries": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "default": 3
+                        },
+                        "interval": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "default": 10
+                        }
+                    }
+                },
+                "backup": {
+                    "type": "object",
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "schedule": {
+                            "type": "string",
+                            "pattern": "^[0-9*/-,]+ [0-9*/-,]+ [0-9*/-,]+ [0-9*/-,]+ [0-9*/-,]+$"
+                        },
+                        "retention": {
+                            "type": "string",
+                            "pattern": "^[0-9]+[dhms]$"
+                        },
+                        "compression": {
+                            "type": "string",
+                            "enum": [
+                                "none",
+                                "gzip",
+                                "bzip2",
+                                "xz"
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

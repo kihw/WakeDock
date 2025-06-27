@@ -1,0 +1,58 @@
+---
+# Monitoring setup with Prometheus and Grafana
+- name: Create monitoring directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0755'
+  loop:
+    - "{{ wakedock_home }}/monitoring"
+    - "{{ wakedock_home }}/monitoring/prometheus"
+    - "{{ wakedock_home }}/monitoring/grafana"
+
+- name: Create Prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: "{{ wakedock_home }}/monitoring/prometheus/prometheus.yml"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0644'
+
+- name: Create Grafana configuration
+  template:
+    src: grafana.ini.j2
+    dest: "{{ wakedock_home }}/monitoring/grafana/grafana.ini"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0644'
+
+- name: Create monitoring Docker Compose file
+  template:
+    src: docker-compose-monitoring.yml.j2
+    dest: "{{ wakedock_home }}/monitoring/docker-compose.yml"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0644'
+
+- name: Start monitoring services
+  docker_compose:
+    project_src: "{{ wakedock_home }}/monitoring"
+    state: present
+  become_user: "{{ wakedock_user }}"
+  when: monitoring_enabled | default(true)
+
+- name: Install monitoring dashboard
+  uri:
+    url: "http://localhost:{{ grafana_port }}/api/dashboards/db"
+    method: POST
+    user: admin
+    password: admin
+    body_format: json
+    body:
+      dashboard:
+        title: "WakeDock Monitoring"
+        panels: []
+      overwrite: true
+  when: monitoring_enabled | default(true)

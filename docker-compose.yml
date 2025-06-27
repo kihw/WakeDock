@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  wakedock:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wakedock-core
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/app/config
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - WAKEDOCK_CONFIG_PATH=/app/config/config.yml
+      - WAKEDOCK_DATA_PATH=/app/data
+      - WAKEDOCK_LOG_LEVEL=INFO
+    networks:
+      - wakedock-network
+    depends_on:
+      - caddy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: wakedock-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2019:2019" # Admin API
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./caddy/data:/data
+      - ./caddy/config:/config
+    networks:
+      - wakedock-network
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: wakedock-dashboard
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - WAKEDOCK_API_URL=http://wakedock:8000
+    networks:
+      - wakedock-network
+    depends_on:
+      - wakedock
+
+networks:
+  wakedock-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,84 @@
+---
+# WakeDock deployment playbook
+- name: Deploy WakeDock application
+  hosts: wakedock_servers
+  become: true
+  gather_facts: true
+  
+  vars:
+    wakedock_version: "{{ wakedock_version | default('latest') }}"
+    
+  pre_tasks:
+    - name: Ensure Docker is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+        
+    - name: Check if WakeDock is already running
+      uri:
+        url: "http://localhost:{{ wakedock_port }}/api/v1/health"
+        method: GET
+        status_code: 200
+      register: wakedock_health
+      failed_when: false
+      
+  tasks:
+    - name: Stop existing WakeDock services
+      docker_compose:
+        project_src: "{{ wakedock_home }}/wakedock"
+        state: absent
+      become_user: "{{ wakedock_user }}"
+      when: wakedock_health.status == 200
+      
+    - name: Update WakeDock repository
+      git:
+        repo: "https://github.com/yourusername/wakedock.git"
+        dest: "{{ wakedock_home }}/wakedock"
+        version: "{{ wakedock_version }}"
+        force: yes
+      become_user: "{{ wakedock_user }}"
+      
+    - name: Update Docker images
+      docker_compose:
+        project_src: "{{ wakedock_home }}/wakedock"
+        pull: yes
+        build: yes
+      become_user: "{{ wakedock_user }}"
+      
+    - name: Start WakeDock services
+      docker_compose:
+        project_src: "{{ wakedock_home }}/wakedock"
+        state: present
+        recreate: smart
+      become_user: "{{ wakedock_user }}"
+      
+    - name: Wait for WakeDock to be ready
+      uri:
+        url: "http://localhost:{{ wakedock_port }}/api/v1/health"
+        method: GET
+        status_code: 200
+      retries: 20
+      delay: 15
+      
+    - name: Run database migrations
+      docker_compose:
+        project_src: "{{ wakedock_home }}/wakedock"
+        services: wakedock-backend
+        restart: yes
+      become_user: "{{ wakedock_user }}"
+      
+  post_tasks:
+    - name: Verify deployment
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:{{ wakedock_port }}/api/v1/health"
+        method: GET
+        status_code: 200
+        
+    - name: Display deployment status
+      debug:
+        msg:
+          - "WakeDock deployment completed successfully!"
+          - "Version: {{ wakedock_version }}"
+          - "API URL: http://{{ ansible_default_ipv4.address }}:{{ wakedock_port }}/api/v1"
+          - "Dashboard URL: http://{{ ansible_default_ipv4.address }}:{{ wakedock_dashboard_port }}"

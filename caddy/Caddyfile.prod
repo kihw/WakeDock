@@ -1,0 +1,143 @@
+# Production Caddyfile for WakeDock
+{
+    # Global options
+    admin 0.0.0.0:2019
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+    
+    # Security headers
+    header /* {
+        # Security headers
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'"
+        
+        # Remove server info
+        -Server
+    }
+}
+
+# Main domain
+{$DOMAIN:localhost} {
+    # Dashboard (frontend)
+    handle /* {
+        reverse_proxy {$DASHBOARD_UPSTREAM:dashboard:3000} {
+            health_uri /health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
+            health_uri /api/v1/health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+    
+    # WebSocket support for real-time updates
+    handle /ws/* {
+        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
+            header_up Upgrade {http.request.header.upgrade}
+            header_up Connection {http.request.header.connection}
+        }
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "OK" 200
+    }
+    
+    # Security and performance
+    encode gzip zstd
+    
+    # Request logging
+    log {
+        output file /var/log/caddy/wakedock-access.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 30d
+        }
+        format json
+    }
+    
+    # Rate limiting
+    rate_limit {
+        zone dynamic {
+            key {remote_host}
+            events 100
+            window 1m
+        }
+    }
+}
+
+# API-only subdomain (optional)
+api.{$DOMAIN:localhost} {
+    handle /* {
+        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
+            health_uri /api/v1/health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+    
+    # CORS headers for API access
+    header /* {
+        Access-Control-Allow-Origin "*"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Max-Age "86400"
+    }
+    
+    # Handle preflight requests
+    handle_path /api/* {
+        method OPTIONS
+        respond "" 204
+    }
+    
+    encode gzip zstd
+    
+    log {
+        output file /var/log/caddy/api-access.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 30d
+        }
+        format json
+    }
+}
+
+# Monitoring endpoints (if enabled)
+monitoring.{$DOMAIN:localhost} {
+    handle /prometheus/* {
+        reverse_proxy prometheus:9090 {
+            health_uri /-/healthy
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+    
+    handle /grafana/* {
+        reverse_proxy grafana:3000 {
+            health_uri /api/health
+            health_interval 30s
+            health_timeout 10s
+        }
+    }
+    
+    handle /* {
+        redir /grafana/
+    }
+    
+    # Basic auth for monitoring (configure in environment)
+    basicauth /* {
+        {$MONITORING_USER:admin} {$MONITORING_PASSWORD_HASH:$2a$14$example}
+    }
+}

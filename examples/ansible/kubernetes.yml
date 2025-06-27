@@ -1,0 +1,124 @@
+---
+# Kubernetes deployment playbook
+- name: Deploy WakeDock to Kubernetes
+  hosts: kubernetes_masters
+  gather_facts: true
+  
+  vars:
+    wakedock_namespace: "{{ wakedock_namespace | default('wakedock') }}"
+    wakedock_domain: "{{ wakedock_domain | default('wakedock.example.com') }}"
+    kubectl_context: "{{ kubectl_context | default('') }}"
+    
+  tasks:
+    - name: Ensure kubectl is available
+      command: kubectl version --client
+      register: kubectl_version
+      failed_when: kubectl_version.rc != 0
+      
+    - name: Set kubectl context
+      command: "kubectl config use-context {{ kubectl_context }}"
+      when: kubectl_context != ""
+      
+    - name: Copy Kubernetes manifests
+      copy:
+        src: "../kubernetes/"
+        dest: "/tmp/wakedock-k8s/"
+        mode: '0644'
+        
+    - name: Generate secrets
+      include_tasks: tasks/generate_k8s_secrets.yml
+      
+    - name: Apply namespace
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/namespace.yaml"
+        state: present
+        
+    - name: Apply configmaps
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/configmaps/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply secrets
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/secrets/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply RBAC
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/rbac/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply services
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/services/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply deployments
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/deployments/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply ingress
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/ingress/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Apply monitoring
+      kubernetes.core.k8s:
+        src: "/tmp/wakedock-k8s/monitoring/"
+        state: present
+        namespace: "{{ wakedock_namespace }}"
+        
+    - name: Wait for deployments to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: Deployment
+        namespace: "{{ wakedock_namespace }}"
+        name: "{{ item }}"
+        wait: true
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300
+      loop:
+        - wakedock-backend
+        - wakedock-dashboard
+        
+    - name: Wait for StatefulSets to be ready
+      kubernetes.core.k8s_info:
+        api_version: apps/v1
+        kind: StatefulSet
+        namespace: "{{ wakedock_namespace }}"
+        name: "{{ item }}"
+        wait: true
+        wait_condition:
+          type: Available
+          status: "True"
+        wait_timeout: 300
+      loop:
+        - postgresql
+        - redis
+        
+    - name: Get service status
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ wakedock_namespace }}"
+        label_selectors:
+          - app=wakedock
+      register: pod_status
+      
+    - name: Display deployment status
+      debug:
+        msg:
+          - "WakeDock Kubernetes deployment completed!"
+          - "Namespace: {{ wakedock_namespace }}"
+          - "Domain: {{ wakedock_domain }}"
+          - "Pods running: {{ pod_status.resources | selectattr('status.phase', 'equalto', 'Running') | list | length }}"
+          - "Total pods: {{ pod_status.resources | length }}"

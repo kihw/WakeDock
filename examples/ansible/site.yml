@@ -1,0 +1,61 @@
+---
+# Main WakeDock deployment playbook
+- name: Deploy WakeDock
+  hosts: wakedock_servers
+  become: true
+  gather_facts: true
+  
+  vars:
+    wakedock_version: "{{ wakedock_version | default('latest') }}"
+    wakedock_environment: "{{ environment | default('production') }}"
+    
+  pre_tasks:
+    - name: Update system packages
+      package:
+        name: "*"
+        state: latest
+      when: update_system | default(true)
+    
+    - name: Install required packages
+      package:
+        name:
+          - curl
+          - wget
+          - git
+          - unzip
+          - htop
+          - vim
+        state: present
+  
+  roles:
+    - common
+    - security
+    - docker
+    - wakedock
+    - monitoring
+    - backup
+  
+  post_tasks:
+    - name: Verify WakeDock installation
+      uri:
+        url: "http://{{ ansible_default_ipv4.address }}:8000/api/v1/health"
+        method: GET
+        status_code: 200
+      retries: 5
+      delay: 10
+      
+    - name: Display deployment information
+      debug:
+        msg:
+          - "WakeDock has been successfully deployed!"
+          - "Web Interface: http://{{ wakedock_domain | default(ansible_default_ipv4.address) }}"
+          - "API Endpoint: http://{{ wakedock_domain | default(ansible_default_ipv4.address) }}/api/v1"
+          - "Environment: {{ wakedock_environment }}"
+          - "Version: {{ wakedock_version }}"
+
+# Additional playbooks for specific tasks
+- import_playbook: playbooks/setup.yml
+  when: setup_mode | default(false)
+
+- import_playbook: playbooks/backup.yml
+  when: backup_mode | default(false)

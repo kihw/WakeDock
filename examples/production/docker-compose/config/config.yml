@@ -1,0 +1,181 @@
+# WakeDock Production Configuration
+
+wakedock:
+  domain: "${DOMAIN}"
+  app_name: "WakeDock"
+  app_description: "Docker service wake-up and management system"
+  admin_password: "${WAKEDOCK_ADMIN_PASSWORD}"
+  secret_key: "${WAKEDOCK_SECRET_KEY}"
+  session_timeout: 3600
+  max_login_attempts: 5
+  password_min_length: 8
+  require_strong_passwords: true
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  workers: 2
+  max_request_size: 16777216
+  
+  cors:
+    enabled: true
+    origins:
+      - "https://${DOMAIN}"
+      - "https://dashboard.${DOMAIN}"
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["*"]
+
+database:
+  url: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+  pool_size: 10
+  max_overflow: 20
+  pool_timeout: 30
+  pool_recycle: 3600
+  auto_migrate: true
+  backup_before_migrate: true
+
+caddy:
+  api_endpoint: "http://caddy:2019"
+  admin_api_key: "${CADDY_ADMIN_API_KEY}"
+  config_path: "/etc/caddy/Caddyfile"
+  template_path: "/etc/caddy/templates"
+  auto_reload: true
+  auto_https: true
+  email: "${EMAIL}"
+  
+  rate_limit:
+    enabled: true
+    requests_per_minute: 100
+    burst: 200
+
+docker:
+  socket_path: "/var/run/docker.sock"
+  api_version: "auto"
+  timeout: 60
+  network_name: "wakedock-external"
+  default_restart_policy: "unless-stopped"
+  image_pull_policy: "if-not-present"
+  default_memory_limit: "1g"
+  default_cpu_limit: "1.0"
+  auto_cleanup: true
+  cleanup_interval: 3600
+
+security:
+  rate_limit:
+    enabled: true
+    storage: "redis"
+    redis_url: "${REDIS_URL}"
+    global_limit:
+      requests: 1000
+      window: 3600
+    api_limit:
+      requests: 200
+      window: 60
+    auth_limit:
+      requests: 10
+      window: 300
+  
+  validation:
+    max_string_length: 1000
+    max_array_length: 100
+    sanitize_html: true
+  
+  headers:
+    hsts: true
+    csp: true
+    csrf_protection: true
+    xss_protection: true
+
+monitoring:
+  enabled: true
+  metrics_retention: "30d"
+  collect_interval: 30
+  
+  prometheus:
+    enabled: true
+    endpoint: "/metrics"
+    namespace: "wakedock"
+  
+  health_checks:
+    enabled: true
+    interval: 30
+    timeout: 10
+    retries: 3
+  
+  system_metrics:
+    cpu: true
+    memory: true
+    disk: true
+    network: true
+  
+  alerts:
+    enabled: true
+    email:
+      smtp_host: "${SMTP_HOST}"
+      smtp_port: 587
+      smtp_user: "${SMTP_USER}"
+      smtp_password: "${SMTP_PASSWORD}"
+      from_email: "${SMTP_USER}"
+      to_emails:
+        - "${ALERT_EMAIL}"
+    slack:
+      webhook_url: "${SLACK_WEBHOOK_URL}"
+      channel: "#wakedock-alerts"
+
+logging:
+  level: "INFO"
+  format: "json"
+  
+  file:
+    enabled: true
+    path: "/app/logs/wakedock.log"
+    max_bytes: 104857600  # 100MB
+    backup_count: 10
+    rotation: "time"
+    rotation_interval: "midnight"
+  
+  console:
+    enabled: true
+    colored: false
+  
+  structured: true
+  correlation_id: true
+  
+  filters:
+    - module: "uvicorn.access"
+      level: "INFO"
+    - module: "docker"
+      level: "INFO"
+
+services:
+  defaults:
+    auto_shutdown:
+      enabled: true
+      inactive_minutes: 30
+      cpu_threshold: 5
+      memory_threshold: 100
+      check_interval: 300
+      grace_period: 60
+    
+    loading_page:
+      enabled: true
+      title: "Starting Service..."
+      message: "Please wait while we start your service"
+      theme: "dark"
+      estimated_time: 60
+      show_logs: false
+    
+    health_check:
+      enabled: true
+      endpoint: "/health"
+      timeout: 30
+      retries: 3
+      interval: 10
+    
+    backup:
+      enabled: true
+      schedule: "0 3 * * *"
+      retention: "30d"
+      compression: "gzip"
+
+development:
+  enabled: false

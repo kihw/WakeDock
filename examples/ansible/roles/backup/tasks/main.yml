@@ -1,0 +1,70 @@
+---
+# Backup configuration and setup
+- name: Create backup directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0755'
+  loop:
+    - "{{ wakedock_home }}/backups"
+    - "{{ wakedock_home }}/backups/database"
+    - "{{ wakedock_home }}/backups/config"
+    - "{{ wakedock_home }}/backups/logs"
+
+- name: Create backup script
+  template:
+    src: backup.sh.j2
+    dest: "{{ wakedock_home }}/backups/backup.sh"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0755'
+
+- name: Create restore script
+  template:
+    src: restore.sh.j2
+    dest: "{{ wakedock_home }}/backups/restore.sh"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0755'
+
+- name: Setup backup cron job
+  cron:
+    name: "WakeDock backup"
+    cron_file: wakedock-backup
+    user: "{{ wakedock_user }}"
+    job: "{{ wakedock_home }}/backups/backup.sh"
+    minute: "{{ backup_schedule.split(' ')[0] }}"
+    hour: "{{ backup_schedule.split(' ')[1] }}"
+    day: "{{ backup_schedule.split(' ')[2] }}"
+    month: "{{ backup_schedule.split(' ')[3] }}"
+    weekday: "{{ backup_schedule.split(' ')[4] }}"
+  when: backup_enabled | default(true)
+
+- name: Setup backup retention cleanup
+  cron:
+    name: "WakeDock backup cleanup"
+    cron_file: wakedock-backup-cleanup
+    user: "{{ wakedock_user }}"
+    job: "find {{ wakedock_home }}/backups -name '*.tar.gz' -mtime +{{ backup_retention_days }} -delete"
+    minute: "0"
+    hour: "3"
+  when: backup_enabled | default(true)
+
+- name: Install backup tools
+  package:
+    name:
+      - rsync
+      - gzip
+      - tar
+    state: present
+
+- name: Configure S3 backup (if enabled)
+  template:
+    src: s3-sync.sh.j2
+    dest: "{{ wakedock_home }}/backups/s3-sync.sh"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0755'
+  when: backup_s3_bucket is defined and backup_s3_bucket != ""

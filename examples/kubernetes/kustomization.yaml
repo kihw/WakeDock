@@ -1,0 +1,82 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: wakedock
+  namespace: wakedock
+
+namespace: wakedock
+
+resources:
+- namespace.yaml
+- configmaps/wakedock-config.yaml
+- secrets/secrets.yaml
+- rbac/rbac.yaml
+- services/services.yaml
+- deployments/wakedock-backend.yaml
+- deployments/wakedock-dashboard.yaml
+- deployments/postgresql.yaml
+- deployments/redis.yaml
+- ingress/ingress.yaml
+- monitoring/monitoring.yaml
+
+commonLabels:
+  app: wakedock
+  version: v1.0.0
+  environment: production
+
+images:
+- name: wakedock/backend
+  newTag: latest
+- name: wakedock/dashboard
+  newTag: latest
+
+configMapGenerator:
+- name: wakedock-env-config
+  literals:
+  - WAKEDOCK_ENV=production
+  - LOG_LEVEL=info
+  - METRICS_ENABLED=true
+
+secretGenerator:
+- name: wakedock-generated-secrets
+  literals:
+  - jwt-secret-key=$(openssl rand -base64 32)
+
+replicas:
+- name: wakedock-backend
+  count: 2
+- name: wakedock-dashboard
+  count: 2
+
+patchesStrategicMerge:
+- |-
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: wakedock-backend
+    namespace: wakedock
+  spec:
+    template:
+      spec:
+        containers:
+        - name: wakedock-backend
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+
+patches:
+- target:
+    kind: Ingress
+    name: wakedock-ingress
+  patch: |-
+    - op: replace
+      path: /spec/rules/0/host
+      value: wakedock.yourdomain.com
+    - op: replace
+      path: /spec/tls/0/hosts/0
+      value: wakedock.yourdomain.com

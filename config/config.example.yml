@@ -1,0 +1,301 @@
+# WakeDock Configuration Example
+# Copy this file to config.yml and adjust settings for your environment
+
+# Application Settings
+wakedock:
+  # Basic application settings
+  domain: "localhost"                        # Main domain for the application
+  app_name: "WakeDock"                      # Application display name
+  app_description: "Docker service wake-up and management system"
+  
+  # Authentication & Security
+  admin_password: "admin123"                # Change this in production!
+  secret_key: "your-secret-key-change-this-in-production-use-32-plus-chars"
+  session_timeout: 3600                     # Session timeout in seconds
+  max_login_attempts: 5                     # Max failed login attempts before lockout
+  password_min_length: 8                    # Minimum password length
+  require_strong_passwords: true            # Require uppercase, lowercase, numbers, symbols
+  
+  # Server Configuration
+  host: "0.0.0.0"                          # Bind address
+  port: 8000                               # Bind port
+  debug: false                             # Enable debug mode (never in production)
+  workers: 1                               # Number of worker processes
+  max_request_size: 16777216               # Max request size in bytes (16MB)
+  
+  # CORS Settings
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://localhost:5173"
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    headers: ["*"]
+
+# Database Configuration
+database:
+  # SQLite (default for development)
+  url: "sqlite:///./data/wakedock.db"
+  
+  # PostgreSQL (recommended for production)
+  # url: "postgresql://wakedock:password@postgres:5432/wakedock"
+  
+  # Connection pool settings
+  pool_size: 5
+  max_overflow: 10
+  pool_timeout: 30
+  pool_recycle: 3600
+  
+  # Migration settings
+  auto_migrate: true
+  backup_before_migrate: true
+
+# Caddy Reverse Proxy Configuration
+caddy:
+  # Caddy Admin API
+  api_endpoint: "http://caddy:2019"
+  admin_api_key: ""                        # Optional API key for Caddy admin
+  
+  # Caddyfile management
+  config_path: "/etc/caddy/Caddyfile"
+  template_path: "/app/caddy/templates"
+  auto_reload: true                        # Auto-reload Caddy on config changes
+  
+  # HTTPS Settings
+  auto_https: true                         # Enable automatic HTTPS
+  email: ""                                # Email for Let's Encrypt (required for auto HTTPS)
+  
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    requests_per_minute: 60
+    burst: 100
+
+# Docker Configuration
+docker:
+  # Docker daemon connection
+  socket_path: "/var/run/docker.sock"     # Docker socket path
+  api_version: "auto"                      # Docker API version
+  timeout: 60                              # Connection timeout
+  
+  # Container management
+  network_name: "wakedock"                 # Docker network name
+  default_restart_policy: "unless-stopped" # Default restart policy
+  image_pull_policy: "if-not-present"     # Image pull policy
+  
+  # Resource limits
+  default_memory_limit: "512m"            # Default memory limit
+  default_cpu_limit: "0.5"                # Default CPU limit
+  
+  # Cleanup settings
+  auto_cleanup: true                       # Auto cleanup stopped containers
+  cleanup_interval: 3600                   # Cleanup interval in seconds
+
+# Security Configuration
+security:
+  # Rate limiting
+  rate_limit:
+    enabled: true
+    storage: "redis"                       # redis or memory
+    redis_url: "redis://redis:6379/0"      # Redis URL if using redis storage
+    global_limit:
+      requests: 1000                       # Requests per window
+      window: 3600                         # Window in seconds
+    api_limit:
+      requests: 100
+      window: 60
+    auth_limit:
+      requests: 10
+      window: 300
+  
+  # Input validation
+  validation:
+    max_string_length: 1000
+    max_array_length: 100
+    sanitize_html: true
+  
+  # Security headers
+  headers:
+    hsts: true                             # HTTP Strict Transport Security
+    csp: true                              # Content Security Policy
+    csrf_protection: true                  # CSRF protection
+    xss_protection: true                   # XSS protection
+
+# Monitoring & Observability
+monitoring:
+  # Metrics collection
+  enabled: true
+  metrics_retention: "7d"                  # Metrics retention period
+  collect_interval: 30                     # Collection interval in seconds
+  
+  # Prometheus metrics
+  prometheus:
+    enabled: true
+    endpoint: "/metrics"
+    namespace: "wakedock"
+  
+  # Health checks
+  health_checks:
+    enabled: true
+    interval: 30                           # Health check interval
+    timeout: 10                            # Health check timeout
+    retries: 3                             # Health check retries
+  
+  # System monitoring
+  system_metrics:
+    cpu: true
+    memory: true
+    disk: true
+    network: true
+    
+  # Alerting
+  alerts:
+    enabled: false
+    email:
+      smtp_host: ""
+      smtp_port: 587
+      smtp_user: ""
+      smtp_password: ""
+      from_email: ""
+      to_emails: []
+    slack:
+      webhook_url: ""
+      channel: "#alerts"
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR, CRITICAL
+  level: "INFO"
+  
+  # Log format: json or text
+  format: "json"
+  
+  # File logging
+  file:
+    enabled: true
+    path: "/app/logs/wakedock.log"
+    max_bytes: 52428800                    # 50MB
+    backup_count: 10
+    rotation: "time"                       # size or time
+    rotation_interval: "midnight"
+  
+  # Console logging
+  console:
+    enabled: true
+    colored: true
+    
+  # Structured logging
+  structured: true
+  correlation_id: true                     # Add correlation IDs to logs
+  
+  # Log filtering
+  filters:
+    - module: "uvicorn.access"
+      level: "WARNING"
+    - module: "docker"
+      level: "INFO"
+
+# Service Management
+services:
+  # Global service defaults
+  defaults:
+    auto_shutdown:
+      enabled: true
+      inactive_minutes: 30                 # Shutdown after inactivity
+      cpu_threshold: 5                     # CPU threshold percentage
+      memory_threshold: 100                # Memory threshold in MB
+      check_interval: 300                  # Check interval in seconds
+      grace_period: 60                     # Grace period before shutdown
+    
+    loading_page:
+      enabled: true
+      title: "Starting Service..."
+      message: "Please wait while we start your service"
+      theme: "dark"                        # dark or light
+      estimated_time: 60                   # Estimated startup time
+      show_logs: false                     # Show startup logs
+    
+    health_check:
+      enabled: true
+      endpoint: "/health"
+      timeout: 30
+      retries: 3
+      interval: 10
+      
+    backup:
+      enabled: false
+      schedule: "0 2 * * *"                # Cron schedule
+      retention: "30d"
+      compression: "gzip"
+
+# Example service configurations (uncomment and modify as needed)
+# service_examples:
+#   - name: "nextcloud"
+#     description: "Personal cloud storage"
+#     subdomain: "cloud"
+#     docker_compose: "./services/nextcloud/docker-compose.yml"
+#     tags: ["storage", "productivity"]
+#     
+#     # Override defaults
+#     auto_shutdown:
+#       inactive_minutes: 60
+#       cpu_threshold: 10
+#     
+#     loading_page:
+#       title: "Starting Nextcloud..."
+#       message: "Initializing your personal cloud storage"
+#       estimated_time: 45
+#     
+#     health_check:
+#       endpoint: "/status.php"
+#       timeout: 30
+#     
+#     backup:
+#       enabled: true
+#       volumes:
+#         - "/var/www/html/data"
+#         - "/var/www/html/config"
+# 
+#   - name: "wordpress"
+#     description: "WordPress blog"
+#     subdomain: "blog"
+#     docker_compose: "./services/wordpress/docker-compose.yml"
+#     tags: ["cms", "blog"]
+#     
+#     environment:
+#       WORDPRESS_DB_HOST: "mysql"
+#       WORDPRESS_DB_USER: "wordpress"
+#       WORDPRESS_DB_PASSWORD: "password"
+#     
+#     dependencies:
+#       - "mysql"
+# 
+#   - name: "mysql"
+#     description: "MySQL Database"
+#     internal: true                       # Not exposed via web interface
+#     docker_compose: "./services/mysql/docker-compose.yml"
+#     tags: ["database"]
+#     
+#     auto_shutdown:
+#       enabled: false                     # Don't auto-shutdown databases
+#     
+#     backup:
+#       enabled: true
+#       schedule: "0 3 * * *"
+#       custom_command: "mysqldump --all-databases"
+
+# Development/Debug Settings (only for development)
+development:
+  enabled: false                           # Enable development mode
+  debug_toolbar: false                     # Enable debug toolbar
+  auto_reload: false                       # Auto-reload on code changes
+  mock_services: false                     # Use mock services for testing
+  
+  # Override settings for development
+  overrides:
+    wakedock:
+      debug: true
+    logging:
+      level: "DEBUG"
+      console:
+        colored: true

@@ -1,0 +1,61 @@
+---
+# Initial server setup playbook
+- name: Initial server setup
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  tasks:
+    - name: Update all packages
+      package:
+        name: "*"
+        state: latest
+      when: ansible_os_family == "RedHat" or ansible_os_family == "Debian"
+      
+    - name: Install essential packages
+      package:
+        name:
+          - curl
+          - wget
+          - git
+          - vim
+          - htop
+          - unzip
+          - rsync
+          - cron
+        state: present
+        
+    - name: Create admin user
+      user:
+        name: admin
+        groups: sudo
+        shell: /bin/bash
+        create_home: yes
+        
+    - name: Set up SSH key for admin user
+      authorized_key:
+        user: admin
+        key: "{{ admin_ssh_key }}"
+      when: admin_ssh_key is defined
+      
+    - name: Disable root SSH login
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+      notify: restart ssh
+      
+    - name: Configure timezone
+      timezone:
+        name: "{{ system_timezone | default('UTC') }}"
+        
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+        
+  handlers:
+    - name: restart ssh
+      service:
+        name: ssh
+        state: restarted

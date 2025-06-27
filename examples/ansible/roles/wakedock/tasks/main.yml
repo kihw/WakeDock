@@ -1,0 +1,69 @@
+---
+# WakeDock application deployment
+- name: Clone WakeDock repository
+  git:
+    repo: "https://github.com/yourusername/wakedock.git"
+    dest: "{{ wakedock_home }}/wakedock"
+    version: "{{ wakedock_version | default('main') }}"
+    force: yes
+  become_user: "{{ wakedock_user }}"
+
+- name: Create WakeDock configuration
+  template:
+    src: config.yml.j2
+    dest: "{{ docker_config_dir }}/config.yml"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0644'
+
+- name: Create environment file
+  template:
+    src: .env.j2
+    dest: "{{ wakedock_home }}/wakedock/.env"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0600'
+
+- name: Create Docker Compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ wakedock_home }}/wakedock/docker-compose.yml"
+    owner: "{{ wakedock_user }}"
+    group: "{{ wakedock_group }}"
+    mode: '0644'
+
+- name: Pull Docker images
+  docker_compose:
+    project_src: "{{ wakedock_home }}/wakedock"
+    pull: yes
+  become_user: "{{ wakedock_user }}"
+
+- name: Start WakeDock services
+  docker_compose:
+    project_src: "{{ wakedock_home }}/wakedock"
+    state: present
+  become_user: "{{ wakedock_user }}"
+
+- name: Create systemd service for WakeDock
+  template:
+    src: wakedock.service.j2
+    dest: /etc/systemd/system/wakedock.service
+    mode: '0644'
+  notify:
+    - reload systemd
+    - restart wakedock
+
+- name: Enable and start WakeDock service
+  systemd:
+    name: wakedock
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Wait for WakeDock to be ready
+  uri:
+    url: "http://localhost:{{ wakedock_port }}/api/v1/health"
+    method: GET
+    status_code: 200
+  retries: 10
+  delay: 10

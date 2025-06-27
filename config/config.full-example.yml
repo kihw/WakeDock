@@ -1,0 +1,173 @@
+wakedock:
+  domain: "yourdomain.com"
+  admin_password: "change-this-password"
+  secret_key: "change-this-secret-key-in-production"
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+  data_path: "/app/data"
+
+caddy:
+  api_endpoint: "http://caddy:2019"
+  config_path: "/etc/caddy/Caddyfile"
+
+database:
+  url: "sqlite:///./data/wakedock.db"
+
+monitoring:
+  enabled: true
+  metrics_retention: "7d"
+  collect_interval: 30
+
+logging:
+  level: "INFO"
+  file: "/app/logs/wakedock.log"
+
+services:
+  # Nextcloud - Personal cloud storage
+  - name: "nextcloud"
+    subdomain: "cloud"
+    docker_compose: "./examples/nextcloud/docker-compose.yml"
+    auto_shutdown:
+      inactive_minutes: 30
+      cpu_threshold: 5
+      memory_threshold: 200
+    loading_page:
+      title: "Starting Nextcloud..."
+      message: "Preparing your personal cloud storage"
+      estimated_time: 45
+    health_check:
+      enabled: true
+      endpoint: "/status.php"
+      timeout: 30
+
+  # WordPress - Blog/Website
+  - name: "wordpress"
+    subdomain: "blog"
+    docker_compose: "./examples/wordpress/docker-compose.yml"
+    auto_shutdown:
+      inactive_minutes: 60
+      cpu_threshold: 3
+      memory_threshold: 150
+    loading_page:
+      title: "Starting WordPress..."
+      message: "Loading your blog platform"
+      estimated_time: 30
+
+  # Grafana - Monitoring Dashboard
+  - name: "grafana"
+    subdomain: "monitoring"
+    docker_image: "grafana/grafana:latest"
+    ports: ["3000:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: "admin123"
+    auto_shutdown:
+      inactive_minutes: 15
+      cpu_threshold: 2
+      memory_threshold: 100
+    loading_page:
+      title: "Starting Grafana..."
+      message: "Initializing monitoring dashboard"
+      estimated_time: 20
+
+  # Jupyter Lab - Data Science Environment
+  - name: "jupyter"
+    subdomain: "notebook"
+    docker_image: "jupyter/datascience-notebook:latest"
+    ports: ["8888:8888"]
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+      JUPYTER_TOKEN: "your-secure-token"
+    auto_shutdown:
+      inactive_minutes: 120  # 2 hours for long-running notebooks
+      cpu_threshold: 10
+      memory_threshold: 500
+    loading_page:
+      title: "Starting Jupyter Lab..."
+      message: "Launching your data science environment"
+      estimated_time: 25
+
+  # Code Server - VS Code in browser
+  - name: "code-server"
+    subdomain: "code"
+    docker_image: "codercom/code-server:latest"
+    ports: ["8080:8080"]
+    environment:
+      PASSWORD: "your-secure-password"
+    auto_shutdown:
+      inactive_minutes: 90
+      cpu_threshold: 5
+      memory_threshold: 300
+    loading_page:
+      title: "Starting Code Server..."
+      message: "Preparing your development environment"
+      estimated_time: 30
+
+  # Portfolio Website - Simple static site
+  - name: "portfolio"
+    subdomain: "portfolio"
+    docker_image: "nginx:alpine"
+    ports: ["80:80"]
+    auto_shutdown:
+      inactive_minutes: 30
+      cpu_threshold: 1
+      memory_threshold: 50
+    loading_page:
+      title: "Loading Portfolio..."
+      message: "Displaying latest work"
+      estimated_time: 10
+
+  # Gitea - Git repository hosting
+  - name: "gitea"
+    subdomain: "git"
+    docker_image: "gitea/gitea:latest"
+    ports: ["3000:3000", "2222:22"]
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+    auto_shutdown:
+      inactive_minutes: 45
+      cpu_threshold: 3
+      memory_threshold: 200
+    loading_page:
+      title: "Starting Gitea..."
+      message: "Initializing Git repository server"
+      estimated_time: 35
+
+  # Minio - S3-compatible object storage
+  - name: "minio"
+    subdomain: "storage"
+    docker_image: "minio/minio:latest"
+    ports: ["9000:9000", "9001:9001"]
+    environment:
+      MINIO_ROOT_USER: "admin"
+      MINIO_ROOT_PASSWORD: "your-secure-password"
+    auto_shutdown:
+      inactive_minutes: 60
+      cpu_threshold: 2
+      memory_threshold: 150
+    loading_page:
+      title: "Starting MinIO..."
+      message: "Preparing object storage service"
+      estimated_time: 15
+
+  # Bookstack - Documentation wiki
+  - name: "bookstack"
+    subdomain: "docs"
+    docker_image: "linuxserver/bookstack:latest"
+    ports: ["80:80"]
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      DB_HOST: "bookstack-db"
+      DB_USER: "bookstack"
+      DB_PASS: "bookstack123"
+      DB_DATABASE: "bookstackapp"
+    auto_shutdown:
+      inactive_minutes: 45
+      cpu_threshold: 3
+      memory_threshold: 200
+    loading_page:
+      title: "Starting BookStack..."
+      message: "Loading documentation platform"
+      estimated_time: 30

@@ -1,0 +1,44 @@
+# Development Dockerfile for WakeDock Dashboard
+# Optimized for development with hot reload and debugging
+
+FROM node:18-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies for native modules
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    && ln -sf python3 /usr/bin/python
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies with dev dependencies
+RUN npm ci --include=dev
+
+# Copy source code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/node_modules/.cache
+
+# Set environment variables for development
+ENV NODE_ENV=development
+ENV VITE_API_URL=http://localhost:8000
+ENV VITE_WS_URL=ws://localhost:8000/ws
+ENV CHOKIDAR_USEPOLLING=true
+ENV CHOKIDAR_INTERVAL=1000
+
+# Expose ports
+EXPOSE 5173
+EXPOSE 24678
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:5173/ || exit 1
+
+# Start development server with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]

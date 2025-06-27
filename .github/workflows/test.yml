@@ -1,0 +1,267 @@
+name: 🧪 Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  # Python/API Tests
+  test-api:
+    name: 🐍 API Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: wakedock_test
+          POSTGRES_USER: wakedock_test  
+          POSTGRES_PASSWORD: wakedock_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements-dev.txt
+
+    - name: 🔍 Lint with flake8
+      run: |
+        flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
+
+    - name: 🎨 Check code formatting with black
+      run: |
+        black --check --diff src/
+
+    - name: 📊 Check import sorting with isort
+      run: |
+        isort --check-only --diff src/
+
+    - name: 🔒 Security check with bandit
+      run: |
+        bandit -r src/ -f json -o bandit-report.json || true
+
+    - name: 🧪 Run tests with pytest
+      env:
+        DATABASE_URL: postgresql://wakedock_test:wakedock_test@localhost:5432/wakedock_test
+        REDIS_URL: redis://localhost:6379/0
+        JWT_SECRET_KEY: test-secret-key-for-ci
+        ENV: test
+      run: |
+        pytest tests/ -v --cov=src/wakedock --cov-report=xml --cov-report=html --cov-report=term
+
+    - name: 📊 Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: api
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+    - name: 📋 Upload test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: api-test-results
+        path: |
+          htmlcov/
+          bandit-report.json
+          coverage.xml
+
+  # Dashboard/Frontend Tests  
+  test-dashboard:
+    name: 🎨 Dashboard Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🟢 Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: dashboard/package-lock.json
+
+    - name: 📦 Install dependencies
+      working-directory: dashboard
+      run: npm ci
+
+    - name: 🔍 Lint TypeScript
+      working-directory: dashboard
+      run: npm run check
+
+    - name: 🎨 Check code formatting
+      working-directory: dashboard
+      run: npm run format:check || true
+
+    - name: 🧪 Run tests
+      working-directory: dashboard
+      run: npm run test || true
+
+    - name: 🏗️ Build dashboard
+      working-directory: dashboard
+      run: npm run build
+
+    - name: 📋 Upload build artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: dashboard-build
+        path: dashboard/build/
+
+  # Integration Tests
+  test-integration:
+    name: 🔗 Integration Tests
+    runs-on: ubuntu-latest
+    needs: [test-api, test-dashboard]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🏗️ Build test images
+      run: |
+        docker-compose -f docker-compose.test.yml build
+
+    - name: 🧪 Run integration tests
+      run: |
+        docker-compose -f docker-compose.test.yml up --exit-code-from test-runner
+      env:
+        COMPOSE_INTERACTIVE_NO_CLI: 1
+
+    - name: 📊 Collect integration test results
+      if: always()
+      run: |
+        docker-compose -f docker-compose.test.yml logs > integration-test-logs.txt
+
+    - name: 📋 Upload integration test logs
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-logs
+        path: integration-test-logs.txt
+
+    - name: 🧹 Cleanup
+      if: always()
+      run: |
+        docker-compose -f docker-compose.test.yml down -v
+
+  # Docker Build Test
+  test-docker-build:
+    name: 🐳 Docker Build Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: 🏗️ Test API Docker build
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile.prod
+        target: production
+        push: false
+        tags: wakedock-api:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: 🏗️ Test Dashboard Docker build
+      uses: docker/build-push-action@v5
+      with:
+        context: dashboard
+        file: dashboard/Dockerfile.prod
+        target: production
+        push: false
+        tags: wakedock-dashboard:test
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  # Security Scanning
+  test-security:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🔍 Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+
+    - name: 📊 Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+
+  # Final Status Check
+  test-status:
+    name: ✅ Test Status
+    runs-on: ubuntu-latest
+    needs: [test-api, test-dashboard, test-integration, test-docker-build, test-security]
+    if: always()
+    
+    steps:
+    - name: 📊 Check test results
+      run: |
+        echo "API Tests: ${{ needs.test-api.result }}"
+        echo "Dashboard Tests: ${{ needs.test-dashboard.result }}"
+        echo "Integration Tests: ${{ needs.test-integration.result }}"
+        echo "Docker Build Tests: ${{ needs.test-docker-build.result }}"
+        echo "Security Tests: ${{ needs.test-security.result }}"
+        
+        if [[ "${{ needs.test-api.result }}" == "failure" || 
+              "${{ needs.test-dashboard.result }}" == "failure" || 
+              "${{ needs.test-integration.result }}" == "failure" || 
+              "${{ needs.test-docker-build.result }}" == "failure" ]]; then
+          echo "❌ Some tests failed"
+          exit 1
+        else
+          echo "✅ All tests passed"
+        fi

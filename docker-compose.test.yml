@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # Test Database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: wakedock-test-postgres
+    environment:
+      - POSTGRES_DB=wakedock_test
+      - POSTGRES_USER=wakedock_test
+      - POSTGRES_PASSWORD=wakedock_test
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U wakedock_test -d wakedock_test" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - wakedock-test-network
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    container_name: wakedock-test-redis
+    command: >
+      redis-server --appendonly no --save "" --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - wakedock-test-network
+
+  # WakeDock Test API
+  wakedock-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+    container_name: wakedock-test-api
+    environment:
+      - ENV=test
+      - HOST=0.0.0.0
+      - PORT=8001
+      - DATABASE_URL=postgresql://wakedock_test:wakedock_test@postgres-test:5432/wakedock_test
+      - REDIS_URL=redis://redis-test:6379/0
+      - JWT_SECRET_KEY=test-secret-key-do-not-use-in-production
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - CADDY_ADMIN_ENDPOINT=http://caddy-test:2019
+      - PYTHONPATH=/app
+      - PYTEST_CURRENT_TEST=1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - .:/app
+      - test_data:/app/data
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: >
+      sh -c "
+        echo 'Waiting for dependencies...' &&
+        python -m pytest tests/ -v --cov=src/wakedock --cov-report=html --cov-report=term
+      "
+    networks:
+      - wakedock-test-network
+
+  # Test Caddy
+  caddy-test:
+    image: caddy:2-alpine
+    container_name: wakedock-test-caddy
+    environment:
+      - DOMAIN=localhost
+      - API_UPSTREAM=wakedock-test:8001
+    volumes:
+      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
+    ports:
+      - "8080:80"
+      - "2020:2019"
+    networks:
+      - wakedock-test-network
+
+  # Test Runner (separate container for running tests)
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test
+    container_name: wakedock-test-runner
+    environment:
+      - ENV=test
+      - DATABASE_URL=postgresql://wakedock_test:wakedock_test@postgres-test:5432/wakedock_test
+      - REDIS_URL=redis://redis-test:6379/0
+      - JWT_SECRET_KEY=test-secret-key-do-not-use-in-production
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+      - test_coverage:/app/htmlcov
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    networks:
+      - wakedock-test-network
+    profiles:
+      - test
+
+volumes:
+  postgres_test_data:
+    driver: local
+  test_data:
+    driver: local
+  test_coverage:
+    driver: local
+
+networks:
+  wakedock-test-network:
+    driver: bridge
