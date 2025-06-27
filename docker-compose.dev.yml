@@ -11,15 +11,15 @@ services:
       - ./src:/app/src
       - ./config:/app/config
       - ./tests:/app/tests
-      - ${WAKEDOCK_LOGS_DIR:-./logs}:/app/logs
+      - ${WAKEDOCK_LOGS_DIR}:/app/logs
     environment:
-      - WAKEDOCK_DEBUG=${DEV_WAKEDOCK_DEBUG:-true}
-      - WAKEDOCK_LOG_LEVEL=${DEV_WAKEDOCK_LOG_LEVEL:-DEBUG}
-      - WAKEDOCK_RELOAD=${DEV_WAKEDOCK_RELOAD:-true}
+      - WAKEDOCK_DEBUG=${DEV_WAKEDOCK_DEBUG}
+      - WAKEDOCK_LOG_LEVEL=${DEV_WAKEDOCK_LOG_LEVEL}
+      - WAKEDOCK_RELOAD=${DEV_WAKEDOCK_RELOAD}
       - PYTHONPATH=/app/src
     ports:
-      - "${WAKEDOCK_CORE_PORT:-8000}:8000"
-      - "${DEBUG_PORT:-5678}:5678" # Debugger port
+      - "${WAKEDOCK_CORE_PORT}:8000"
+      - "${DEBUG_PORT}:5678" # Debugger port
     depends_on:
       - redis
       - db
@@ -35,12 +35,12 @@ services:
       - ./dashboard/package.json:/app/package.json
       - ./dashboard/package-lock.json:/app/package-lock.json
     environment:
-      - NODE_ENV=${DEV_NODE_ENV:-development}
+      - NODE_ENV=${DEV_NODE_ENV}
       - WAKEDOCK_API_URL=http://wakedock:8000
-      - CHOKIDAR_USEPOLLING=${DEV_CHOKIDAR_USEPOLLING:-true}
+      - CHOKIDAR_USEPOLLING=${DEV_CHOKIDAR_USEPOLLING}
     ports:
-      - "${DASHBOARD_PORT:-3000}:3000"
-      - "${HMR_PORT:-24678}:24678" # HMR port
+      - "${DASHBOARD_PORT}:3000"
+      - "${HMR_PORT}:24678" # HMR port
     depends_on:
       - wakedock
 
@@ -48,41 +48,41 @@ services:
     volumes:
       - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile
       - ./caddy/templates:/etc/caddy/templates
-      - ${CADDY_DATA_DIR:-./caddy/data}:/data
-      - ${CADDY_CONFIG_DIR:-./caddy/config}:/config
+      - ${CADDY_DATA_DIR}:/data
+      - ${CADDY_CONFIG_DIR}:/config
     environment:
       - CADDY_ADMIN=0.0.0.0:2019
     ports:
-      - "${CADDY_ADMIN_PORT:-2019}:2019" # Caddy admin API port
+      - "${CADDY_ADMIN_PORT}:2019" # Caddy admin API port
 
   # Development databases
   redis:
     image: redis:7-alpine
     container_name: wakedock-redis-dev
-    restart: ${RESTART_POLICY:-unless-stopped}
+    restart: ${RESTART_POLICY}
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_PORT}:6379"
     volumes:
-      - ${REDIS_DATA_DIR:-./data/redis}:/data
+      - ${REDIS_DATA_DIR}:/data
     command: redis-server --appendonly yes ${REDIS_PASSWORD:+--requirepass $REDIS_PASSWORD}
     networks:
-      - ${WAKEDOCK_NETWORK:-wakedock-network}
+      - ${WAKEDOCK_NETWORK}
 
   db:
     image: postgres:15-alpine
     container_name: wakedock-postgres-dev
-    restart: ${RESTART_POLICY:-unless-stopped}
+    restart: ${RESTART_POLICY}
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-wakedock_dev}
-      - POSTGRES_USER=${POSTGRES_USER:-wakedock}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-dev_password_change_me}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
-      - ${POSTGRES_DATA_DIR:-./data/postgres}:/var/lib/postgresql/data
+      - ${POSTGRES_DATA_DIR}:/var/lib/postgresql/data
       - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - ${WAKEDOCK_NETWORK:-wakedock-network}
+      - ${WAKEDOCK_NETWORK}
 
 volumes:
   redis_dev_data:
@@ -90,11 +90,11 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: ${REDIS_DATA_DIR:-./data/redis}
+      device: ${REDIS_DATA_DIR}
 
   postgres_dev_data:
     driver: local
     driver_opts:
       type: none
       o: bind
-      device: ${POSTGRES_DATA_DIR:-./data/postgres}
+      device: ${POSTGRES_DATA_DIR}

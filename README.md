@@ -72,6 +72,33 @@ nano config/config.yml
 docker-compose up -d
 ```
 
+### Quick Deploy (Docker Hosting Platforms)
+
+For automated deployment on platforms like Dokploy, use the quick deploy script:
+
+```bash
+# Make scripts executable
+chmod +x deploy.sh manage.sh
+
+# Quick deploy (creates network, directories, and starts services)
+./deploy.sh
+```
+
+### Environment Files
+
+- `.env` - Development configuration
+- `.env.production` - Production configuration  
+- `.env.example` - Template with all available variables
+
+### Network Configuration
+
+WakeDock uses a Docker network (default: `caddy_net`) that can be shared with other services:
+
+```bash
+# Create network manually if needed
+docker network create caddy_net
+```
+
 ### Configuration Example
 
 ```yaml

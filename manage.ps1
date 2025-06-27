@@ -122,6 +122,7 @@ function Build-Images {
 
 function Start-Development {
     Write-Host "Starting WakeDock in development mode..."
+    New-DockerNetwork
     docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
     if ($LASTEXITCODE -eq 0) {
         Write-Success "WakeDock development environment started"
@@ -147,6 +148,7 @@ function Start-Development {
 
 function Start-Production {
     Write-Host "Starting WakeDock in production mode..."
+    New-DockerNetwork
     docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
     if ($LASTEXITCODE -eq 0) {
         Write-Success "WakeDock production environment started"
@@ -180,6 +182,41 @@ function Show-Status {
     docker-compose -f docker-compose.yml -f docker-compose.dev.yml ps
 }
 
+function New-DockerNetwork {
+    # Load environment variables first
+    if (Test-Path ".env") {
+        Get-Content ".env" | ForEach-Object {
+            if ($_ -match "^([^#][^=]+)=(.*)$") {
+                [Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+            }
+        }
+    }
+    
+    $networkName = if ($env:WAKEDOCK_NETWORK) { $env:WAKEDOCK_NETWORK } else { "caddy_net" }
+    
+    Write-Host "Checking Docker network '$networkName'..."
+    
+    try {
+        $existingNetwork = docker network ls --filter "name=$networkName" --format "{{.Name}}" 2>$null
+        if ($existingNetwork -eq $networkName) {
+            Write-Success "Docker network '$networkName' already exists"
+        }
+        else {
+            Write-Host "Creating Docker network '$networkName'..."
+            docker network create $networkName
+            if ($LASTEXITCODE -eq 0) {
+                Write-Success "Docker network '$networkName' created successfully"
+            }
+            else {
+                Write-Warning "Failed to create network '$networkName', but continuing..."
+            }
+        }
+    }
+    catch {
+        Write-Warning "Could not check/create Docker network, but continuing..."
+    }
+}
+
 # Main script logic
 switch ($Command.ToLower()) {
     "setup" {
@@ -187,6 +224,7 @@ switch ($Command.ToLower()) {
         Initialize-Environment
         New-DataDirectories
         Build-Images
+        New-DockerNetwork
         Write-Success "WakeDock setup completed!"
         Write-Host ""
         Write-Host "Next steps:" -ForegroundColor $InfoColor
