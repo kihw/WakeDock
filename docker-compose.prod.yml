@@ -1,3 +1,6 @@
+# Production override for docker-compose.yml
+# Use with: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+
 services:
   # WakeDock API Service
   wakedock:
@@ -6,28 +9,33 @@ services:
       dockerfile: Dockerfile.prod
       target: production
     container_name: wakedock-api
-    restart: unless-stopped
+    restart: ${RESTART_POLICY:-unless-stopped}
     environment:
       - ENV=production
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=postgresql://wakedock:wakedock@postgres:5432/wakedock
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-wakedock}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-wakedock}
       - REDIS_URL=redis://redis:6379/0
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - DOCKER_HOST=unix:///var/run/docker.sock
       - CADDY_ADMIN_ENDPOINT=http://caddy:2019
       - PYTHONPATH=/app
+      - WAKEDOCK_DEBUG=false
+      - WAKEDOCK_LOG_LEVEL=${WAKEDOCK_LOG_LEVEL:-INFO}
+      - WAKEDOCK_RELOAD=false
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - wakedock_data:/app/data
-      - wakedock_logs:/app/logs
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:ro
+      - ${WAKEDOCK_CORE_DATA:-./data/wakedock-core}:/app/data
+      - ${WAKEDOCK_LOGS_DIR:-./data/logs}:/app/logs
     ports:
-      - "${API_PORT:-8000}:8000"
+      - "${WAKEDOCK_CORE_PORT:-8000}:8000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    networks:
+      - ${WAKEDOCK_NETWORK:-wakedock-network}
     healthcheck:
       test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/api/v1/health')" ]
       interval: 30s
