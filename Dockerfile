@@ -70,9 +70,6 @@ ENV PYTHONPATH=/app/src \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Security: Drop privileges
-USER wakedock
-
 # Expose port
 EXPOSE 8000
 

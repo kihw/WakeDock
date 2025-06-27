@@ -25,11 +25,29 @@ class DockerOrchestrator:
     """Manages Docker containers and services"""
     
     def __init__(self):
-        self.client = docker.from_env()
         self.settings = get_settings()
         self.services: Dict[str, Dict[str, Any]] = {}
         self.container_map: Dict[str, str] = {}  # container_id -> service_id
+        self.client = None
+        self._initialize_docker_client()
         self._load_services()
+    
+    def _initialize_docker_client(self):
+        """Initialize Docker client with error handling"""
+        try:
+            self.client = docker.from_env()
+            # Test connection
+            self.client.ping()
+            logger.info("✅ Docker client initialized successfully")
+        except docker.errors.DockerException as e:
+            logger.error(f"❌ Failed to connect to Docker daemon: {e}")
+            if "Permission denied" in str(e):
+                logger.error("💡 This is likely a Docker socket permission issue.")
+                logger.error("💡 Make sure the container has access to /var/run/docker.sock")
+            self.client = None
+        except Exception as e:
+            logger.error(f"❌ Unexpected error initializing Docker client: {e}")
+            self.client = None
     
     def _load_services(self):
         """Load services from configuration"""
@@ -131,6 +149,9 @@ class DockerOrchestrator:
     
     async def is_service_running(self, service_id: str) -> bool:
         """Check if service is running"""
+        if not self._check_docker_available():
+            return False
+            
         service = self.services.get(service_id)
         if not service:
             return False
@@ -192,6 +213,9 @@ class DockerOrchestrator:
     
     async def _start_docker_service(self, service: Dict[str, Any]) -> bool:
         """Start a Docker service from image"""
+        if not self._check_docker_available():
+            return False
+            
         try:
             # Check if container already exists
             container_name = f"wakedock-{service['name']}"
@@ -419,3 +443,10 @@ class DockerOrchestrator:
         except Exception as e:
             logger.error(f"Failed to get stats for service {service['name']}: {str(e)}")
             return None
+    
+    def _check_docker_available(self) -> bool:
+        """Check if Docker client is available"""
+        if self.client is None:
+            logger.warning("⚠️ Docker client not available - operations will be skipped")
+            return False
+        return True
