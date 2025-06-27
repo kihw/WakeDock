@@ -46,8 +46,15 @@ class CaddyManager:
             # Create directory if it doesn't exist
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             
-            # If Caddyfile doesn't exist, create it
-            if not self.config_path.exists():
+            # Check if a directory with the name "Caddyfile" exists (common mistake)
+            if self.config_path.exists() and self.config_path.is_dir():
+                logger.warning(f"Found directory named 'Caddyfile' at {self.config_path}, removing it...")
+                import shutil
+                shutil.rmtree(self.config_path)
+                logger.info("Removed incorrect Caddyfile directory")
+            
+            # If Caddyfile doesn't exist or was a directory, create it as a file
+            if not self.config_path.exists() or not self.config_path.is_file():
                 initial_config = self._generate_initial_caddyfile()
                 with open(self.config_path, 'w') as f:
                     f.write(initial_config)
