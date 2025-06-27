@@ -21,9 +21,9 @@ class CaddyManager:
         """Initialize Caddy manager with settings."""
         self.settings = get_settings()
         
-        # Use environment variable if set, otherwise use /etc/caddy/Caddyfile
-        caddy_volume_path = os.environ.get('CADDY_CONFIG_VOLUME_PATH', '/etc/caddy')
-        self.config_path = Path(caddy_volume_path) / "Caddyfile"
+        # Use /etc/caddy inside the container (this is where the volume is mounted)
+        # The CADDY_CONFIG_VOLUME_PATH env var is for the host, not the container
+        self.config_path = Path("/etc/caddy/Caddyfile")
         
         self.reload_endpoint = self.settings.caddy.reload_endpoint
         self.admin_port = getattr(self.settings.caddy, 'admin_port', 2019)

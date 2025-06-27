@@ -13,6 +13,7 @@ services:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
       - ${WAKEDOCK_CONFIG_DIR}:/app/config
       - wakedock_data:/app/data
+      - ${CADDY_CONFIG_VOLUME}:/etc/caddy
     environment:
       - WAKEDOCK_CONFIG_PATH=/app/config/config.yml
       - WAKEDOCK_DATA_PATH=/app/data
