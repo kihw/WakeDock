@@ -25,7 +25,8 @@ WakeDock is an intelligent orchestration tool that automatically manages your Do
 - 📈 **Resource Monitoring** - Real-time stats and usage tracking
 - 🎛️ **Web Dashboard** - Modern interface to manage all services
 - 🔐 **Secure Access** - Built-in authentication and access control
-- 🐳 **Docker Native** - Works with containers and Docker Compose stacks
+- � **Advanced Authentication System** - OAuth, SSO, and centralized user management (v1.5+)
+- �🐳 **Docker Native** - Works with containers and Docker Compose stacks
 
 ---
 
@@ -269,6 +270,15 @@ python -m wakedock.main --dev
 - [ ] **v1.2** - Advanced monitoring
 - [ ] **v1.3** - Multi-user support
 - [ ] **v1.4** - Kubernetes support
+- [ ] **v1.5** - **Advanced Authentication System** 🔐
+  - OAuth 2.0 integration (Google, GitHub, Azure AD, etc.)
+  - Basic authentication with username/password
+  - Per-service access control and user permissions
+  - Authentication proxy for all services
+  - SSO (Single Sign-On) across all managed services
+  - Role-based access control (RBAC)
+  - Session management with configurable timeout
+  - Integration with external identity providers (LDAP, Active Directory)
 - [ ] **v2.0** - Auto-scaling capabilities
 
 ---
@@ -358,6 +368,216 @@ docker-compose up wakedock
 debug: true
 log_level: "DEBUG"
 ```
+
+---
+
+## 🔐 Advanced Authentication System (v1.5)
+
+### Vision
+
+WakeDock v1.5 introduira un système d'authentification complet qui agit comme un proxy d'authentification pour tous vos services auto-hébergés. Au lieu que chaque service gère sa propre authentification, WakeDock centralise l'authentification et contrôle l'accès à tous vos services.
+
+### 🌟 Fonctionnalités Clés
+
+#### **Proxy d'Authentification Universel**
+- Intercepte toutes les requêtes vers vos services
+- Redirige vers la page de connexion si l'utilisateur n'est pas authentifié
+- Maintient les sessions utilisateurs de manière centralisée
+- Proxy transparent vers le service une fois authentifié
+
+#### **Support Multi-Protocoles d'Authentification**
+- **OAuth 2.0 / OpenID Connect** pour les fournisseurs populaires :
+  - Google Workspace / Gmail
+  - GitHub / GitHub Enterprise
+  - Microsoft Azure AD / Office 365
+  - Discord, Twitter, Facebook
+  - Keycloak, Auth0, Okta
+- **Authentification Basique** avec base de données locale :
+  - Inscription/connexion par email/mot de passe
+  - Récupération de mot de passe par email
+  - Validation par email optionnelle
+- **Intégrations Entreprise** :
+  - LDAP / Active Directory
+  - SAML 2.0
+  - Radius
+
+#### **Contrôle d'Accès Granulaire**
+```yaml
+authentication:
+  providers:
+    - type: "oauth"
+      provider: "google"
+      client_id: "your-google-client-id"
+      client_secret: "your-google-client-secret"
+      allowed_domains: ["yourdomain.com"]
+    
+    - type: "basic"
+      allow_registration: true
+      require_email_verification: true
+      password_policy:
+        min_length: 8
+        require_special_chars: true
+
+  access_control:
+    default_policy: "deny"  # deny ou allow
+    
+    rules:
+      - service: "nextcloud"
+        users: ["admin@yourdomain.com", "user1@company.com"]
+        groups: ["admin", "users"]
+        
+      - service: "grafana"
+        groups: ["admin", "monitoring"]
+        
+      - service: "public-blog"
+        policy: "allow"  # Accès public, pas d'auth requise
+        
+      - service: "*"  # Toutes les autres services
+        groups: ["admin"]
+```
+
+#### **Interface de Gestion des Utilisateurs**
+- Dashboard admin pour gérer les utilisateurs et permissions
+- Auto-provisioning depuis les fournisseurs OAuth
+- Gestion des groupes et rôles
+- Logs d'authentification et d'accès
+- Statistiques d'utilisation par utilisateur
+
+### 🔄 Flux d'Authentification
+
+```
+1. User → https://app.yourdomain.com
+2. WakeDock vérifie la session
+3. Si non authentifié → Redirection vers /auth/login
+4. Utilisateur choisit le mode d'authentification :
+   ├─ OAuth (Google, GitHub, etc.)
+   └─ Basic (email/password)
+5. Après auth réussie → Cookie de session sécurisé
+6. Vérification des permissions pour le service demandé
+7. Si autorisé → Wake du container + Proxy vers le service
+8. Si non autorisé → Page d'erreur 403
+```
+
+### 🛡️ Sécurité Avancée
+
+#### **Gestion des Sessions**
+- JWT tokens sécurisés avec rotation automatique
+- Sessions persistantes avec durée configurable
+- Support multi-device avec révocation sélective
+- Protection CSRF intégrée
+
+#### **Fonctionnalités de Sécurité**
+- Rate limiting sur les tentatives de connexion
+- Détection de tentatives d'intrusion
+- Audit trail complet des accès
+- Support 2FA/MFA (TOTP, SMS, email)
+- Whitelist/blacklist IP automatique
+
+### 📊 Monitoring et Analytics
+
+```yaml
+authentication:
+  monitoring:
+    enabled: true
+    log_failed_attempts: true
+    alert_on_suspicious_activity: true
+    metrics:
+      - login_attempts
+      - active_sessions
+      - service_usage_by_user
+      - failed_auth_by_ip
+```
+
+### 🔧 Configuration Exemple Complète
+
+```yaml
+# config/config.yml
+wakedock:
+  domain: "yourdomain.com"
+  admin_password: "your-secure-password"
+
+authentication:
+  enabled: true
+  session_timeout: "24h"
+  require_https: true
+  
+  providers:
+    google:
+      enabled: true
+      client_id: "${GOOGLE_CLIENT_ID}"
+      client_secret: "${GOOGLE_CLIENT_SECRET}"
+      allowed_domains: ["yourdomain.com"]
+      
+    github:
+      enabled: true
+      client_id: "${GITHUB_CLIENT_ID}"
+      client_secret: "${GITHUB_CLIENT_SECRET}"
+      allowed_organizations: ["your-org"]
+      
+    basic:
+      enabled: true
+      allow_registration: false  # Seulement admin peut créer des users
+      password_requirements:
+        min_length: 12
+        require_uppercase: true
+        require_numbers: true
+        require_special: true
+
+  access_control:
+    default_policy: "deny"
+    admin_users: ["admin@yourdomain.com"]
+    
+    services:
+      nextcloud:
+        allowed_users: ["user1@yourdomain.com", "user2@yourdomain.com"]
+        allowed_groups: ["family", "team"]
+        
+      grafana:
+        allowed_groups: ["admin", "devops"]
+        require_2fa: true
+        
+      public-site:
+        public: true  # Pas d'auth requise
+
+services:
+  - name: "nextcloud"
+    subdomain: "cloud"
+    docker_compose: "./services/nextcloud/docker-compose.yml"
+    authentication:
+      required: true
+      bypass_health_checks: true  # Les health checks passent sans auth
+    auto_shutdown:
+      inactive_minutes: 30
+```
+
+### 🚀 Migration depuis v1.4
+
+La migration sera automatique avec rétrocompatibilité :
+
+```bash
+# Backup de la configuration actuelle
+wakedock config backup
+
+# Mise à jour vers v1.5
+docker-compose pull
+docker-compose up -d
+
+# Configuration de l'authentification
+wakedock auth setup --interactive
+
+# Test de la configuration
+wakedock auth validate
+```
+
+### 💡 Cas d'Usage
+
+1. **Famille/Personnel** : OAuth Google + contrôle par domaine email
+2. **Petite Entreprise** : GitHub OAuth + gestion par organisation
+3. **Entreprise** : LDAP/AD + SAML pour SSO corporate
+4. **Communauté** : Inscription libre + modération admin
+5. **Hybride** : Mix OAuth + comptes locaux pour flexibilité maximale
+
+Cette fonctionnalité transformera WakeDock en une solution complète de gestion d'accès pour tous vos services auto-hébergés, éliminant le besoin de gérer l'authentification individuellement pour chaque application.
 
 ---
 

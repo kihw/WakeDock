@@ -86,7 +86,7 @@ open https://your-domain.com
 ### Complete Production Stack
 
 ```yaml
-version: '3.8'
+ 
 
 services:
   api:

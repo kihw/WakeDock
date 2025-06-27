@@ -140,7 +140,7 @@ VOLUME /tmp
 
 ```yaml
 # docker-compose security settings
-version: '3.8'
+ 
 
 services:
   api:
@@ -270,7 +270,7 @@ sudo ufw enable
 
 ```yaml
 # Isolated networks
-version: '3.8'
+ 
 
 networks:
   frontend:
@@ -306,7 +306,7 @@ export DB_PASSWORD=$(vault kv get -field=db_password secret/wakedock)
 
 ```yaml
 # docker-compose with secrets
-version: '3.8'
+ 
 
 secrets:
   db_password:

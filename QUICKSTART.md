@@ -119,7 +119,7 @@ services:
 Create `services/wordpress/docker-compose.yml`:
 
 ```yaml
-version: '3.8'
+ 
 services:
   wordpress:
     image: wordpress:latest
