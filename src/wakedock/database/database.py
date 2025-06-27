@@ -35,19 +35,30 @@ class DatabaseManager:
         if db_url:
             return db_url
         
-        # Default to SQLite for development
-        db_path = os.path.join(self.settings.wakedock.data_path, "wakedock.db")
-        
-        # Ensure the directory exists
-        db_dir = os.path.dirname(db_path)
+        # Try to use the configured data path first
         try:
+            db_path = os.path.join(self.settings.wakedock.data_path, "wakedock.db")
+            db_dir = os.path.dirname(db_path)
             os.makedirs(db_dir, exist_ok=True)
-        except PermissionError:
-            # If we can't create the directory, try to continue anyway
-            # The database creation will fail with a more specific error
-            pass
-        
-        return f"sqlite:///{db_path}"
+            
+            # Test if we can write to this location
+            test_file = os.path.join(db_dir, '.write_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            
+            return f"sqlite:///{db_path}"
+            
+        except (PermissionError, OSError) as e:
+            # Fallback to a local directory inside the container
+            print(f"Warning: Cannot write to configured data path ({self.settings.wakedock.data_path}): {e}")
+            print("This is likely due to Docker volume mount permissions.")
+            print("Using fallback location inside container (data will not persist across container restarts)")
+            fallback_dir = "/tmp/wakedock"
+            os.makedirs(fallback_dir, exist_ok=True)
+            fallback_path = os.path.join(fallback_dir, "wakedock.db")
+            print(f"Using fallback database path: {fallback_path}")
+            return f"sqlite:///{fallback_path}"
     
     def initialize(self) -> None:
         """Initialize database engine and session factory."""

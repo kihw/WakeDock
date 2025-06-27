@@ -52,8 +52,9 @@ async def main():
         init_database()
         logger.info("Database initialized successfully")
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
-        raise
+        logger.warning(f"Database initialization failed: {e}")
+        logger.warning("Application will continue but database features may not work properly")
+        # Don't raise the exception - allow the app to start
     
     # Initialize services
     orchestrator = DockerOrchestrator()

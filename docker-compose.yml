@@ -12,7 +12,7 @@ services:
     volumes:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
       - ${WAKEDOCK_CONFIG_DIR}:/app/config
-      - ${WAKEDOCK_CORE_DATA}:/app/data
+      - wakedock_data:/app/data
     environment:
       - WAKEDOCK_CONFIG_PATH=/app/config/config.yml
       - WAKEDOCK_DATA_PATH=/app/data
@@ -79,10 +79,6 @@ networks:
 volumes:
   wakedock_data:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${WAKEDOCK_CORE_DATA}
 
   caddy_config_volume:
     driver: local
