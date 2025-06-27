@@ -19,22 +19,33 @@ async def main():
     # Load configuration
     settings = get_settings()
     
-    # Setup logging
-    logging.basicConfig(
-        level=getattr(logging, settings.logging.level),
-        format=settings.logging.format,
-        handlers=[
+    # Create data directories first
+    Path(settings.wakedock.data_path).mkdir(parents=True, exist_ok=True)
+    log_path = Path(settings.logging.file)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    
+    # Ensure log file can be created
+    try:
+        log_path.touch(exist_ok=True)
+    except PermissionError:
+        # Fallback to stdout only if log file can't be created
+        print(f"Warning: Cannot create log file at {log_path}, logging to stdout only")
+        handlers = [logging.StreamHandler()]
+    else:
+        handlers = [
             logging.FileHandler(settings.logging.file),
             logging.StreamHandler()
         ]
+    
+    # Setup logging after directories are created
+    logging.basicConfig(
+        level=getattr(logging, settings.logging.level),
+        format=settings.logging.format,
+        handlers=handlers
     )
     
     logger = logging.getLogger(__name__)
     logger.info("Starting WakeDock...")
-    
-    # Create data directories
-    Path(settings.wakedock.data_path).mkdir(parents=True, exist_ok=True)
-    Path(settings.logging.file).parent.mkdir(parents=True, exist_ok=True)
     
     # Initialize database
     try:

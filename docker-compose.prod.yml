@@ -28,7 +28,6 @@ services:
     volumes:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock:ro
       - ${WAKEDOCK_CORE_DATA}:/app/data
-      - ${WAKEDOCK_LOGS_DIR}:/app/logs
     ports:
       - "${WAKEDOCK_CORE_PORT}:8000"
     depends_on:
@@ -248,13 +247,6 @@ volumes:
       type: none
       o: bind
       device: ${WAKEDOCK_CORE_DATA}
-
-  wakedock_logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${WAKEDOCK_LOGS_DIR}
 
   postgres_data:
     driver: local

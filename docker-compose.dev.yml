@@ -13,7 +13,6 @@ services:
       - ./src:/app/src
       - ./config:/app/config
       - ./tests:/app/tests
-      - ${WAKEDOCK_LOGS_DIR}:/app/logs
     environment:
       - WAKEDOCK_DEBUG=${DEV_WAKEDOCK_DEBUG}
       - WAKEDOCK_LOG_LEVEL=${DEV_WAKEDOCK_LOG_LEVEL}

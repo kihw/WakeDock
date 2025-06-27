@@ -13,7 +13,6 @@ services:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
       - ${WAKEDOCK_CONFIG_DIR}:/app/config
       - ${WAKEDOCK_CORE_DATA}:/app/data
-      - ${WAKEDOCK_LOGS_DIR}:/app/logs
     environment:
       - WAKEDOCK_CONFIG_PATH=/app/config/config.yml
       - WAKEDOCK_DATA_PATH=/app/data
