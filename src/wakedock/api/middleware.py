@@ -4,7 +4,7 @@ Proxy middleware for handling service wake-up and routing
 
 import asyncio
 import logging
-from typing import Callable
+from typing import Callable, Optional
 from urllib.parse import urlparse
 
 from fastapi import Request, Response
@@ -22,13 +22,17 @@ logger = logging.getLogger(__name__)
 class ProxyMiddleware(BaseHTTPMiddleware):
     """Middleware to handle service wake-up and proxy requests"""
     
-    def __init__(self, app, orchestrator: DockerOrchestrator):
+    def __init__(self, app, orchestrator: Optional[DockerOrchestrator]):
         super().__init__(app)
         self.orchestrator = orchestrator
         self.client = httpx.AsyncClient(timeout=30.0)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Process incoming requests"""
+        # If no orchestrator, just pass through
+        if self.orchestrator is None:
+            return await call_next(request)
+            
         host = request.headers.get("host", "")
         
         # Skip admin and API requests

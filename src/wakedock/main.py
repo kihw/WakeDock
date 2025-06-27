@@ -57,11 +57,25 @@ async def main():
         # Don't raise the exception - allow the app to start
     
     # Initialize services
-    orchestrator = DockerOrchestrator()
-    monitoring_service = MonitoringService()
+    try:
+        orchestrator = DockerOrchestrator()
+        logger.info("Docker orchestrator initialized successfully")
+    except Exception as e:
+        logger.warning(f"Docker orchestrator initialization failed: {e}")
+        logger.warning("Application will continue but Docker management features will not work")
+        # Create a dummy orchestrator that doesn't do anything
+        orchestrator = None
     
-    # Connect monitoring service to orchestrator
-    monitoring_service.set_orchestrator(orchestrator)
+    try:
+        monitoring_service = MonitoringService()
+        logger.info("Monitoring service initialized successfully")
+    except Exception as e:
+        logger.warning(f"Monitoring service initialization failed: {e}")
+        monitoring_service = None
+    
+    # Connect monitoring service to orchestrator if both are available
+    if orchestrator and monitoring_service:
+        monitoring_service.set_orchestrator(orchestrator)
     
     # Create FastAPI app
     app = create_app(orchestrator, monitoring_service)

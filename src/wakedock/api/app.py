@@ -2,6 +2,7 @@
 FastAPI application factory
 """
 
+from typing import Optional
 from fastapi import FastAPI, HTTPException, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
@@ -19,7 +20,7 @@ from wakedock.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-def create_app(orchestrator: DockerOrchestrator, monitoring: MonitoringService) -> FastAPI:
+def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Optional[MonitoringService] = None) -> FastAPI:
     """Create and configure FastAPI application"""
     settings = get_settings()
     
