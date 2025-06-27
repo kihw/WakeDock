@@ -21,9 +21,8 @@ RUN pip install --no-cache-dir --upgrade pip wheel && \
 # Production stage
 FROM python:3.11-slim as production
 
-# Security: Create non-root user and docker group
-RUN groupadd -r wakedock && useradd -r -g wakedock -d /app -s /bin/bash wakedock \
-    && groupadd -g 999 docker && usermod -aG docker wakedock
+# Security: Create non-root user
+RUN groupadd -r wakedock && useradd -r -g wakedock -d /app -s /bin/bash wakedock
 
 WORKDIR /app
 
@@ -31,10 +30,24 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     curl \
     ca-certificates \
-    gosu \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/*
+
+# Install gosu for step-down from root
+RUN set -eux; \
+    savedAptMark="$(apt-mark showmanual)"; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends wget; \
+    rm -rf /var/lib/apt/lists/*; \
+    dpkgArch="$(dpkg --print-architecture | awk -F- '{ print $NF }')"; \
+    wget -O /usr/local/bin/gosu "https://github.com/tianon/gosu/releases/download/1.17/gosu-$dpkgArch"; \
+    chmod +x /usr/local/bin/gosu; \
+    gosu --version; \
+    gosu nobody true; \
+    apt-mark auto '.*' > /dev/null; \
+    [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false
 
 # Install Docker CLI (security: specific version and verification)
 ARG DOCKER_VERSION=24.0.7
