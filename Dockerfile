@@ -21,8 +21,9 @@ RUN pip install --no-cache-dir --upgrade pip wheel && \
 # Production stage
 FROM python:3.11-slim as production
 
-# Security: Create non-root user
-RUN groupadd -r wakedock && useradd -r -g wakedock -d /app -s /bin/bash wakedock
+# Security: Create non-root user and docker group
+RUN groupadd -r wakedock && useradd -r -g wakedock -d /app -s /bin/bash wakedock \
+    && groupadd -g 999 docker && usermod -aG docker wakedock
 
 WORKDIR /app
 
@@ -50,6 +51,10 @@ COPY --chown=wakedock:wakedock src/ ./src/
 COPY --chown=wakedock:wakedock config/ ./config/
 COPY --chown=wakedock:wakedock test_config.py ./test_config.py
 COPY --chown=wakedock:wakedock health_check.py ./health_check.py
+COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+
+# Make entrypoint script executable
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/data /app/logs && \
@@ -84,4 +89,5 @@ LABEL \
     security.dockerfile.hardened="true"
 
 # Run the application
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["python", "-m", "wakedock.main"]
