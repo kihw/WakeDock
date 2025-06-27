@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
     import { authStore } from "$lib/stores/authStore";
     import { toast } from "$lib/stores/toastStore";
-    import Button from "$lib/components/Button.svelte";
+    import Button from "$lib/components/forms/Button.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
 
     // Check if current user is admin
