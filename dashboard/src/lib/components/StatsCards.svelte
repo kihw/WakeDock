@@ -1,6 +1,6 @@
 <script lang="ts">
     import { Cpu, HardDrive, Activity, Container } from "lucide-svelte";
-    import { Writable } from "svelte/store";
+    import type { Writable } from "svelte/store";
 
     export let stats: Writable<{
         total_services: number;

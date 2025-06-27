@@ -8,8 +8,9 @@
         Users,
         Shield,
     } from "lucide-svelte";
+    import type { Writable } from "svelte/store";
 
-    export let open: boolean = false;
+    export let open: Writable<boolean>;
 
     const navItems = [
         { label: "Dashboard", href: "/", icon: BarChart3 },
@@ -20,13 +21,13 @@
     ];
 </script>
 
-<aside class="sidebar" class:open>
+<aside class="sidebar" class:open={$open}>
     <div class="sidebar-header">
         <div class="logo">
             <Container size={24} />
             <span>WakeDock</span>
         </div>
-        <button class="close-btn" on:click={() => (open = false)}>
+        <button class="close-btn" on:click={() => open.set(false)}>
             <X size={20} />
         </button>
     </div>
@@ -47,8 +48,8 @@
     </div>
 </aside>
 
-{#if open}
-    <div class="overlay" on:click={() => (open = false)}></div>
+{#if $open}
+    <div class="overlay" on:click={() => open.set(false)}></div>
 {/if}
 
 <style>

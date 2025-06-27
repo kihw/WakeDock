@@ -1,8 +1,9 @@
 <script lang="ts">
     import { Menu, Bell, User, Sun, Moon } from "lucide-svelte";
     import { writable } from "svelte/store";
+    import type { Writable } from "svelte/store";
 
-    export let sidebarOpen: any;
+    export let sidebarOpen: Writable<boolean>;
 
     const darkMode = writable(false);
 

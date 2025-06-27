@@ -10,10 +10,10 @@
 </script>
 
 <div class="app">
-    <Sidebar bind:open={$sidebarOpen} />
+    <Sidebar open={sidebarOpen} />
 
     <div class="main" class:shifted={$sidebarOpen}>
-        <Header bind:sidebarOpen={$sidebarOpen} />
+        <Header {sidebarOpen} />
 
         <main class="content">
             <slot />
