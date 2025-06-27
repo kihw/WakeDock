@@ -7,6 +7,8 @@ services:
       context: .
       dockerfile: Dockerfile
       target: development
+    env_file:
+      - .env
     volumes:
       - ./src:/app/src
       - ./config:/app/config
@@ -29,6 +31,8 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile.dev
+    env_file:
+      - .env
     volumes:
       - ./dashboard/src:/app/src
       - ./dashboard/static:/app/static
@@ -45,6 +49,8 @@ services:
       - wakedock
 
   caddy:
+    env_file:
+      - .env
     volumes:
       - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile
       - ./caddy/templates:/etc/caddy/templates
@@ -60,6 +66,8 @@ services:
     image: redis:7-alpine
     container_name: wakedock-redis-dev
     restart: ${RESTART_POLICY}
+    env_file:
+      - .env
     ports:
       - "${REDIS_PORT}:6379"
     volumes:
@@ -72,6 +80,8 @@ services:
     image: postgres:15-alpine
     container_name: wakedock-postgres-dev
     restart: ${RESTART_POLICY}
+    env_file:
+      - .env
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
