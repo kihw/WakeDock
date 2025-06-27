@@ -8,6 +8,7 @@ from typing import Dict, Any
 from datetime import datetime
 
 from wakedock.core.monitoring import MonitoringService
+from wakedock.core.caddy import caddy_manager
 
 router = APIRouter()
 
@@ -61,3 +62,45 @@ async def get_system_metrics(monitoring: MonitoringService = Depends(get_monitor
             "response_time": 0
         }
     }
+
+
+@router.post("/caddy/reload")
+async def reload_caddy_config():
+    """Force reload Caddy configuration"""
+    try:
+        success = await caddy_manager.force_reload()
+        if success:
+            return {
+                "status": "success",
+                "message": "Caddy configuration reloaded successfully",
+                "timestamp": datetime.now()
+            }
+        else:
+            return {
+                "status": "error", 
+                "message": "Failed to reload Caddy configuration",
+                "timestamp": datetime.now()
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error reloading Caddy: {str(e)}",
+            "timestamp": datetime.now()
+        }
+
+
+@router.get("/caddy/status")
+async def get_caddy_status():
+    """Get Caddy server status"""
+    try:
+        status = await caddy_manager.get_caddy_status()
+        return {
+            "timestamp": datetime.now(),
+            **status
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Error getting Caddy status: {str(e)}",
+            "timestamp": datetime.now()
+        }

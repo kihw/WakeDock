@@ -59,6 +59,9 @@ class CaddyManager:
                 with open(self.config_path, 'w') as f:
                     f.write(initial_config)
                 logger.info(f"Created initial Caddyfile at {self.config_path}")
+                
+                # Reload Caddy after creating initial config
+                self._schedule_reload()
             else:
                 logger.info(f"Caddyfile already exists at {self.config_path}")
                 
@@ -76,8 +79,11 @@ class CaddyManager:
     
     # Global options
     servers {
-        protocol {
-            experimental_http3
+        timeouts {
+            read_body   10s
+            read_header 10s
+            write       10s
+            idle        2m
         }
     }
 }
@@ -166,22 +172,39 @@ class CaddyManager:
     async def reload_caddy(self) -> bool:
         """Reload Caddy configuration via API."""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"http://{self.admin_host}:{self.admin_port}/load",
-                    headers={"Content-Type": "application/json"},
-                    json={"config": self._get_caddy_config()}
-                )
+            # First, check if Caddy is reachable
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                # Try to get current config first to check if Caddy is running
+                try:
+                    health_response = await client.get(f"http://{self.admin_host}:{self.admin_port}/config/")
+                    if health_response.status_code != 200:
+                        logger.warning(f"Caddy admin API not responding properly: {health_response.status_code}")
+                        return False
+                except httpx.ConnectError:
+                    logger.warning("Caddy admin API not reachable, skipping reload")
+                    return False
+                
+                # If we have a Caddyfile, use it to reload
+                if self.config_path.exists():
+                    # Use the reload endpoint with the file content
+                    response = await client.post(
+                        f"http://{self.admin_host}:{self.admin_port}/load",
+                        headers={"Content-Type": "text/caddyfile"},
+                        content=self.config_path.read_text()
+                    )
+                else:
+                    logger.warning("No Caddyfile found, cannot reload")
+                    return False
                 
                 if response.status_code == 200:
-                    logger.info("Caddy configuration reloaded successfully")
+                    logger.info("✅ Caddy configuration reloaded successfully")
                     return True
                 else:
-                    logger.error(f"Failed to reload Caddy: {response.status_code} - {response.text}")
+                    logger.error(f"❌ Failed to reload Caddy: {response.status_code} - {response.text}")
                     return False
                     
         except Exception as e:
-            logger.error(f"Error reloading Caddy: {e}")
+            logger.error(f"❌ Error reloading Caddy: {e}")
             return False
     
     def _get_caddy_config(self) -> Dict[str, Any]:
@@ -310,6 +333,12 @@ class CaddyManager:
             f.write(content)
         
         logger.info(f"Updated Caddyfile at {self.config_path}")
+        
+        # Automatically reload Caddy after writing the file
+        try:
+            await self.reload_caddy()
+        except Exception as e:
+            logger.error(f"Failed to reload Caddy after writing config: {e}")
     
     async def add_service_route(self, service: Service) -> bool:
         """Add a route for a new service."""
@@ -337,6 +366,8 @@ class CaddyManager:
                 
                 if response.status_code in [200, 201]:
                     logger.info(f"Added route for service {service.name}")
+                    # Automatically reload Caddy configuration
+                    await self.reload_caddy()
                     return True
                 else:
                     logger.error(f"Failed to add route: {response.status_code}")
@@ -358,6 +389,8 @@ class CaddyManager:
                 
                 if response.status_code == 200:
                     logger.info(f"Removed route for service {service.name}")
+                    # Automatically reload Caddy configuration
+                    await self.reload_caddy()
                     return True
                 else:
                     logger.warning(f"Failed to remove route (may not exist): {response.status_code}")
@@ -407,6 +440,77 @@ class CaddyManager:
         except Exception as e:
             logger.error(f"Error validating domain: {e}")
             return False
+    
+    def _schedule_reload(self) -> None:
+        """Schedule a Caddy reload in a background task."""
+        try:
+            import asyncio
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Create a task to reload in the background
+                loop.create_task(self._delayed_reload())
+            else:
+                # If no loop is running, we'll skip the reload for now
+                logger.warning("No event loop running, skipping Caddy reload")
+        except Exception as e:
+            logger.warning(f"Could not schedule Caddy reload: {e}")
+    
+    async def _delayed_reload(self) -> None:
+        """Reload Caddy after a short delay to ensure file is written."""
+        try:
+            # Wait a bit to ensure the file is fully written
+            await asyncio.sleep(1)
+            await self.reload_caddy()
+        except Exception as e:
+            logger.error(f"Error in delayed reload: {e}")
+    
+    async def force_reload(self) -> bool:
+        """Force a Caddy configuration reload."""
+        logger.info("Forcing Caddy configuration reload...")
+        return await self.reload_caddy()
+    
+    def write_caddyfile_sync(self, content: str) -> None:
+        """Synchronous version of _write_caddyfile for non-async contexts."""
+        # Ensure directory exists
+        self.config_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write configuration
+        with open(self.config_path, 'w') as f:
+            f.write(content)
+        
+        logger.info(f"Updated Caddyfile at {self.config_path}")
+        
+        # Schedule reload in background
+        self._schedule_reload()
+    
+    def start_file_watcher(self):
+        """Start watching the Caddyfile for changes and auto-reload."""
+        try:
+            import threading
+            import time
+            
+            def watch_file():
+                last_modified = None
+                while True:
+                    try:
+                        if self.config_path.exists():
+                            current_modified = self.config_path.stat().st_mtime
+                            if last_modified is not None and current_modified != last_modified:
+                                logger.info("Caddyfile changed, scheduling reload...")
+                                self._schedule_reload()
+                            last_modified = current_modified
+                    except Exception as e:
+                        logger.error(f"Error watching Caddyfile: {e}")
+                    
+                    time.sleep(2)  # Check every 2 seconds
+            
+            # Start the watcher in a background thread
+            watcher_thread = threading.Thread(target=watch_file, daemon=True)
+            watcher_thread.start()
+            logger.info("Started Caddyfile watcher")
+            
+        except Exception as e:
+            logger.warning(f"Could not start file watcher: {e}")
 
 
 # Global Caddy manager instance

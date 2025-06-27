@@ -13,7 +13,7 @@ services:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
       - ${WAKEDOCK_CONFIG_DIR}:/app/config
       - wakedock_data:/app/data
-      - ${CADDY_CONFIG_VOLUME}:/etc/caddy
+      - caddy_config_shared:/etc/caddy
     environment:
       - WAKEDOCK_CONFIG_PATH=/app/config/config.yml
       - WAKEDOCK_DATA_PATH=/app/data
@@ -47,12 +47,21 @@ services:
       - "${CADDY_HTTPS_PORT}:443"
       - "${CADDY_ADMIN_PORT}:2019" # Admin API
     volumes:
-      - ${CADDY_CONFIG_VOLUME}:/etc/caddy
+      - caddy_config_shared:/etc/caddy
       - ${CADDY_DATA_DIR}:/data
       - ${CADDY_CONFIG_DIR}:/config
+      - ./caddy/Caddyfile.default:/tmp/Caddyfile.default:ro
     environment:
       - CADDY_AUTO_HTTPS=${CADDY_AUTO_HTTPS}
       - CADDY_ADMIN_API_ENABLED=${CADDY_ADMIN_API_ENABLED}
+    command: >
+      sh -c "
+        if [ ! -f /etc/caddy/Caddyfile ]; then
+          echo 'Copying default Caddyfile...'
+          cp /tmp/Caddyfile.default /etc/caddy/Caddyfile
+        fi
+        caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+      "
     networks:
       - ${WAKEDOCK_NETWORK}
     depends_on:
@@ -138,12 +147,8 @@ volumes:
   redis_data:
     driver: local
 
-  caddy_config_volume:
+  caddy_config_shared:
     driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: ${CADDY_CONFIG_VOLUME}
 
   caddy_data:
     driver: local

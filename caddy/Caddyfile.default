@@ -1,0 +1,23 @@
+# WakeDock Default Caddyfile
+# This file will be replaced by WakeDock when it starts
+
+{
+    admin 0.0.0.0:2019
+    auto_https off
+}
+
+# Simple fallback configuration
+:80 {
+    respond "WakeDock is initializing... Please wait." 503 {
+        body "WakeDock is starting up. This page will be updated automatically."
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+:2019 {
+    respond "Caddy Admin API" 200
+}
