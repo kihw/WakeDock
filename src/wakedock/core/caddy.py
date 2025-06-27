@@ -32,6 +32,125 @@ class CaddyManager:
         else:
             # Create basic template environment
             self.jinja_env = Environment(loader=FileSystemLoader("."))
+        
+        # Ensure initial Caddyfile exists
+        self._ensure_initial_caddyfile()
+    
+    def _ensure_initial_caddyfile(self) -> None:
+        """Create initial Caddyfile if it doesn't exist."""
+        try:
+            # Create directory if it doesn't exist
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # If Caddyfile doesn't exist, create it
+            if not self.config_path.exists():
+                initial_config = self._generate_initial_caddyfile()
+                with open(self.config_path, 'w') as f:
+                    f.write(initial_config)
+                logger.info(f"Created initial Caddyfile at {self.config_path}")
+            else:
+                logger.info(f"Caddyfile already exists at {self.config_path}")
+                
+        except Exception as e:
+            logger.error(f"Error creating initial Caddyfile: {e}")
+    
+    def _generate_initial_caddyfile(self) -> str:
+        """Generate initial Caddyfile configuration."""
+        return """# WakeDock Auto-Generated Caddyfile
+# This file is managed by WakeDock application
+
+{
+    admin 0.0.0.0:2019
+    auto_https off
+    
+    # Global options
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
+}
+
+# Main HTTP port - serves as proxy when app is ready, fallback when not
+:80 {
+    # Try to proxy to dashboard first
+    @dashboard_ready {
+        path /*
+        header_regexp Host "^(localhost|.*)"
+    }
+    
+    # Try dashboard with fallback
+    handle @dashboard_ready {
+        reverse_proxy dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Fallback to loading page if dashboard not ready
+            @error status 502 503 504
+            handle_response @error {
+                respond "WakeDock is starting... Dashboard will be available shortly." 503 {
+                    body "WakeDock Dashboard is initializing. Please wait a moment and refresh."
+                }
+            }
+        }
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Fallback if API not ready
+            @error status 502 503 504
+            handle_response @error {
+                respond "WakeDock API is starting..." 503 {
+                    body "WakeDock API is initializing. Please wait a moment and try again."
+                }
+            }
+        }
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "WakeDock Caddy OK" 200
+    }
+    
+    # Fallback for any unmatched requests
+    handle {
+        respond "WakeDock is starting... Please wait for all services to initialize." 503 {
+            body "WakeDock is initializing. All services will be available shortly."
+        }
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Admin API port
+:2019 {
+    respond /config* "WakeDock Caddy Admin API" 200
+    
+    # Allow all admin operations
+    handle {
+        reverse_proxy localhost:2019
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Dynamic service configurations will be appended below
+# --- WAKEDOCK MANAGED SERVICES ---
+"""
     
     async def reload_caddy(self) -> bool:
         """Reload Caddy configuration via API."""
