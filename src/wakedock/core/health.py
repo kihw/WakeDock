@@ -239,7 +239,8 @@ class HealthMonitor:
     async def _check_database(self) -> HealthResult:
         """Check database connectivity."""
         try:
-            from wakedock.database.database import db_manager
+            from wakedock.database.database import get_db_manager
+            db_manager = get_db_manager()
             
             with db_manager.get_session() as session:
                 # Simple query to test connection

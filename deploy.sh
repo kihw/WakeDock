@@ -17,7 +17,7 @@ else
     echo "✅ Network $NETWORK_NAME exists"
 fi
 
-# Create data directories
+# Create data directories with proper permissions
 echo "Creating data directories..."
 mkdir -p "${WAKEDOCK_DATA_DIR}"
 mkdir -p "${WAKEDOCK_CORE_DATA}"
@@ -27,6 +27,13 @@ mkdir -p "${CADDY_DATA_DIR}"
 mkdir -p "${CADDY_CONFIG_DIR}"
 mkdir -p "${CADDY_CONFIG_VOLUME}"
 mkdir -p "${DASHBOARD_DATA_DIR}"
+
+# Set proper permissions for data directories
+# WakeDock user in container has UID 1000 (typical for Docker)
+echo "Setting directory permissions..."
+chmod -R 755 "${WAKEDOCK_DATA_DIR}"
+chown -R 1000:1000 "${WAKEDOCK_CORE_DATA}" 2>/dev/null || echo "Note: Could not set ownership (may require sudo)"
+chown -R 1000:1000 "${WAKEDOCK_LOGS_DIR}" 2>/dev/null || echo "Note: Could not set ownership (may require sudo)"
 
 # Setup initial Caddy configuration
 echo "Setting up initial Caddy configuration..."

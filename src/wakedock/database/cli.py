@@ -5,7 +5,7 @@ from alembic import command
 from alembic.config import Config
 from pathlib import Path
 
-from wakedock.database.database import init_database, db_manager
+from wakedock.database.database import init_database, get_db_manager
 
 
 @click.group()
@@ -55,6 +55,7 @@ def reset():
     if click.confirm("This will delete all data. Continue?"):
         click.echo("Resetting database...")
         try:
+            db_manager = get_db_manager()
             db_manager.initialize()
             db_manager.drop_tables()
             db_manager.create_tables()

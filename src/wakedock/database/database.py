@@ -21,12 +21,13 @@ class DatabaseManager:
         """Initialize the database manager.
         
         Args:
-            database_url: Database connection URL. If None, uses config settings.
+            database_url: Database connection URL. If None, will be set when needed.
         """
         self.settings = get_settings()
-        self.database_url = database_url or self._get_database_url()
+        self.database_url = database_url
         self.engine: Optional[Engine] = None
         self.SessionLocal: Optional[sessionmaker] = None
+        self._initialized = False
     
     def _get_database_url(self) -> str:
         """Get database URL from environment or use default SQLite."""
@@ -39,28 +40,24 @@ class DatabaseManager:
         
         # Ensure the directory exists
         db_dir = os.path.dirname(db_path)
-        print(f"Database directory: {db_dir}")
-        print(f"Database file path: {db_path}")
-        
         try:
             os.makedirs(db_dir, exist_ok=True)
-            print(f"Directory created/verified: {db_dir}")
-            
-            # Check if we can write to the directory
-            test_file = os.path.join(db_dir, '.write_test')
-            with open(test_file, 'w') as f:
-                f.write('test')
-            os.remove(test_file)
-            print(f"Write test successful in: {db_dir}")
-            
-        except Exception as e:
-            print(f"Error creating database directory or testing write permissions: {e}")
-            raise
+        except PermissionError:
+            # If we can't create the directory, try to continue anyway
+            # The database creation will fail with a more specific error
+            pass
         
         return f"sqlite:///{db_path}"
     
     def initialize(self) -> None:
         """Initialize database engine and session factory."""
+        # Set database URL if not already set
+        if not self.database_url:
+            self.database_url = self._get_database_url()
+        
+        if self._initialized:
+            return
+            
         try:
             # Create engine with appropriate settings
             if self.database_url.startswith("sqlite"):
@@ -86,11 +83,16 @@ class DatabaseManager:
                 bind=self.engine
             )
             
+            self._initialized = True
+            
         except SQLAlchemyError as e:
             raise RuntimeError(f"Failed to initialize database: {e}")
     
     def create_tables(self) -> None:
         """Create all database tables."""
+        if not self._initialized:
+            self.initialize()
+            
         if not self.engine:
             raise RuntimeError("Database engine not initialized")
         
@@ -101,6 +103,9 @@ class DatabaseManager:
     
     def drop_tables(self) -> None:
         """Drop all database tables."""
+        if not self._initialized:
+            self.initialize()
+            
         if not self.engine:
             raise RuntimeError("Database engine not initialized")
         
@@ -112,6 +117,9 @@ class DatabaseManager:
     @contextmanager
     def get_session(self) -> Generator[Session, None, None]:
         """Get a database session with automatic cleanup."""
+        if not self._initialized:
+            self.initialize()
+        
         if not self.SessionLocal:
             raise RuntimeError("Database not initialized")
         
@@ -126,17 +134,27 @@ class DatabaseManager:
             session.close()
 
 
-# Global database manager instance
-db_manager = DatabaseManager()
+# Global database manager instance (lazy initialization)
+_db_manager: Optional[DatabaseManager] = None
+
+
+def get_db_manager() -> DatabaseManager:
+    """Get the global database manager instance."""
+    global _db_manager  
+    if _db_manager is None:
+        _db_manager = DatabaseManager()
+    return _db_manager
 
 
 def get_db_session() -> Generator[Session, None, None]:
     """FastAPI dependency for database sessions."""
+    db_manager = get_db_manager()
     with db_manager.get_session() as session:
         yield session
 
 
 def init_database() -> None:
     """Initialize the database for the application."""
+    db_manager = get_db_manager()
     db_manager.initialize()
     db_manager.create_tables()
