@@ -11,6 +11,7 @@ from wakedock.config import get_settings
 from wakedock.api.app import create_app
 from wakedock.core.monitoring import MonitoringService
 from wakedock.core.orchestrator import DockerOrchestrator
+from wakedock.core.caddy import caddy_manager
 from wakedock.database.database import init_database
 
 
@@ -65,6 +66,15 @@ async def main():
         logger.warning("Application will continue but Docker management features will not work")
         # Create a dummy orchestrator that doesn't do anything
         orchestrator = None
+
+    # Initialize Caddy manager
+    try:
+        logger.info("Initializing Caddy manager...")
+        # Just importing caddy_manager will trigger initialization
+        logger.info("Caddy manager initialized successfully")
+    except Exception as e:
+        logger.warning(f"Caddy manager initialization failed: {e}")
+        logger.warning("Application will continue but Caddy management features will not work")
     
     try:
         monitoring_service = MonitoringService()

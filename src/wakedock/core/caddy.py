@@ -20,7 +20,11 @@ class CaddyManager:
     def __init__(self):
         """Initialize Caddy manager with settings."""
         self.settings = get_settings()
-        self.config_path = Path(self.settings.caddy.config_path)
+        
+        # Use environment variable if set, otherwise use /etc/caddy/Caddyfile
+        caddy_volume_path = os.environ.get('CADDY_CONFIG_VOLUME_PATH', '/etc/caddy')
+        self.config_path = Path(caddy_volume_path) / "Caddyfile"
+        
         self.reload_endpoint = self.settings.caddy.reload_endpoint
         self.admin_port = getattr(self.settings.caddy, 'admin_port', 2019)
         self.admin_host = getattr(self.settings.caddy, 'admin_host', 'localhost')
