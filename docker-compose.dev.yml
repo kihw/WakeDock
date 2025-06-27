@@ -25,7 +25,6 @@ services:
     depends_on:
       - redis
       - db
-      - caddy
 
   dashboard:
     build:
@@ -52,14 +51,28 @@ services:
     env_file:
       - .env
     volumes:
-      - ./caddy/Caddyfile.dev:/etc/caddy/Caddyfile
-      - ./caddy/templates:/etc/caddy/templates
       - ${CADDY_DATA_DIR}:/data
       - ${CADDY_CONFIG_DIR}:/config
     environment:
       - CADDY_ADMIN=0.0.0.0:2019
     ports:
       - "${CADDY_ADMIN_PORT}:2019" # Caddy admin API port
+    command: >
+      caddy run --config /dev/stdin --adapter caddyfile <<< ' {
+        admin 0.0.0.0:2019
+        auto_https off
+      }
+
+      :80 {
+        reverse_proxy dashboard:3000
+      }
+
+      :8000 {
+        reverse_proxy wakedock:8000
+      } '
+    depends_on:
+      - wakedock
+      - dashboard
 
   # Development databases
   redis:

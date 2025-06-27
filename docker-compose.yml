@@ -19,10 +19,15 @@ services:
       - WAKEDOCK_DATA_PATH=/app/data
       - WAKEDOCK_LOG_LEVEL=${WAKEDOCK_LOG_LEVEL}
       - WAKEDOCK_DEBUG=${WAKEDOCK_DEBUG}
+      - CADDY_CONFIG_VOLUME_PATH=${CADDY_CONFIG_VOLUME}
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
     networks:
       - ${WAKEDOCK_NETWORK}
-    depends_on:
-      - caddy
 
   caddy:
     image: caddy:2-alpine
@@ -35,7 +40,7 @@ services:
       - "${CADDY_HTTPS_PORT}:443"
       - "${CADDY_ADMIN_PORT}:2019" # Admin API
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ${CADDY_CONFIG_VOLUME}:/etc/caddy
       - ${CADDY_DATA_DIR}:/data
       - ${CADDY_CONFIG_DIR}:/config
     environment:
@@ -43,6 +48,9 @@ services:
       - CADDY_ADMIN_API_ENABLED=${CADDY_ADMIN_API_ENABLED}
     networks:
       - ${WAKEDOCK_NETWORK}
+    depends_on:
+      wakedock:
+        condition: service_healthy
 
   dashboard:
     build:
@@ -76,6 +84,13 @@ volumes:
       type: none
       o: bind
       device: ${WAKEDOCK_CORE_DATA}
+
+  caddy_config_volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CADDY_CONFIG_VOLUME}
 
   caddy_data:
     driver: local

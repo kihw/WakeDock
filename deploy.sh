@@ -25,7 +25,15 @@ mkdir -p "${WAKEDOCK_LOGS_DIR}"
 mkdir -p "${WAKEDOCK_CONFIG_DIR}"
 mkdir -p "${CADDY_DATA_DIR}"
 mkdir -p "${CADDY_CONFIG_DIR}"
+mkdir -p "${CADDY_CONFIG_VOLUME}"
 mkdir -p "${DASHBOARD_DATA_DIR}"
+
+# Setup initial Caddy configuration
+echo "Setting up initial Caddy configuration..."
+if [ ! -f "${CADDY_CONFIG_VOLUME}/Caddyfile" ]; then
+    cp ./caddy/Caddyfile.auto "${CADDY_CONFIG_VOLUME}/Caddyfile"
+    echo "✅ Initial Caddyfile created"
+fi
 
 echo "✅ Directories created"
 

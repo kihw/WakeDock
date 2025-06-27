@@ -94,6 +94,7 @@ function New-DataDirectories {
         $(if ($env:WAKEDOCK_CONFIG_DIR) { $env:WAKEDOCK_CONFIG_DIR } else { "$dataDir/config" }),
         $(if ($env:CADDY_DATA_DIR) { $env:CADDY_DATA_DIR } else { "$dataDir/caddy-data" }),
         $(if ($env:CADDY_CONFIG_DIR) { $env:CADDY_CONFIG_DIR } else { "$dataDir/caddy-config" }),
+        $(if ($env:CADDY_CONFIG_VOLUME) { $env:CADDY_CONFIG_VOLUME } else { "$dataDir/caddy-volume" }),
         $(if ($env:DASHBOARD_DATA_DIR) { $env:DASHBOARD_DATA_DIR } else { "$dataDir/dashboard" }),
         $(if ($env:POSTGRES_DATA_DIR) { $env:POSTGRES_DATA_DIR } else { "$dataDir/postgres" }),
         $(if ($env:REDIS_DATA_DIR) { $env:REDIS_DATA_DIR } else { "$dataDir/redis" })
@@ -102,6 +103,15 @@ function New-DataDirectories {
     foreach ($dir in $directories) {
         if (-not (Test-Path $dir)) {
             New-Item -ItemType Directory -Path $dir -Force | Out-Null
+        }
+    }
+    
+    # Setup initial Caddy configuration
+    $caddyConfigPath = if ($env:CADDY_CONFIG_VOLUME) { $env:CADDY_CONFIG_VOLUME } else { "$dataDir/caddy-volume" }
+    if (-not (Test-Path "$caddyConfigPath/Caddyfile")) {
+        if (Test-Path "./caddy/Caddyfile.auto") {
+            Copy-Item "./caddy/Caddyfile.auto" "$caddyConfigPath/Caddyfile" -Force
+            Write-Success "Initial Caddyfile created"
         }
     }
     

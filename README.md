@@ -608,6 +608,24 @@ Cette fonctionnalité transformera WakeDock en une solution complète de gestion
 
 ---
 
+## 📜 Automatic Caddy Configuration
+
+WakeDock now uses **dynamic configuration** for Caddy, eliminating file mounting issues:
+
+- ✅ **No Caddyfile mounting** - Avoids Docker volume mount errors
+- ✅ **Self-configuring** - WakeDock sets up its own routes automatically  
+- ✅ **Platform compatible** - Works on Dokploy, Kubernetes, and other platforms
+- ✅ **Real-time updates** - Configuration changes without restarts
+
+When WakeDock starts:
+1. Caddy launches with minimal configuration
+2. WakeDock automatically configures proxy routes
+3. Your services become available immediately
+
+> **Note**: Legacy `Caddyfile` configurations are still supported for manual setups.
+
+---
+
 ## 📝 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

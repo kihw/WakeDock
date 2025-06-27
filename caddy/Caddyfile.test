@@ -1,0 +1,73 @@
+# WakeDock Test Caddyfile
+# Test configuration for integration testing
+
+{
+    admin 0.0.0.0:2019
+    auto_https off
+    
+    # Enable debug logging for tests
+    log {
+        level DEBUG
+    }
+}
+
+# Test Dashboard
+:3000 {
+    reverse_proxy dashboard:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Test API
+:8001 {
+    reverse_proxy wakedock-test:8001 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Health check handling
+        health_uri /api/v1/health
+        health_interval 5s
+        health_timeout 3s
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Test localhost configuration
+localhost {
+    # Serve dashboard by default
+    reverse_proxy dashboard:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy wakedock-test:8001 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}

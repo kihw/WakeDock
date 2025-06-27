@@ -1,0 +1,80 @@
+# WakeDock Development Caddyfile
+# Development configuration with more verbose logging and hot-reload support
+
+{
+    admin 0.0.0.0:2019
+    auto_https off
+    
+    # Enable debug logging
+    log {
+        level DEBUG
+    }
+    
+    # Global options for development
+    servers {
+        protocol {
+            experimental_http3
+        }
+    }
+}
+
+# Development Dashboard (with HMR support)
+:3000 {
+    reverse_proxy dashboard:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Development API
+:8000 {
+    reverse_proxy wakedock:8000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Health check handling
+        health_uri /api/v1/health
+        health_interval 10s
+        health_timeout 5s
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Catch-all for development (localhost)
+localhost {
+    # Serve dashboard by default
+    reverse_proxy dashboard:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    log {
+        output stdout
+        format console
+    }
+}

@@ -3,32 +3,36 @@ services:
   postgres-test:
     image: postgres:15-alpine
     container_name: wakedock-test-postgres
+    env_file:
+      - .env
     environment:
-      - POSTGRES_DB=wakedock_test
-      - POSTGRES_USER=wakedock_test
-      - POSTGRES_PASSWORD=wakedock_test
+      - POSTGRES_DB=${TEST_POSTGRES_DB}
+      - POSTGRES_USER=${TEST_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${TEST_POSTGRES_PASSWORD}
       - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     volumes:
-      - postgres_test_data:/var/lib/postgresql/data
+      - ${TEST_POSTGRES_DATA_DIR}:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "${TEST_POSTGRES_PORT}:5432"
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U wakedock_test -d wakedock_test" ]
+      test: [ "CMD-SHELL", "pg_isready -U ${TEST_POSTGRES_USER} -d ${TEST_POSTGRES_DB}" ]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 20s
     networks:
-      - wakedock-test-network
+      - ${TEST_NETWORK}
 
   # Test Redis
   redis-test:
     image: redis:7-alpine
     container_name: wakedock-test-redis
+    env_file:
+      - .env
     command: >
       redis-server --appendonly no --save "" --maxmemory 128mb --maxmemory-policy allkeys-lru
     ports:
-      - "6380:6379"
+      - "${TEST_REDIS_PORT}:6379"
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -36,7 +40,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - wakedock-test-network
+      - ${TEST_NETWORK}
 
   # WakeDock Test API
   wakedock-test:
@@ -45,23 +49,25 @@ services:
       dockerfile: Dockerfile
       target: development
     container_name: wakedock-test-api
+    env_file:
+      - .env
     environment:
       - ENV=test
       - HOST=0.0.0.0
-      - PORT=8001
-      - DATABASE_URL=postgresql://wakedock_test:wakedock_test@postgres-test:5432/wakedock_test
+      - PORT=${TEST_API_PORT}
+      - DATABASE_URL=postgresql://${TEST_POSTGRES_USER}:${TEST_POSTGRES_PASSWORD}@postgres-test:5432/${TEST_POSTGRES_DB}
       - REDIS_URL=redis://redis-test:6379/0
-      - JWT_SECRET_KEY=test-secret-key-do-not-use-in-production
+      - JWT_SECRET_KEY=${TEST_JWT_SECRET_KEY}
       - DOCKER_HOST=unix:///var/run/docker.sock
       - CADDY_ADMIN_ENDPOINT=http://caddy-test:2019
       - PYTHONPATH=/app
       - PYTEST_CURRENT_TEST=1
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock:ro
       - .:/app
-      - test_data:/app/data
+      - ${TEST_DATA_DIR}:/app/data
     ports:
-      - "8001:8001"
+      - "${TEST_API_PORT}:${TEST_API_PORT}"
     depends_on:
       postgres-test:
         condition: service_healthy
@@ -73,22 +79,24 @@ services:
         python -m pytest tests/ -v --cov=src/wakedock --cov-report=html --cov-report=term
       "
     networks:
-      - wakedock-test-network
+      - ${TEST_NETWORK}
 
   # Test Caddy
   caddy-test:
     image: caddy:2-alpine
     container_name: wakedock-test-caddy
+    env_file:
+      - .env
     environment:
-      - DOMAIN=localhost
-      - API_UPSTREAM=wakedock-test:8001
+      - DOMAIN=${TEST_DOMAIN}
+      - API_UPSTREAM=wakedock-test:${TEST_API_PORT}
     volumes:
       - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
     ports:
-      - "8080:80"
-      - "2020:2019"
+      - "${TEST_CADDY_HTTP_PORT}:80"
+      - "${TEST_CADDY_ADMIN_PORT}:2019"
     networks:
-      - wakedock-test-network
+      - ${TEST_NETWORK}
 
   # Test Runner (separate container for running tests)
   test-runner:
@@ -97,33 +105,50 @@ services:
       dockerfile: Dockerfile
       target: test
     container_name: wakedock-test-runner
+    env_file:
+      - .env
     environment:
       - ENV=test
-      - DATABASE_URL=postgresql://wakedock_test:wakedock_test@postgres-test:5432/wakedock_test
+      - DATABASE_URL=postgresql://${TEST_POSTGRES_USER}:${TEST_POSTGRES_PASSWORD}@postgres-test:5432/${TEST_POSTGRES_DB}
       - REDIS_URL=redis://redis-test:6379/0
-      - JWT_SECRET_KEY=test-secret-key-do-not-use-in-production
+      - JWT_SECRET_KEY=${TEST_JWT_SECRET_KEY}
       - PYTHONPATH=/app
     volumes:
       - .:/app
-      - test_coverage:/app/htmlcov
+      - ${TEST_COVERAGE_DIR}:/app/htmlcov
     depends_on:
       postgres-test:
         condition: service_healthy
       redis-test:
         condition: service_healthy
     networks:
-      - wakedock-test-network
+      - ${TEST_NETWORK}
     profiles:
       - test
 
 volumes:
   postgres_test_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TEST_POSTGRES_DATA_DIR}
+
   test_data:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TEST_DATA_DIR}
+
   test_coverage:
     driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${TEST_COVERAGE_DIR}
 
 networks:
   wakedock-test-network:
-    driver: bridge
+    name: ${TEST_NETWORK}
+    external: true
