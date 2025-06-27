@@ -36,6 +36,27 @@ class DatabaseManager:
         
         # Default to SQLite for development
         db_path = os.path.join(self.settings.wakedock.data_path, "wakedock.db")
+        
+        # Ensure the directory exists
+        db_dir = os.path.dirname(db_path)
+        print(f"Database directory: {db_dir}")
+        print(f"Database file path: {db_path}")
+        
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"Directory created/verified: {db_dir}")
+            
+            # Check if we can write to the directory
+            test_file = os.path.join(db_dir, '.write_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            print(f"Write test successful in: {db_dir}")
+            
+        except Exception as e:
+            print(f"Error creating database directory or testing write permissions: {e}")
+            raise
+        
         return f"sqlite:///{db_path}"
     
     def initialize(self) -> None:
