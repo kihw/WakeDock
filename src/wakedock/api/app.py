@@ -63,6 +63,25 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         tags=["system"]
     )
     
+    # Duplicate routes for internal container communication (without /api prefix)
+    app.include_router(
+        health.router,
+        prefix="/v1",
+        tags=["health-internal"]
+    )
+    
+    app.include_router(
+        services.router,
+        prefix="/v1/services",
+        tags=["services-internal"]
+    )
+    
+    app.include_router(
+        system.router,
+        prefix="/v1/system",
+        tags=["system-internal"]
+    )
+    
     app.include_router(
         auth_router,
         prefix="/api/v1",
