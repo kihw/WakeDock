@@ -9,7 +9,8 @@ try {
     $response = Invoke-WebRequest -Uri "http://localhost/health" -UseBasicParsing
     Write-Host "   Status: $($response.StatusCode)"
     Write-Host "   Content: $($response.Content)"
-} catch {
+}
+catch {
     Write-Host "   Error: $($_.Exception.Message)"
 }
 Write-Host ""
@@ -20,7 +21,8 @@ try {
     $response = Invoke-WebRequest -Uri "http://localhost/api/v1/services" -UseBasicParsing
     Write-Host "   Status: $($response.StatusCode)"
     Write-Host "   Content: $($response.Content)"
-} catch {
+}
+catch {
     Write-Host "   Error: $($_.Exception.Message)"
 }
 Write-Host ""
@@ -31,7 +33,8 @@ try {
     $response = Invoke-WebRequest -Uri "http://localhost/api/v1/system/overview" -UseBasicParsing
     Write-Host "   Status: $($response.StatusCode)"
     Write-Host "   Content: $($response.Content)"
-} catch {
+}
+catch {
     Write-Host "   Error: $($_.Exception.Message)"
 }
 Write-Host ""
@@ -44,10 +47,12 @@ try {
     Write-Host "   Content-Type: $($response.Headers['Content-Type'])"
     if ($response.Content.Length -gt 100) {
         Write-Host "   Content preview: $($response.Content.Substring(0, 100))..."
-    } else {
+    }
+    else {
         Write-Host "   Content: $($response.Content)"
     }
-} catch {
+}
+catch {
     Write-Host "   Error: $($_.Exception.Message)"
 }
 

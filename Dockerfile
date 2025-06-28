@@ -63,7 +63,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 # Copy application code with proper ownership
 COPY --chown=wakedock:wakedock src/ ./src/
 COPY --chown=wakedock:wakedock config/ ./config/
-COPY --chown=wakedock:wakedock test_config.py ./test_config.py
 COPY --chown=wakedock:wakedock health_check.py ./health_check.py
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
