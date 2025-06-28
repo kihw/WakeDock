@@ -81,6 +81,14 @@
     error: filteredServices?.filter((s) => s.status === 'error').length || 0,
   };
 
+  // Status filter options (reactive to ensure SSR compatibility)
+  $: statusOptions = [
+    { value: 'all', label: 'All Services', count: quickStats?.total || 0 },
+    { value: 'running', label: 'Running', count: quickStats?.running || 0 },
+    { value: 'stopped', label: 'Stopped', count: quickStats?.stopped || 0 },
+    { value: 'error', label: 'Error', count: quickStats?.error || 0 },
+  ];
+
   onMount(async () => {
     await loadServices();
     await loadStats();
@@ -96,8 +104,36 @@
   async function loadServices() {
     try {
       loading = true;
-      // Mock data - replace with actual API call
-      const mockServices: Service[] = [
+      error = '';
+      
+      // Try to load from API, fallback to mock data
+      try {
+        // Import the API - handle SSR case
+        if (typeof window !== 'undefined') {
+          const { api } = await import('$lib/api');
+          const apiServices = await api.services.getAll();
+          services = apiServices.map(service => ({
+            id: service.id,
+            name: service.name,
+            subdomain: service.name.toLowerCase(),
+            status: service.status,
+            docker_image: service.image,
+            ports: service.ports.map(p => `${p.host}:${p.container}`),
+            last_accessed: service.updated_at,
+            resource_usage: {
+              cpu_percent: Math.random() * 50,
+              memory_usage: Math.random() * 512 * 1024 * 1024,
+              memory_percent: Math.random() * 30,
+            },
+          }));
+        } else {
+          // SSR fallback
+          services = [];
+        }
+      } catch (apiError) {
+        console.warn('API not available, using mock data:', apiError);
+        // Fallback to mock data
+        const mockServices: Service[] = [
         {
           id: '1',
           name: 'nginx-proxy',
@@ -236,13 +272,6 @@
       await loadServices();
     }
   }
-
-  const statusOptions = [
-    { value: 'all', label: 'All Services', count: quickStats.total },
-    { value: 'running', label: 'Running', count: quickStats.running },
-    { value: 'stopped', label: 'Stopped', count: quickStats.stopped },
-    { value: 'error', label: 'Error', count: quickStats.error },
-  ];
 </script>
 
 <svelte:head>
@@ -263,15 +292,15 @@
         </p>
         <div class="hero-stats">
           <div class="hero-stat">
-            <div class="hero-stat-value">{quickStats.total}</div>
+            <div class="hero-stat-value">{quickStats?.total || 0}</div>
             <div class="hero-stat-label">Total Services</div>
           </div>
           <div class="hero-stat">
-            <div class="hero-stat-value text-green-600">{quickStats.running}</div>
+            <div class="hero-stat-value text-green-600">{quickStats?.running || 0}</div>
             <div class="hero-stat-label">Running</div>
           </div>
           <div class="hero-stat">
-            <div class="hero-stat-value text-gray-600">{quickStats.stopped}</div>
+            <div class="hero-stat-value text-gray-600">{quickStats?.stopped || 0}</div>
             <div class="hero-stat-label">Stopped</div>
           </div>
         </div>

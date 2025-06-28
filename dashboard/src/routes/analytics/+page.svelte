@@ -7,14 +7,14 @@
       totalRequests: 0,
       successfulRequests: 0,
       failedRequests: 0,
-      avgResponseTime: 0
+      avgResponseTime: 0,
     },
     serviceUsage: [],
     systemMetrics: {
       cpuUsage: [],
       memoryUsage: [],
-      diskUsage: []
-    }
+      diskUsage: [],
+    },
   };
 
   let loading = true;
@@ -23,28 +23,28 @@
   onMount(async () => {
     try {
       // Simulate analytics data for now
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       analyticsData = {
         overview: {
           totalRequests: 12847,
           successfulRequests: 12234,
           failedRequests: 613,
-          avgResponseTime: 245
+          avgResponseTime: 245,
         },
         serviceUsage: [
           { name: 'nginx-web', requests: 5432, percentage: 42.3 },
           { name: 'redis-cache', requests: 3241, percentage: 25.2 },
           { name: 'postgres-db', requests: 2156, percentage: 16.8 },
-          { name: 'api-gateway', requests: 2018, percentage: 15.7 }
+          { name: 'api-gateway', requests: 2018, percentage: 15.7 },
         ],
         systemMetrics: {
           cpuUsage: [23, 45, 32, 67, 54, 23, 45],
           memoryUsage: [56, 62, 58, 71, 68, 59, 63],
-          diskUsage: [34, 35, 36, 37, 36, 35, 34]
-        }
+          diskUsage: [34, 35, 36, 37, 36, 35, 34],
+        },
       };
-      
+
       loading = false;
     } catch (err) {
       error = 'Failed to load analytics data';
@@ -60,9 +60,7 @@
 <div class="analytics-page">
   <div class="page-header">
     <h1>Analytics</h1>
-    <p class="page-description">
-      Monitor service usage, performance metrics, and system insights
-    </p>
+    <p class="page-description">Monitor service usage, performance metrics, and system insights</p>
   </div>
 
   {#if loading}
@@ -75,9 +73,7 @@
       <div class="error-icon">⚠️</div>
       <h3>Error Loading Analytics</h3>
       <p>{error}</p>
-      <button class="btn btn-primary" on:click={() => window.location.reload()}>
-        Retry
-      </button>
+      <button class="btn btn-primary" on:click={() => window.location.reload()}> Retry </button>
     </div>
   {:else}
     <div class="analytics-content">
@@ -92,15 +88,17 @@
               <div class="stat-label">Total Requests</div>
             </div>
           </div>
-          
+
           <div class="stat-card success">
             <div class="stat-icon">✅</div>
             <div class="stat-content">
-              <div class="stat-value">{analyticsData.overview.successfulRequests.toLocaleString()}</div>
+              <div class="stat-value">
+                {analyticsData.overview.successfulRequests.toLocaleString()}
+              </div>
               <div class="stat-label">Successful</div>
             </div>
           </div>
-          
+
           <div class="stat-card error">
             <div class="stat-icon">❌</div>
             <div class="stat-content">
@@ -108,7 +106,7 @@
               <div class="stat-label">Failed</div>
             </div>
           </div>
-          
+
           <div class="stat-card">
             <div class="stat-icon">⚡</div>
             <div class="stat-content">
@@ -156,7 +154,7 @@
               {/each}
             </div>
           </div>
-          
+
           <div class="metric-card">
             <h3>Memory Usage</h3>
             <div class="mini-chart">
@@ -167,7 +165,7 @@
               {/each}
             </div>
           </div>
-          
+
           <div class="metric-card">
             <h3>Disk Usage</h3>
             <div class="mini-chart">
@@ -416,8 +414,12 @@
   }
 
   @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+    100% {
+      transform: rotate(360deg);
+    }
   }
 
   @media (max-width: 768px) {

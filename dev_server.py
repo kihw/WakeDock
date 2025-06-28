@@ -3,7 +3,7 @@ Minimal FastAPI development server for WakeDock
 This server provides basic API endpoints for frontend development
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -132,10 +132,10 @@ async def health_check():
     return {"status": "healthy", "timestamp": datetime.utcnow().isoformat()}
 
 @app.post("/api/v1/auth/token", response_model=LoginResponse)
-async def login(request: LoginRequest):
-    # Simple authentication for development
-    if request.email == "admin@wakedock.com" and request.password == "admin":
-        access_token = create_access_token(data={"sub": request.email})
+async def login(username: str = Form(), password: str = Form()):
+    # Simple authentication for development - accept both username and email
+    if (username == "admin@wakedock.com" or username == "admin") and password == "admin":
+        access_token = create_access_token(data={"sub": username})
         return LoginResponse(
             access_token=access_token,
             user=mock_user

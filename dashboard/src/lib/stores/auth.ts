@@ -75,11 +75,11 @@ export const auth = {
     },
 
     // Login method
-    login: async (username: string, password: string): Promise<void> => {
+    login: async (emailOrUsername: string, password: string): Promise<void> => {
         update(state => ({ ...state, isLoading: true, error: null }));
 
         try {
-            const response: LoginResponse = await api.auth.login({ username, password });
+            const response: LoginResponse = await api.auth.login({ username: emailOrUsername, password });
             set({
                 user: response.user,
                 token: response.access_token,
