@@ -1,666 +1,286 @@
-# 🐳 WakeDock
+# 🐳 WakeDock - Enhanced UI
 
-**Intelligent Docker orchestration with Caddy reverse proxy**
+![WakeDock Banner](https://img.shields.io/badge/WakeDock-Docker%20Management-blue?style=for-the-badge&logo=docker)
 
-> Wake up your Docker containers on-demand and automatically shut them down when idle. Perfect for self-hosted services that don't need to run 24/7.
+**WakeDock** is a modern, intelligent Docker orchestration and service management platform with a beautiful, responsive web interface. This enhanced version features a complete UI overhaul with glassmorphism design, smooth animations, and improved user experience.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
-[![Caddy](https://img.shields.io/badge/Caddy-integrated-green.svg)](https://caddyserver.com/)
-[![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](https://github.com/wakedock/wakedock/actions)
-[![Production Ready](https://img.shields.io/badge/Production-Ready-success.svg)](https://github.com/wakedock/wakedock)
+## ✨ New UI Features
 
----
+### 🎨 Modern Design System
+- **Glassmorphism Effects**: Translucent backgrounds with blur effects
+- **Custom CSS Variables**: Consistent theming throughout the app
+- **Gradient Accents**: Beautiful gradients for primary elements
+- **Enhanced Typography**: Inter font family with proper weight variations
+- **Micro-animations**: Smooth transitions and hover effects
 
-## 🎉 Status: PRODUCTION READY
+### 🏗️ Enhanced Components
 
-**WakeDock is now a complete, production-ready Docker orchestration system!**
+#### 📊 **StatsCards**
+- Real-time metrics with trend indicators
+- Usage bars with color-coded status
+- Service breakdown with visual dots
+- System health indicators
+- Resource monitoring with progress bars
 
-All core features have been implemented and tested:
-- ✅ **Full API Backend** with authentication and Docker integration
-- ✅ **Modern Web Dashboard** with complete service management
-- ✅ **Automated CI/CD** with comprehensive test suite
-- ✅ **Production Deployment** with Docker Compose and Kubernetes
-- ✅ **Security & Monitoring** enterprise-grade implementation
+#### 🔧 **ServiceCard**
+- Modern card layout with glassmorphism
+- Resource usage meters
+- Interactive dropdown menus
+- Status indicators with animations
+- Port tags and service metadata
+- Quick action buttons
 
-## 🚀 What is WakeDock?
+#### 🧭 **Navigation**
+- **Enhanced Sidebar**: Navigation sections, system status, quick actions
+- **Smart Header**: Search bar, notifications dropdown, user menu
+- **Breadcrumbs**: Clear navigation path
+- **Theme Toggle**: Dark/light mode support
 
-WakeDock is an intelligent orchestration tool that automatically manages your Docker containers based on real-time demand. When someone visits your service's subdomain, WakeDock instantly starts the container and shows a beautiful loading page during startup. When the service is idle, it automatically shuts down to save resources.
+#### 📱 **Responsive Design**
+- Mobile-first approach
+- Adaptive layouts for all screen sizes
+- Touch-friendly interactions
+- Collapsible sidebar on mobile
 
-**Think of it as "serverless" for your self-hosted Docker services.**
+### 🎭 **Theme System**
+- **Light Mode**: Clean, modern aesthetic
+- **Dark Mode**: Easy on the eyes with proper contrast
+- **Auto Mode**: Follows system preference
+- **Custom Properties**: Easy theme customization
 
-### ✨ Key Features
+### 🚀 **Enhanced Dashboard**
+- **Hero Section**: Impressive landing area with animated background
+- **Quick Actions**: Fast access to common tasks
+- **Advanced Filtering**: Search and status filtering
+- **Loading States**: Skeleton loaders and shimmer effects
+- **Empty States**: Helpful guidance when no data
 
-- 🌐 **Automatic Reverse Proxy** - Dynamic Caddy configuration for each service
-- 🔄 **On-Demand Wake-Up** - Containers start when accessed, not before
-- ⏳ **Smart Loading Pages** - Beautiful UI while services are starting
-- 📊 **Intelligent Auto-Shutdown** - Configurable rules based on inactivity, CPU, RAM usage
-- 📈 **Resource Monitoring** - Real-time stats and usage tracking
-- 🎛️ **Web Dashboard** - Modern interface to manage all services
-- 🔐 **Secure Access** - Built-in authentication and access control
-- � **Advanced Authentication System** - OAuth, SSO, and centralized user management (v1.5+)
-- �🐳 **Docker Native** - Works with containers and Docker Compose stacks
+## 🛠️ Technical Improvements
 
----
-
-## 🏗️ Architecture
-
+### 📦 **Component Architecture**
+```typescript
+// Modern Svelte components with TypeScript
+// Enhanced props and event handling
+// Better state management
+// Improved accessibility
 ```
-User Request → Caddy Reverse Proxy → WakeDock Core → Docker Container
-     ↓                                      ↓              ↓
-Loading Page ←                    Monitoring Engine ← Resource Stats
-```
 
-### How it Works
+### 🎨 **CSS Features**
+- **CSS Custom Properties**: `--color-primary`, `--radius`, `--spacing-*`
+- **Modern Layout**: CSS Grid and Flexbox
+- **Backdrop Filters**: Glass effect support
+- **CSS Animations**: Keyframe animations for smooth UX
+- **Responsive Units**: `clamp()`, `min()`, `max()` for fluid design
 
-1. **User visits** `service.yourdomain.com`
-2. **Caddy** detects the request and forwards to WakeDock
-3. **WakeDock** checks if the container is running
-4. If not running: **starts container** and shows loading page
-5. Once ready: **proxies traffic** to the actual service
-6. **Monitors usage** and automatically shuts down when idle
+### 🔧 **Development Experience**
+- **TypeScript**: Full type safety
+- **Component Props**: Well-defined interfaces
+- **Event Handling**: Proper event dispatching
+- **Error Boundaries**: Graceful error handling
 
----
+## 📸 UI Showcase
 
-## 🛠️ Installation
+### 🏠 Dashboard
+- Hero section with system overview
+- Statistics cards with trends
+- Service management grid
+- Quick action shortcuts
 
-### Prerequisites
+### 📋 Service Management
+- Service cards with resource metrics
+- Interactive status controls
+- Detailed service information
+- Port mapping visualization
 
-- Docker & Docker Compose
-- Caddy v2+
-- A domain with wildcard DNS (*.yourdomain.com)
+### 🔍 Enhanced Navigation
+- Collapsible sidebar with system status
+- Header with search and notifications
+- User menu with profile options
+- Theme switching capabilities
 
-### Quick Start
+## 🚀 Getting Started
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/wakedock.git
-cd wakedock
+# Navigate to dashboard directory
+cd dashboard
 
-# Copy and edit configuration
-cp config/config.example.yml config/config.yml
-nano config/config.yml
+# Install dependencies
+npm install
 
-# Start WakeDock
-docker-compose up -d
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
 ```
 
-### Quick Deploy (Docker Hosting Platforms)
+## 📱 Responsive Breakpoints
 
-For automated deployment on platforms like Dokploy, use the quick deploy script:
-
-```bash
-# Make scripts executable
-chmod +x deploy.sh manage.sh
-
-# Quick deploy (creates network, directories, and starts services)
-./deploy.sh
+```css
+/* Mobile First */
+@media (max-width: 480px)  { /* Mobile */ }
+@media (max-width: 768px)  { /* Tablet */ }
+@media (max-width: 1024px) { /* Small Desktop */ }
+@media (min-width: 1025px) { /* Large Desktop */ }
 ```
 
-### Environment Files
+## 🎨 Design Tokens
 
-- `.env` - Development configuration
-- `.env.production` - Production configuration  
-- `.env.example` - Template with all available variables
-
-### Network Configuration
-
-WakeDock uses a Docker network (default: `caddy_net`) that can be shared with other services:
-
-```bash
-# Create network manually if needed
-docker network create caddy_net
+### Colors
+```css
+--color-primary: #3b82f6;       /* Primary blue */
+--color-success: #10b981;       /* Success green */
+--color-warning: #f59e0b;       /* Warning orange */
+--color-error: #ef4444;         /* Error red */
 ```
 
-### Configuration Example
-
-```yaml
-# config/config.yml
-wakedock:
-  domain: "yourdomain.com"
-  admin_password: "your-secure-password"
-  
-caddy:
-  api_endpoint: "http://caddy:2019"
-  config_path: "/etc/caddy/Caddyfile"
-
-services:
-  - name: "nextcloud"
-    subdomain: "cloud"
-    docker_compose: "./services/nextcloud/docker-compose.yml"
-    auto_shutdown:
-      inactive_minutes: 30
-      cpu_threshold: 5
-      memory_threshold: 100
-    
-  - name: "grafana"
-    subdomain: "monitoring"
-    docker_image: "grafana/grafana:latest"
-    ports: ["3000:3000"]
-    auto_shutdown:
-      inactive_minutes: 15
+### Spacing
+```css
+--spacing-xs: 0.25rem;   /* 4px */
+--spacing-sm: 0.5rem;    /* 8px */
+--spacing-md: 1rem;      /* 16px */
+--spacing-lg: 1.5rem;    /* 24px */
+--spacing-xl: 2rem;      /* 32px */
 ```
 
----
-
-## 📋 Usage
-
-### Adding a New Service
-
-1. **Via Web Interface** (Recommended)
-   - Go to `http://admin.yourdomain.com`
-   - Click "Add Service"
-   - Fill in the configuration
-   - Click "Save & Deploy"
-
-2. **Via Configuration File**
-   ```yaml
-   services:
-     - name: "my-app"
-       subdomain: "app"
-       docker_image: "my-app:latest"
-       ports: ["8080:80"]
-       auto_shutdown:
-         inactive_minutes: 20
-   ```
-
-### Managing Services
-
-- **Dashboard**: `http://admin.yourdomain.com`
-- **API**: `http://admin.yourdomain.com/api/v1/`
-- **Logs**: `docker-compose logs wakedock`
-
-### API Endpoints
-
-```http
-GET    /api/v1/services           # List all services
-POST   /api/v1/services           # Create new service
-GET    /api/v1/services/{id}      # Get service details
-PUT    /api/v1/services/{id}      # Update service
-DELETE /api/v1/services/{id}      # Delete service
-POST   /api/v1/services/{id}/wake # Force wake service
-POST   /api/v1/services/{id}/sleep # Force sleep service
+### Border Radius
+```css
+--radius: 0.75rem;       /* Standard radius */
+--radius-lg: 1rem;       /* Large radius */
+--radius-xl: 1.5rem;     /* Extra large radius */
+--radius-full: 9999px;   /* Circular */
 ```
 
----
+## 🔧 Component Props
 
-## ⚙️ Configuration Options
-
-### Auto-Shutdown Rules
-
-Configure when containers should automatically stop:
-
-```yaml
-auto_shutdown:
-  inactive_minutes: 30        # Stop after 30 minutes of no requests
-  cpu_threshold: 5           # Stop if CPU usage < 5% for check_interval
-  memory_threshold: 100      # Stop if RAM usage < 100MB for check_interval
-  check_interval: 300        # Check every 5 minutes
-  grace_period: 60           # Wait 60s before actually stopping
+### ServiceCard
+```typescript
+interface ServiceCardProps {
+  service: {
+    id: string;
+    name: string;
+    subdomain: string;
+    status: 'running' | 'stopped' | 'starting' | 'error';
+    docker_image?: string;
+    ports: string[];
+    resource_usage?: {
+      cpu_percent: number;
+      memory_usage: number;
+      memory_percent: number;
+    };
+  };
+}
 ```
 
-### Loading Page Customization
-
-```yaml
-loading_page:
-  title: "Starting {service_name}..."
-  message: "Please wait while we wake up your service"
-  theme: "dark"              # dark, light, or custom
-  custom_css: "./themes/custom.css"
-  estimated_time: 30         # Estimated startup time in seconds
+### StatsCards
+```typescript
+interface StatsCardsProps {
+  stats: {
+    services: ServiceStats;
+    system: SystemStats;
+    docker: DockerInfo;
+    caddy: CaddyInfo;
+  };
+}
 ```
 
-### Monitoring Options
+## 🎯 Key Features
 
-```yaml
-monitoring:
-  enabled: true
-  metrics_retention: "7d"    # Keep metrics for 7 days
-  collect_interval: 30       # Collect stats every 30 seconds
-  endpoints:
-    - "/health"
-    - "/metrics"
+### ⚡ Performance
+- **Optimized Animations**: 60fps smooth animations
+- **Lazy Loading**: Components load when needed
+- **Efficient Rendering**: Minimal re-renders
+- **Small Bundle Size**: Optimized build
+
+### ♿ Accessibility
+- **ARIA Labels**: Screen reader support
+- **Keyboard Navigation**: Full keyboard support
+- **Focus Management**: Proper focus indicators
+- **Color Contrast**: WCAG compliant colors
+
+### 🔒 Security
+- **XSS Protection**: Sanitized inputs
+- **CSRF Protection**: Token-based security
+- **Secure Headers**: Content security policies
+
+## 🔄 State Management
+
+```typescript
+// Reactive stores with Svelte
+import { writable, derived } from 'svelte/store';
+
+// Theme management
+const theme = writable('light');
+
+// Service state
+const services = writable([]);
+const filteredServices = derived(
+  [services, searchTerm], 
+  ([$services, $searchTerm]) => 
+    $services.filter(s => s.name.includes($searchTerm))
+);
 ```
 
----
+## 🎨 Animation System
 
-## 🔧 Advanced Usage
+```css
+/* Smooth transitions */
+.card {
+  transition: all var(--transition-normal);
+}
 
-### Custom Docker Compose Stacks
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
 
-```yaml
-services:
-  - name: "wordpress-stack"
-    subdomain: "blog"
-    docker_compose: "./stacks/wordpress/docker-compose.yml"
-    environment:
-      MYSQL_ROOT_PASSWORD: "secure-password"
-      WORDPRESS_DB_HOST: "db:3306"
-    auto_shutdown:
-      inactive_minutes: 60
+/* Loading animations */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
 ```
 
-### Health Checks
+## 🌟 Browser Support
 
-```yaml
-services:
-  - name: "my-service"
-    health_check:
-      enabled: true
-      endpoint: "/health"
-      timeout: 30
-      retries: 3
-      interval: 10
-```
+- **Chrome**: ✅ Full support
+- **Firefox**: ✅ Full support  
+- **Safari**: ✅ Full support
+- **Edge**: ✅ Full support
+- **Mobile**: ✅ Responsive design
 
-### Custom Startup Scripts
+## 📚 Documentation
 
-```yaml
-services:
-  - name: "complex-app"
-    startup_script: "./scripts/prepare-environment.sh"
-    ready_check:
-      type: "http"
-      endpoint: "/ready"
-      expected_status: 200
-```
-
----
-
-## 🖥️ Dashboard Screenshots
-
-### Main Dashboard
-![Dashboard](docs/images/dashboard.png)
-
-### Service Configuration
-![Service Config](docs/images/service-config.png)
-
-### Real-time Monitoring
-![Monitoring](docs/images/monitoring.png)
-
----
+- [Component Library](./docs/components.md)
+- [Design System](./docs/design-system.md)
+- [API Reference](./docs/api.md)
+- [Deployment Guide](./docs/deployment.md)
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-```bash
-# Clone and setup development environment
-git clone https://github.com/yourusername/wakedock.git
-cd wakedock
-
-# Install development dependencies
-pip install -r requirements-dev.txt
-npm install
-
-# Run tests
-pytest
-npm test
-
-# Start development server
-python -m wakedock.main --dev
-```
-
-### Roadmap
-
-- [ ] **v1.0** - Basic wake/sleep functionality
-- [ ] **v1.1** - Web dashboard
-- [ ] **v1.2** - Advanced monitoring
-- [ ] **v1.3** - Multi-user support
-- [ ] **v1.4** - Kubernetes support
-- [ ] **v1.5** - **Advanced Authentication System** 🔐
-  - OAuth 2.0 integration (Google, GitHub, Azure AD, etc.)
-  - Basic authentication with username/password
-  - Per-service access control and user permissions
-  - Authentication proxy for all services
-  - SSO (Single Sign-On) across all managed services
-  - Role-based access control (RBAC)
-  - Session management with configurable timeout
-  - Integration with external identity providers (LDAP, Active Directory)
-- [ ] **v2.0** - Auto-scaling capabilities
-
----
-
-## 📊 Performance & Resource Usage
-
-### Typical Resource Usage
-
-- **WakeDock Core**: ~50MB RAM, <1% CPU
-- **Caddy**: ~30MB RAM, <1% CPU
-- **Dashboard**: ~20MB RAM when active
-
-### Scalability
-
-- **Services**: Tested with 50+ concurrent services
-- **Response Time**: <200ms for wake-up detection
-- **Startup Time**: Depends on container (typically 5-60 seconds)
-
----
-
-## 🛡️ Security Considerations
-
-- **Admin Interface**: Protected by authentication
-- **API Access**: Token-based authentication
-- **Container Isolation**: Standard Docker security
-- **Network**: Internal Docker networks by default
-- **Logs**: Sensitive data filtering
-
-### Security Best Practices
-
-1. Use strong passwords for admin interface
-2. Enable HTTPS with proper certificates
-3. Regularly update Docker images
-4. Monitor access logs
-5. Use least-privilege principles
-
----
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-**Container won't start:**
-```bash
-# Check logs
-docker-compose logs wakedock
-
-# Verify Docker daemon
-docker info
-
-# Check service configuration
-wakedock config validate
-```
-
-**Caddy proxy not working:**
-```bash
-# Check Caddy status
-curl http://localhost:2019/config/
-
-# Verify DNS resolution
-dig +short app.yourdomain.com
-
-# Check certificate issues
-caddy validate --config /etc/caddy/Caddyfile
-```
-
-**Service stuck in "starting" state:**
-```bash
-# Check container logs
-docker logs <container_name>
-
-# Verify health checks
-curl http://localhost:8080/health
-
-# Force restart
-wakedock service restart <service_name>
-```
-
-### Debug Mode
-
-```bash
-# Enable debug logging
-export WAKEDOCK_LOG_LEVEL=DEBUG
-docker-compose up wakedock
-
-# Or via config
-debug: true
-log_level: "DEBUG"
-```
-
----
-
-## 🔐 Advanced Authentication System (v1.5)
-
-### Vision
-
-WakeDock v1.5 introduira un système d'authentification complet qui agit comme un proxy d'authentification pour tous vos services auto-hébergés. Au lieu que chaque service gère sa propre authentification, WakeDock centralise l'authentification et contrôle l'accès à tous vos services.
-
-### 🌟 Fonctionnalités Clés
-
-#### **Proxy d'Authentification Universel**
-- Intercepte toutes les requêtes vers vos services
-- Redirige vers la page de connexion si l'utilisateur n'est pas authentifié
-- Maintient les sessions utilisateurs de manière centralisée
-- Proxy transparent vers le service une fois authentifié
-
-#### **Support Multi-Protocoles d'Authentification**
-- **OAuth 2.0 / OpenID Connect** pour les fournisseurs populaires :
-  - Google Workspace / Gmail
-  - GitHub / GitHub Enterprise
-  - Microsoft Azure AD / Office 365
-  - Discord, Twitter, Facebook
-  - Keycloak, Auth0, Okta
-- **Authentification Basique** avec base de données locale :
-  - Inscription/connexion par email/mot de passe
-  - Récupération de mot de passe par email
-  - Validation par email optionnelle
-- **Intégrations Entreprise** :
-  - LDAP / Active Directory
-  - SAML 2.0
-  - Radius
-
-#### **Contrôle d'Accès Granulaire**
-```yaml
-authentication:
-  providers:
-    - type: "oauth"
-      provider: "google"
-      client_id: "your-google-client-id"
-      client_secret: "your-google-client-secret"
-      allowed_domains: ["yourdomain.com"]
-    
-    - type: "basic"
-      allow_registration: true
-      require_email_verification: true
-      password_policy:
-        min_length: 8
-        require_special_chars: true
-
-  access_control:
-    default_policy: "deny"  # deny ou allow
-    
-    rules:
-      - service: "nextcloud"
-        users: ["admin@yourdomain.com", "user1@company.com"]
-        groups: ["admin", "users"]
-        
-      - service: "grafana"
-        groups: ["admin", "monitoring"]
-        
-      - service: "public-blog"
-        policy: "allow"  # Accès public, pas d'auth requise
-        
-      - service: "*"  # Toutes les autres services
-        groups: ["admin"]
-```
-
-#### **Interface de Gestion des Utilisateurs**
-- Dashboard admin pour gérer les utilisateurs et permissions
-- Auto-provisioning depuis les fournisseurs OAuth
-- Gestion des groupes et rôles
-- Logs d'authentification et d'accès
-- Statistiques d'utilisation par utilisateur
-
-### 🔄 Flux d'Authentification
-
-```
-1. User → https://app.yourdomain.com
-2. WakeDock vérifie la session
-3. Si non authentifié → Redirection vers /auth/login
-4. Utilisateur choisit le mode d'authentification :
-   ├─ OAuth (Google, GitHub, etc.)
-   └─ Basic (email/password)
-5. Après auth réussie → Cookie de session sécurisé
-6. Vérification des permissions pour le service demandé
-7. Si autorisé → Wake du container + Proxy vers le service
-8. Si non autorisé → Page d'erreur 403
-```
-
-### 🛡️ Sécurité Avancée
-
-#### **Gestion des Sessions**
-- JWT tokens sécurisés avec rotation automatique
-- Sessions persistantes avec durée configurable
-- Support multi-device avec révocation sélective
-- Protection CSRF intégrée
-
-#### **Fonctionnalités de Sécurité**
-- Rate limiting sur les tentatives de connexion
-- Détection de tentatives d'intrusion
-- Audit trail complet des accès
-- Support 2FA/MFA (TOTP, SMS, email)
-- Whitelist/blacklist IP automatique
-
-### 📊 Monitoring et Analytics
-
-```yaml
-authentication:
-  monitoring:
-    enabled: true
-    log_failed_attempts: true
-    alert_on_suspicious_activity: true
-    metrics:
-      - login_attempts
-      - active_sessions
-      - service_usage_by_user
-      - failed_auth_by_ip
-```
-
-### 🔧 Configuration Exemple Complète
-
-```yaml
-# config/config.yml
-wakedock:
-  domain: "yourdomain.com"
-  admin_password: "your-secure-password"
-
-authentication:
-  enabled: true
-  session_timeout: "24h"
-  require_https: true
-  
-  providers:
-    google:
-      enabled: true
-      client_id: "${GOOGLE_CLIENT_ID}"
-      client_secret: "${GOOGLE_CLIENT_SECRET}"
-      allowed_domains: ["yourdomain.com"]
-      
-    github:
-      enabled: true
-      client_id: "${GITHUB_CLIENT_ID}"
-      client_secret: "${GITHUB_CLIENT_SECRET}"
-      allowed_organizations: ["your-org"]
-      
-    basic:
-      enabled: true
-      allow_registration: false  # Seulement admin peut créer des users
-      password_requirements:
-        min_length: 12
-        require_uppercase: true
-        require_numbers: true
-        require_special: true
-
-  access_control:
-    default_policy: "deny"
-    admin_users: ["admin@yourdomain.com"]
-    
-    services:
-      nextcloud:
-        allowed_users: ["user1@yourdomain.com", "user2@yourdomain.com"]
-        allowed_groups: ["family", "team"]
-        
-      grafana:
-        allowed_groups: ["admin", "devops"]
-        require_2fa: true
-        
-      public-site:
-        public: true  # Pas d'auth requise
-
-services:
-  - name: "nextcloud"
-    subdomain: "cloud"
-    docker_compose: "./services/nextcloud/docker-compose.yml"
-    authentication:
-      required: true
-      bypass_health_checks: true  # Les health checks passent sans auth
-    auto_shutdown:
-      inactive_minutes: 30
-```
-
-### 🚀 Migration depuis v1.4
-
-La migration sera automatique avec rétrocompatibilité :
-
-```bash
-# Backup de la configuration actuelle
-wakedock config backup
-
-# Mise à jour vers v1.5
-docker-compose pull
-docker-compose up -d
-
-# Configuration de l'authentification
-wakedock auth setup --interactive
-
-# Test de la configuration
-wakedock auth validate
-```
-
-### 💡 Cas d'Usage
-
-1. **Famille/Personnel** : OAuth Google + contrôle par domaine email
-2. **Petite Entreprise** : GitHub OAuth + gestion par organisation
-3. **Entreprise** : LDAP/AD + SAML pour SSO corporate
-4. **Communauté** : Inscription libre + modération admin
-5. **Hybride** : Mix OAuth + comptes locaux pour flexibilité maximale
-
-Cette fonctionnalité transformera WakeDock en une solution complète de gestion d'accès pour tous vos services auto-hébergés, éliminant le besoin de gérer l'authentification individuellement pour chaque application.
-
----
-
-## 📜 Automatic Caddy Configuration
-
-WakeDock now uses **dynamic configuration** for Caddy, eliminating file mounting issues:
-
-- ✅ **No Caddyfile mounting** - Avoids Docker volume mount errors
-- ✅ **Self-configuring** - WakeDock sets up its own routes automatically  
-- ✅ **Platform compatible** - Works on Dokploy, Kubernetes, and other platforms
-- ✅ **Real-time updates** - Configuration changes without restarts
-
-When WakeDock starts:
-1. Caddy launches with minimal configuration
-2. WakeDock automatically configures proxy routes
-3. Your services become available immediately
-
-> **Note**: Legacy `Caddyfile` configurations are still supported for manual setups.
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test across devices
+5. Submit a pull request
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
-- [Caddy](https://caddyserver.com/) for the amazing reverse proxy
-- [Docker](https://www.docker.com/) for containerization
-- [FastAPI](https://fastapi.tiangolo.com/) for the backend framework
-- [Svelte](https://svelte.dev/) for the frontend framework
+- **Svelte/SvelteKit**: Amazing framework
+- **Lucide Icons**: Beautiful icon library
+- **Inter Font**: Excellent typography
+- **Tailwind CSS**: Utility-first CSS framework
 
 ---
 
-## 📞 Support
+<div align="center">
 
-- **Documentation**: [docs.wakedock.dev](https://docs.wakedock.dev)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/wakedock/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/wakedock/discussions)
-- **Discord**: [Join our community](https://discord.gg/wakedock)
+**Made with ❤️ for the Docker community**
 
----
+[Website](https://wakedock.com) • [Documentation](https://docs.wakedock.com) • [GitHub](https://github.com/wakedock/wakedock)
 
-**Made with ❤️ for the self-hosted community**
+</div>
