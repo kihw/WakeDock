@@ -6,10 +6,47 @@
     auto_https off
 }
 
-# Simple fallback configuration
+# Main HTTP port
 :80 {
-    respond "WakeDock is initializing... Please wait." 503 {
-        body "WakeDock is starting up. This page will be updated automatically."
+    # API routes - handle these first
+    handle /api/* {
+        reverse_proxy wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Fallback if API not ready
+            @error status 502 503 504
+            handle_response @error {
+                respond "WakeDock API is starting..." 503 {
+                    body "WakeDock API is initializing. Please wait a moment and try again."
+                }
+            }
+        }
+    }
+    
+    # Health check endpoint
+    handle /health {
+        respond "WakeDock Caddy OK" 200
+    }
+    
+    # Dashboard for all other requests
+    handle {
+        reverse_proxy dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Fallback to loading page if dashboard not ready
+            @error status 502 503 504
+            handle_response @error {
+                respond "WakeDock is starting... Dashboard will be available shortly." 503 {
+                    body "WakeDock Dashboard is initializing. Please wait a moment and refresh."
+                }
+            }
+        }
     }
     
     log {

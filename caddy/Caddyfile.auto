@@ -15,31 +15,7 @@
 
 # Main HTTP port - serves as proxy when app is ready, fallback when not
 :80 {
-    # Try to proxy to dashboard first
-    @dashboard_ready {
-        path /*
-        header_regexp Host "^(localhost|.*)"
-    }
-    
-    # Try dashboard with fallback
-    handle @dashboard_ready {
-        reverse_proxy dashboard:3000 {
-            header_up Host {upstream_hostport}
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-            
-            # Fallback to loading page if dashboard not ready
-            @error status 502 503 504
-            handle_response @error {
-                respond "WakeDock is starting... Dashboard will be available shortly." 503 {
-                    body "WakeDock Dashboard is initializing. Please wait a moment and refresh."
-                }
-            }
-        }
-    }
-    
-    # API routes
+    # API routes - handle these first
     handle /api/* {
         reverse_proxy wakedock:8000 {
             header_up Host {upstream_hostport}
@@ -62,10 +38,21 @@
         respond "WakeDock Caddy OK" 200
     }
     
-    # Fallback for any unmatched requests
+    # Dashboard for all other requests
     handle {
-        respond "WakeDock is starting... Please wait for all services to initialize." 503 {
-            body "WakeDock is initializing. All services will be available shortly."
+        reverse_proxy dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Fallback to loading page if dashboard not ready
+            @error status 502 503 504
+            handle_response @error {
+                respond "WakeDock is starting... Dashboard will be available shortly." 503 {
+                    body "WakeDock Dashboard is initializing. Please wait a moment and refresh."
+                }
+            }
         }
     }
     
