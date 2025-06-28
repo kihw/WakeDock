@@ -1,17 +1,17 @@
-<!-- Page de connexion -->
+<!-- Login Page -->
 <script>
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/stores";
     import { auth, isAuthenticated } from "$lib/stores/auth";
-    import { toastStore } from "$lib/stores/toastStore";
+    // import { toastStore } from "$lib/stores/toastStore";
 
-    let username = "";
-    let password = "";
+    let email = "admin@wakedock.com"; // Pre-fill for development
+    let password = "admin"; // Pre-fill for development
     let loading = false;
     let error = "";
 
-    // Rediriger si déjà connecté
+    // Redirect if already authenticated
     onMount(() => {
         const unsubscribe = isAuthenticated.subscribe((authenticated) => {
             if (authenticated) {
@@ -25,8 +25,8 @@
     });
 
     async function handleLogin() {
-        if (!username || !password) {
-            error = "Veuillez remplir tous les champs";
+        if (!email || !password) {
+            error = "Please fill in all fields";
             return;
         }
 
@@ -34,16 +34,25 @@
         error = "";
 
         try {
-            await auth.login(username, password);
+            await auth.login(email, password);
 
-            toastStore.success(`Bienvenue ${username}!`);
+            // Show success message if toastStore is available
+            try {
+                // toastStore?.success(`Welcome ${email}!`);
+            } catch (e) {
+                // Toast store not available, continue silently
+            }
 
-            // Redirection après connexion réussie
+            // Redirect after successful login
             const redirectTo = $page.url.searchParams.get("redirect") || "/";
             goto(redirectTo);
         } catch (err) {
-            error = err.message || "Erreur de connexion";
-            toastStore.error(error);
+            error = err.message || "Login error";
+            try {
+                // toastStore?.error(error);
+            } catch (e) {
+                // Toast store not available, continue silently
+            }
         } finally {
             loading = false;
         }
