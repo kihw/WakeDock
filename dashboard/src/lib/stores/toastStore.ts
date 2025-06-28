@@ -75,4 +75,5 @@ function createToastStore() {
     };
 }
 
-export const toast = createToastStore();
+export const toastStore = createToastStore();
+export const toast = toastStore; // Alias pour compatibilité
