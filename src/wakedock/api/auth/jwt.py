@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
-import jwt
+import jwt  # PyJWT package
 from jwt.exceptions import InvalidTokenError
 from passlib.context import CryptContext
 
