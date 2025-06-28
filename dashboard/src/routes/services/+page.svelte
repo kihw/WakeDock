@@ -184,7 +184,7 @@
                                     Total Services
                                 </dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {$serviceStats.total}
+                                    {$serviceStats?.total || 0}
                                 </dd>
                             </dl>
                         </div>
@@ -222,7 +222,7 @@
                                     Running
                                 </dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {$serviceStats.running}
+                                    {$serviceStats?.running || 0}
                                 </dd>
                             </dl>
                         </div>
@@ -260,7 +260,7 @@
                                     Stopped
                                 </dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {$serviceStats.stopped}
+                                    {$serviceStats?.stopped || 0}
                                 </dd>
                             </dl>
                         </div>
@@ -298,7 +298,7 @@
                                     Errors
                                 </dt>
                                 <dd class="text-lg font-medium text-gray-900">
-                                    {$serviceStats.error}
+                                    {$serviceStats?.error || 0}
                                 </dd>
                             </dl>
                         </div>
