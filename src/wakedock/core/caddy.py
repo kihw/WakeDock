@@ -464,6 +464,27 @@ class CaddyManager:
             # Ensure directory exists
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
             
+            # Check if we can write to the directory
+            config_dir = self.config_path.parent
+            if not os.access(config_dir, os.W_OK):
+                logger.error(f"❌ No write permission to directory: {config_dir}")
+                logger.info("💡 This might be a volume permission issue.")
+                logger.info("💡 Try running: docker-compose down && docker-compose up -d")
+                raise PermissionError(f"Cannot write to Caddy config directory: {config_dir}")
+            
+            # Check if file exists and is writable
+            if self.config_path.exists() and not os.access(self.config_path, os.W_OK):
+                logger.error(f"❌ No write permission to file: {self.config_path}")
+                logger.info("💡 File permissions issue. Trying to fix...")
+                
+                # Try to fix permissions if we can
+                try:
+                    os.chmod(self.config_path, 0o666)
+                    logger.info("✅ Fixed file permissions")
+                except Exception as chmod_error:
+                    logger.error(f"❌ Could not fix file permissions: {chmod_error}")
+                    raise PermissionError(f"Cannot write to Caddyfile: {self.config_path}")
+            
             # Write updated configuration
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 f.write(content)
@@ -475,8 +496,16 @@ class CaddyManager:
             else:
                 logger.error(f"❌ Failed to write Caddyfile: {self.config_path}")
                 
+        except PermissionError:
+            # Re-raise permission errors with context
+            raise
         except Exception as e:
             logger.error(f"❌ Error writing Caddyfile: {e}")
+            logger.info(f"💡 Path: {self.config_path}")
+            logger.info(f"💡 Directory exists: {self.config_path.parent.exists()}")
+            logger.info(f"💡 Directory writable: {os.access(self.config_path.parent, os.W_OK) if self.config_path.parent.exists() else 'N/A'}")
+            if self.config_path.exists():
+                logger.info(f"💡 File writable: {os.access(self.config_path, os.W_OK)}")
             raise
     
     async def add_service_route(self, service: Service) -> bool:
@@ -610,17 +639,51 @@ class CaddyManager:
     
     def write_caddyfile_sync(self, content: str) -> None:
         """Synchronous version of _write_caddyfile for non-async contexts."""
-        # Ensure directory exists
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Write configuration
-        with open(self.config_path, 'w') as f:
-            f.write(content)
-        
-        logger.info(f"Updated Caddyfile at {self.config_path}")
-        
-        # Schedule reload in background
-        self._schedule_reload()
+        try:
+            # Ensure directory exists
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Check if we can write to the directory
+            config_dir = self.config_path.parent
+            if not os.access(config_dir, os.W_OK):
+                logger.error(f"❌ No write permission to directory: {config_dir}")
+                logger.info("💡 This might be a volume permission issue.")
+                logger.info("💡 Try running: docker-compose down && docker-compose up -d")
+                raise PermissionError(f"Cannot write to Caddy config directory: {config_dir}")
+            
+            # Check if file exists and is writable
+            if self.config_path.exists() and not os.access(self.config_path, os.W_OK):
+                logger.error(f"❌ No write permission to file: {self.config_path}")
+                logger.info("💡 File permissions issue. Trying to fix...")
+                
+                # Try to fix permissions if we can
+                try:
+                    os.chmod(self.config_path, 0o666)
+                    logger.info("✅ Fixed file permissions")
+                except Exception as chmod_error:
+                    logger.error(f"❌ Could not fix file permissions: {chmod_error}")
+                    raise PermissionError(f"Cannot write to Caddyfile: {self.config_path}")
+            
+            # Write configuration
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            logger.info(f"✅ Updated Caddyfile at {self.config_path}")
+            
+            # Schedule reload in background
+            self._schedule_reload()
+            
+        except PermissionError:
+            # Re-raise permission errors with context
+            raise
+        except Exception as e:
+            logger.error(f"❌ Error writing Caddyfile: {e}")
+            logger.info(f"💡 Path: {self.config_path}")
+            logger.info(f"💡 Directory exists: {self.config_path.parent.exists()}")
+            logger.info(f"💡 Directory writable: {os.access(self.config_path.parent, os.W_OK) if self.config_path.parent.exists() else 'N/A'}")
+            if self.config_path.exists():
+                logger.info(f"💡 File writable: {os.access(self.config_path, os.W_OK)}")
+            raise
     
     def start_file_watcher(self):
         """Start watching the Caddyfile for changes and auto-reload."""

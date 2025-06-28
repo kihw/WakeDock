@@ -33,6 +33,14 @@ else
     echo "   Docker features will not be available"
 fi
 
+# Handle Caddy config directory permissions if mounted
+if [ -d /etc/caddy ]; then
+    echo "Setting up Caddy config directory permissions..."
+    chown -R wakedock:wakedock /etc/caddy
+    chmod -R 755 /etc/caddy
+    echo "✅ Caddy config directory permissions configured"
+fi
+
 echo "Switching to wakedock user and starting application..."
 
 # Switch to wakedock user and execute the main command
