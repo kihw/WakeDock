@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 import jwt  # PyJWT package
-from jwt.exceptions import JWTException
+from jwt.exceptions import DecodeError, InvalidTokenError
 from passlib.context import CryptContext
 
 from wakedock.config import get_settings
@@ -102,7 +102,7 @@ class JWTManager:
                 exp=exp
             )
             
-        except JWTException:
+        except (DecodeError, InvalidTokenError):
             return None
         except ValueError:
             return None
@@ -137,7 +137,7 @@ class JWTManager:
                 role=UserRole.USER  # Would be fetched from DB
             )
             
-        except JWTException:
+        except (DecodeError, InvalidTokenError):
             return None
 
 
