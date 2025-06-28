@@ -36,16 +36,14 @@
         try {
             await auth.login(username, password);
 
-            toastStore.addToast({
-                type: "success",
-                message: `Bienvenue ${username}!`,
-            });
+            toastStore.success(`Bienvenue ${username}!`);
 
             // Redirection après connexion réussie
             const redirectTo = $page.url.searchParams.get("redirect") || "/";
             goto(redirectTo);
         } catch (err) {
             error = err.message || "Erreur de connexion";
+            toastStore.error(error);
         } finally {
             loading = false;
         }

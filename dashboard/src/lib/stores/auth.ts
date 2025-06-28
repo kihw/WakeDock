@@ -3,7 +3,8 @@
  * Manages user authentication state
  */
 import { writable, derived } from 'svelte/store';
-import { api, type User, type AuthResponse, type ApiError } from '../api.js';
+import { api, type ApiError } from '../api.js';
+import { type User, type LoginResponse } from '../types/user.js';
 
 interface AuthState {
     user: User | null;
@@ -45,7 +46,7 @@ export const auth = {
         try {
             const token = api.getToken();
             if (token) {
-                const user = await api.getCurrentUser();
+                const user = await api.auth.getCurrentUser();
                 set({
                     user,
                     token,
@@ -63,7 +64,7 @@ export const auth = {
         } catch (error) {
             console.error('Auth initialization failed:', error);
             // Clear invalid token
-            api.logout();
+            await api.auth.logout();
             set({
                 user: null,
                 token: null,
@@ -78,7 +79,7 @@ export const auth = {
         update(state => ({ ...state, isLoading: true, error: null }));
 
         try {
-            const response: AuthResponse = await api.login(username, password);
+            const response: LoginResponse = await api.auth.login({ username, password });
             set({
                 user: response.user,
                 token: response.access_token,
@@ -98,7 +99,7 @@ export const auth = {
 
     // Logout method
     logout: async (): Promise<void> => {
-        await api.logout();
+        await api.auth.logout();
         set({
             user: null,
             token: null,
