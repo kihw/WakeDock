@@ -19,7 +19,7 @@ except ImportError:
     REDIS_AVAILABLE = False
     redis = None
 
-from wakedock.logging import get_logger
+from wakedock.log_config import get_logger
 
 
 logger = get_logger(__name__)

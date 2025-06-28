@@ -1,0 +1,50 @@
+# WakeDock Development Configuration
+# This configuration is optimized for local development
+
+# Application Settings
+wakedock:
+  # Basic application settings
+  domain: "localhost"
+  app_name: "WakeDock"
+  app_description: "Docker service wake-up and management system"
+  
+  # Server Configuration
+  host: "0.0.0.0"
+  port: 8000
+  debug: true
+  
+  # Use SQLite for development (no Docker required)
+  database:
+    url: "sqlite:///./wakedock_dev.db"
+    
+  # Optional Redis for development
+  redis:
+    url: "redis://localhost:6379/0"
+    enabled: false
+    
+  # Docker Configuration for Windows
+  docker:
+    host: "npipe:////./pipe/docker_engine"  # For Docker Desktop on Windows
+    
+  # Logging Configuration
+  logging:
+    level: "DEBUG"
+    file: "logs/wakedock.log"
+    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Authentication Settings
+auth:
+  secret_key: "dev-secret-key-change-me-in-production"
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  
+# CORS Settings for development
+cors:
+  allow_origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
+  allow_credentials: true
+  allow_methods: ["*"]
+  allow_headers: ["*"]
+
+# Monitoring (disabled for development)
+monitoring:
+  enabled: false
