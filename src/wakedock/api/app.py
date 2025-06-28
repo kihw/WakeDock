@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
 
-from wakedock.api.routes import services, health, proxy, system
+from wakedock.api.routes import services, health, proxy, system, security
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
 from wakedock.core.orchestrator import DockerOrchestrator
@@ -61,6 +61,12 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         system.router,
         prefix="/api/v1/system",
         tags=["system"]
+    )
+    
+    app.include_router(
+        security.router,
+        prefix="/api/v1",
+        tags=["security"]
     )
     
     # Duplicate routes for internal container communication (without /api prefix)
