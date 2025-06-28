@@ -86,13 +86,13 @@ class ApiClient {
     private token: string | null = null;
 
     constructor(baseUrl: string = '') {
-        // Use empty string for relative URLs in browser, or fallback to localhost for SSR
+        // Use empty string for relative URLs in browser, or fallback to localhost for development/SSR
         if (typeof window === 'undefined') {
-            // Server-side rendering - use internal container URL
-            this.baseUrl = baseUrl || 'http://wakedock:8000';
+            // Server-side rendering - use localhost for development
+            this.baseUrl = baseUrl || 'http://localhost:8000';
         } else {
-            // Client-side - use relative URLs that go through Caddy proxy
-            this.baseUrl = baseUrl;
+            // Client-side - use localhost for development
+            this.baseUrl = baseUrl || 'http://localhost:8000';
         }
         this.baseUrl = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash
 
