@@ -4,6 +4,8 @@
  */
 
 import type { User, CreateUserRequest, UpdateUserRequest, LoginRequest, LoginResponse } from './types/user';
+import { config } from './config/environment.js';
+import { API_ENDPOINTS, getApiUrl } from './config/api.js';
 
 export interface ApiError {
     message: string;
@@ -86,19 +88,13 @@ class ApiClient {
     private token: string | null = null;
 
     constructor(baseUrl: string = '') {
-        // Use empty string for relative URLs in browser, or fallback to localhost for development/SSR
-        if (typeof window === 'undefined') {
-            // Server-side rendering - use localhost for development
-            this.baseUrl = baseUrl || 'http://localhost:8000';
-        } else {
-            // Client-side - use localhost for development
-            this.baseUrl = baseUrl || 'http://localhost:8000';
-        }
+        // Use configuration from environment
+        this.baseUrl = baseUrl || config.apiUrl;
         this.baseUrl = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash
 
         // Try to load token from localStorage
         if (typeof window !== 'undefined') {
-            this.token = localStorage.getItem('wakedock_token');
+            this.token = localStorage.getItem(config.tokenKey);
         }
     }
 
@@ -170,29 +166,29 @@ class ApiClient {
     get users() {
         return {
             getAll: (): Promise<User[]> => {
-                return this.request<User[]>('/api/v1/admin/users');
+                return this.request<User[]>(API_ENDPOINTS.USERS.BASE);
             },
 
             getById: (id: number): Promise<User> => {
-                return this.request<User>(`/api/v1/admin/users/${id}`);
+                return this.request<User>(API_ENDPOINTS.USERS.BY_ID(id));
             },
 
             create: (userData: CreateUserRequest): Promise<User> => {
-                return this.request<User>('/api/v1/admin/users', {
+                return this.request<User>(API_ENDPOINTS.USERS.CREATE, {
                     method: 'POST',
                     body: JSON.stringify(userData),
                 });
             },
 
             update: (id: number, userData: UpdateUserRequest): Promise<User> => {
-                return this.request<User>(`/api/v1/admin/users/${id}`, {
+                return this.request<User>(API_ENDPOINTS.USERS.UPDATE(id), {
                     method: 'PUT',
                     body: JSON.stringify(userData),
                 });
             },
 
             delete: (id: number): Promise<void> => {
-                return this.request<void>(`/api/v1/admin/users/${id}`, {
+                return this.request<void>(API_ENDPOINTS.USERS.DELETE(id), {
                     method: 'DELETE',
                 });
             }
@@ -207,7 +203,7 @@ class ApiClient {
                 formData.append('username', credentials.username);
                 formData.append('password', credentials.password);
 
-                const response = await this.request<LoginResponse>('/api/v1/auth/token', {
+                const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
                     method: 'POST',
                     body: formData,
                 });
@@ -215,7 +211,7 @@ class ApiClient {
                 this.token = response.access_token;
 
                 if (typeof window !== 'undefined') {
-                    localStorage.setItem('wakedock_token', this.token);
+                    localStorage.setItem(config.tokenKey, this.token);
                 }
 
                 return response;
@@ -224,16 +220,16 @@ class ApiClient {
             logout: async (): Promise<void> => {
                 this.token = null;
                 if (typeof window !== 'undefined') {
-                    localStorage.removeItem('wakedock_token');
+                    localStorage.removeItem(config.tokenKey);
                 }
             },
 
             getCurrentUser: (): Promise<User> => {
-                return this.request<User>('/api/v1/auth/me');
+                return this.request<User>(API_ENDPOINTS.AUTH.ME);
             },
 
             refreshToken: (): Promise<LoginResponse> => {
-                return this.request<LoginResponse>('/api/v1/auth/refresh', {
+                return this.request<LoginResponse>(API_ENDPOINTS.AUTH.REFRESH, {
                     method: 'POST',
                 });
             }
@@ -242,24 +238,24 @@ class ApiClient {
 
     // System methods
     async getSystemOverview(): Promise<SystemOverview> {
-        return this.request<SystemOverview>('/api/v1/system/overview');
+        return this.request<SystemOverview>(API_ENDPOINTS.SYSTEM.OVERVIEW);
     }
 
     async getHealth(): Promise<Record<string, any>> {
-        return this.request<Record<string, any>>('/api/v1/health');
+        return this.request<Record<string, any>>(API_ENDPOINTS.SYSTEM.HEALTH);
     }
 
     // Service methods
     async getServices(): Promise<Service[]> {
-        return this.request<Service[]>('/api/v1/services');
+        return this.request<Service[]>(API_ENDPOINTS.SERVICES.BASE);
     }
 
     async getService(id: string): Promise<Service> {
-        return this.request<Service>(`/api/v1/services/${id}`);
+        return this.request<Service>(API_ENDPOINTS.SERVICES.BY_ID(id));
     }
 
     async createService(service: CreateServiceRequest): Promise<Service> {
-        return this.request<Service>('/api/v1/services', {
+        return this.request<Service>(API_ENDPOINTS.SERVICES.CREATE, {
             method: 'POST',
             body: JSON.stringify(service),
         });
@@ -267,39 +263,39 @@ class ApiClient {
 
     async updateService(service: UpdateServiceRequest): Promise<Service> {
         const { id, ...updateData } = service;
-        return this.request<Service>(`/api/v1/services/${id}`, {
+        return this.request<Service>(API_ENDPOINTS.SERVICES.UPDATE(id), {
             method: 'PUT',
             body: JSON.stringify(updateData),
         });
     }
 
     async deleteService(id: string): Promise<void> {
-        return this.request<void>(`/api/v1/services/${id}`, {
+        return this.request<void>(API_ENDPOINTS.SERVICES.DELETE(id), {
             method: 'DELETE',
         });
     }
 
     async startService(id: string): Promise<void> {
-        return this.request<void>(`/api/v1/services/${id}/start`, {
+        return this.request<void>(API_ENDPOINTS.SERVICES.START(id), {
             method: 'POST',
         });
     }
 
     async stopService(id: string): Promise<void> {
-        return this.request<void>(`/api/v1/services/${id}/stop`, {
+        return this.request<void>(API_ENDPOINTS.SERVICES.STOP(id), {
             method: 'POST',
         });
     }
 
     async restartService(id: string): Promise<void> {
-        return this.request<void>(`/api/v1/services/${id}/restart`, {
+        return this.request<void>(API_ENDPOINTS.SERVICES.RESTART(id), {
             method: 'POST',
         });
     }
 
     async getServiceLogs(id: string, lines: number = 100): Promise<string[]> {
         const response = await this.request<{ logs: string[] }>(
-            `/api/v1/services/${id}/logs?lines=${lines}`
+            API_ENDPOINTS.SERVICES.LOGS(id, lines)
         );
         return response.logs;
     }

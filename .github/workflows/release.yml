@@ -1,0 +1,414 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '18'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      release_id: ${{ steps.create_release.outputs.id }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: WakeDock ${{ steps.get_version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+        body: |
+          ## What's New in ${{ steps.get_version.outputs.VERSION }}
+          
+          ### 🚀 Features
+          - New feature 1
+          - New feature 2
+          
+          ### 🐛 Bug Fixes
+          - Bug fix 1
+          - Bug fix 2
+          
+          ### 📖 Documentation
+          - Documentation improvements
+          
+          ### 🔧 Technical Changes
+          - Internal improvements
+          
+          ## Installation
+          
+          ### Docker (Recommended)
+          ```bash
+          docker run -d --name wakedock \\
+            -p 8000:8000 \\
+            -v /var/run/docker.sock:/var/run/docker.sock \\
+            wakedock/wakedock:${{ steps.get_version.outputs.VERSION }}
+          ```
+          
+          ### Docker Compose
+          ```bash
+          wget https://github.com/your-org/wakedock/releases/download/${{ steps.get_version.outputs.VERSION }}/docker-compose.yml
+          docker-compose up -d
+          ```
+          
+          ### Helm Chart
+          ```bash
+          helm repo add wakedock https://charts.wakedock.io
+          helm install wakedock wakedock/wakedock --version ${{ steps.get_version.outputs.VERSION }}
+          ```
+          
+          ## Changelog
+          
+          See [CHANGELOG.md](CHANGELOG.md) for full details.
+
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    strategy:
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: |
+          wakedock/wakedock
+        tags: |
+          type=ref,event=tag
+          type=raw,value=latest
+    
+    - name: Build and push Docker images
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: ${{ matrix.platform }}
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  build-dashboard:
+    name: Build Dashboard
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Login to DockerHub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Build and push dashboard image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./dashboard
+        file: ./dashboard/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          wakedock/dashboard:${{ steps.get_version.outputs.VERSION }}
+          wakedock/dashboard:latest
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+  build-python-package:
+    name: Build Python Package
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine
+    
+    - name: Build package
+      run: |
+        python -m build
+    
+    - name: Upload to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine upload dist/*
+    
+    - name: Upload wheel to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/*.whl
+        asset_name: wakedock-${{ github.ref_name }}-py3-none-any.whl
+        asset_content_type: application/zip
+
+  build-binaries:
+    name: Build Binaries
+    runs-on: ${{ matrix.os }}
+    needs: create-release
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: amd64
+          - os: macos-latest
+            platform: darwin
+            arch: amd64
+          - os: windows-latest
+            platform: windows
+            arch: amd64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    
+    - name: Build binary
+      run: |
+        pyinstaller --onefile --name wakedock-${{ matrix.platform }}-${{ matrix.arch }} src/wakedock/cli/commands.py
+    
+    - name: Upload binary to release (Unix)
+      if: matrix.os != 'windows-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/wakedock-${{ matrix.platform }}-${{ matrix.arch }}
+        asset_name: wakedock-${{ matrix.platform }}-${{ matrix.arch }}
+        asset_content_type: application/octet-stream
+    
+    - name: Upload binary to release (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: dist/wakedock-${{ matrix.platform }}-${{ matrix.arch }}.exe
+        asset_name: wakedock-${{ matrix.platform }}-${{ matrix.arch }}.exe
+        asset_content_type: application/octet-stream
+
+  build-helm-chart:
+    name: Build Helm Chart
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Set up Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: '3.12.0'
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+    
+    - name: Package Helm chart
+      run: |
+        helm package charts/wakedock --version ${{ steps.get_version.outputs.VERSION }} --app-version ${{ steps.get_version.outputs.VERSION }}
+    
+    - name: Upload Helm chart to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: wakedock-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_name: wakedock-helm-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_content_type: application/gzip
+
+  create-manifests:
+    name: Create Deployment Manifests
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Create Docker Compose file
+      run: |
+        cp docker-compose.yml docker-compose-release.yml
+        sed -i 's/:latest/:${{ steps.get_version.outputs.VERSION }}/g' docker-compose-release.yml
+    
+    - name: Upload Docker Compose to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: docker-compose-release.yml
+        asset_name: docker-compose.yml
+        asset_content_type: text/yaml
+    
+    - name: Create Kubernetes manifests
+      run: |
+        mkdir -p release-manifests
+        cp -r examples/kubernetes/* release-manifests/
+        find release-manifests -name "*.yaml" -o -name "*.yml" | xargs sed -i 's/:latest/:${{ steps.get_version.outputs.VERSION }}/g'
+        tar -czf kubernetes-manifests.tar.gz release-manifests/
+    
+    - name: Upload Kubernetes manifests to release
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: kubernetes-manifests.tar.gz
+        asset_name: kubernetes-manifests.tar.gz
+        asset_content_type: application/gzip
+
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-dashboard, build-python-package]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Update version in docs
+      run: |
+        find docs -name "*.md" | xargs sed -i 's/wakedock:latest/wakedock:${{ steps.get_version.outputs.VERSION }}/g'
+    
+    - name: Commit docs changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add docs/
+        git commit -m "Update docs for release ${{ steps.get_version.outputs.VERSION }}" || exit 0
+        git push
+
+  notify-release:
+    name: Notify Release
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-dashboard, build-python-package, build-binaries, build-helm-chart]
+    
+    steps:
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Notify team
+      run: |
+        echo "🎉 WakeDock ${{ steps.get_version.outputs.VERSION }} has been released!"
+        # Add notification logic here (Slack, Discord, etc.)
+        # curl -X POST -H 'Content-type: application/json' \
+        #   --data '{"text":"🎉 WakeDock ${{ steps.get_version.outputs.VERSION }} released!"}' \
+        #   ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  security-scan-release:
+    name: Security Scan Release Images
+    runs-on: ubuntu-latest
+    needs: [build-artifacts, build-dashboard]
+    
+    steps:
+    - name: Get version from tag
+      id: get_version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+    
+    - name: Scan main image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: wakedock/wakedock:${{ steps.get_version.outputs.VERSION }}
+        format: 'sarif'
+        output: 'trivy-main.sarif'
+    
+    - name: Scan dashboard image
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: wakedock/dashboard:${{ steps.get_version.outputs.VERSION }}
+        format: 'sarif'
+        output: 'trivy-dashboard.sarif'
+    
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-main.sarif'
+    
+    - name: Upload Trivy dashboard scan results
+      uses: github/codeql-action/upload-sarif@v2
+      if: always()
+      with:
+        sarif_file: 'trivy-dashboard.sarif'

@@ -1,0 +1,240 @@
+# WakeDock Caddyfile Template
+# This template is used to generate the main Caddyfile configuration
+
+{
+    # Global Caddy configuration
+    admin {{ caddy_admin_host }}:{{ caddy_admin_port }}
+    auto_https {{ auto_https }}
+    
+    # Email for Let's Encrypt (if auto HTTPS is enabled)
+    {% if acme_email %}
+    email {{ acme_email }}
+    {% endif %}
+    
+    # Global options
+    servers {
+        protocol {
+            experimental_http3
+        }
+        trusted_proxies cloudflare
+    }
+    
+    # Default error pages
+    handle_errors {
+        rewrite * /{http.error.status_code}.html
+        file_server {
+            root /usr/share/caddy/errors
+        }
+    }
+}
+
+# WakeDock Dashboard (Always present)
+{% if dashboard_enabled %}
+{{ dashboard_domain }}:{{ dashboard_port }} {
+    reverse_proxy {{ dashboard_upstream }} {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Health check
+        health_uri /health
+        health_interval 30s
+    }
+    
+    # Security headers
+    header {
+        # Enable HSTS
+        Strict-Transport-Security max-age=31536000;
+        # Prevent MIME sniffing
+        X-Content-Type-Options nosniff
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+        # Prevent clickjacking
+        X-Frame-Options DENY
+        # Referrer Policy
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+    
+    {% if ssl_enabled %}
+    # SSL configuration
+    tls {{ ssl_cert_path }} {{ ssl_key_path }}
+    {% else %}
+    # Auto HTTPS
+    tls {
+        on_demand
+    }
+    {% endif %}
+    
+    # Logging
+    log {
+        output file {{ log_dir }}/dashboard-access.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format json
+    }
+}
+{% endif %}
+
+# WakeDock API (Always present)
+api.{{ default_domain }}:{{ api_port }} {
+    reverse_proxy {{ api_upstream }} {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Health check
+        health_uri /health
+        health_interval 30s
+    }
+    
+    # Rate limiting for API
+    rate_limit {
+        zone api {
+            key {remote_host}
+            window 1m
+            requests {{ api_rate_limit }}
+        }
+    }
+    
+    # Security headers
+    header {
+        # CORS headers (will be overridden by application if needed)
+        Access-Control-Allow-Origin {{ cors_origins }}
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+    }
+    
+    {% if ssl_enabled %}
+    tls {{ ssl_cert_path }} {{ ssl_key_path }}
+    {% else %}
+    tls {
+        on_demand
+    }
+    {% endif %}
+    
+    # Logging
+    log {
+        output file {{ log_dir }}/api-access.log {
+            roll_size 100mb
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format json
+    }
+}
+
+# Metrics endpoint (if monitoring is enabled)
+{% if monitoring_enabled %}
+metrics.{{ default_domain }}:{{ metrics_port }} {
+    reverse_proxy {{ metrics_upstream }} {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    # Basic auth for metrics (if configured)
+    {% if metrics_auth_enabled %}
+    basicauth {
+        {{ metrics_username }} {{ metrics_password_hash }}
+    }
+    {% endif %}
+    
+    {% if ssl_enabled %}
+    tls {{ ssl_cert_path }} {{ ssl_key_path }}
+    {% else %}
+    tls {
+        on_demand
+    }
+    {% endif %}
+}
+{% endif %}
+
+# Dynamic service routes (will be populated by WakeDock)
+{% for service in services %}
+{% if service.domain and service.upstream %}
+{{ service.domain }} {
+    reverse_proxy {{ service.upstream }} {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        
+        # Health check (if service supports it)
+        {% if service.health_check_path %}
+        health_uri {{ service.health_check_path }}
+        health_interval {{ service.health_check_interval | default('30s') }}
+        {% endif %}
+        
+        # Load balancing (if multiple upstreams)
+        {% if service.upstreams|length > 1 %}
+        lb_policy {{ service.load_balance_policy | default('round_robin') }}
+        {% endif %}
+    }
+    
+    # Service-specific headers
+    {% for header_name, header_value in service.headers.items() %}
+    header {{ header_name }} "{{ header_value }}"
+    {% endfor %}
+    
+    # Rate limiting (if configured for service)
+    {% if service.rate_limit %}
+    rate_limit {
+        zone {{ service.name }} {
+            key {remote_host}
+            window {{ service.rate_limit.window | default('1m') }}
+            requests {{ service.rate_limit.requests }}
+        }
+    }
+    {% endif %}
+    
+    # Basic auth (if configured for service)
+    {% if service.basic_auth_enabled %}
+    basicauth {
+        {% for user, password_hash in service.basic_auth_users.items() %}
+        {{ user }} {{ password_hash }}
+        {% endfor %}
+    }
+    {% endif %}
+    
+    # SSL configuration
+    {% if service.ssl_enabled %}
+    tls {{ service.ssl_cert_path }} {{ service.ssl_key_path }}
+    {% elif ssl_enabled %}
+    tls {{ ssl_cert_path }} {{ ssl_key_path }}
+    {% else %}
+    tls {
+        on_demand
+    }
+    {% endif %}
+    
+    # Service-specific logging
+    log {
+        output file {{ log_dir }}/{{ service.name }}-access.log {
+            roll_size 100mb
+            roll_keep 3
+            roll_keep_for 720h
+        }
+        format json
+    }
+}
+{% endif %}
+{% endfor %}
+
+# Default catch-all (returns 404 for unknown domains)
+:80, :443 {
+    respond "Not Found" 404
+    
+    log {
+        output file {{ log_dir }}/default-access.log {
+            roll_size 100mb
+            roll_keep 3
+            roll_keep_for 168h
+        }
+        format json
+    }
+}
