@@ -41,7 +41,7 @@ class CaddyManager:
         self._ensure_initial_caddyfile()
     
     def _ensure_initial_caddyfile(self) -> None:
-        """Create initial Caddyfile if it doesn't exist."""
+        """Ensure Caddyfile exists and is properly configured for WakeDock."""
         try:
             # Create directory if it doesn't exist
             self.config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -53,20 +53,41 @@ class CaddyManager:
                 shutil.rmtree(self.config_path)
                 logger.info("Removed incorrect Caddyfile directory")
             
-            # If Caddyfile doesn't exist or was a directory, create it as a file
+            # Check if Caddyfile exists and has WakeDock markers
+            if self.config_path.exists() and self.config_path.is_file():
+                try:
+                    with open(self.config_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    # Check if it has WakeDock markers
+                    if "=== WAKEDOCK MANAGED SERVICES START ===" in content:
+                        logger.info(f"✅ WakeDock Caddyfile found at {self.config_path}")
+                        return
+                    else:
+                        logger.info("Existing Caddyfile found but missing WakeDock markers, updating...")
+                        # Add WakeDock markers to existing file
+                        updated_content = content + "\n\n# === WAKEDOCK MANAGED SERVICES START ===\n"
+                        updated_content += "# Cette section est automatiquement gérée par WakeDock\n"
+                        updated_content += "# Ne pas modifier manuellement\n"
+                        updated_content += "# === WAKEDOCK MANAGED SERVICES END ===\n"
+                        
+                        with open(self.config_path, 'w', encoding='utf-8') as f:
+                            f.write(updated_content)
+                        logger.info("✅ Added WakeDock markers to existing Caddyfile")
+                        
+                except Exception as e:
+                    logger.error(f"Error reading existing Caddyfile: {e}")
+                    # Fall through to create new file
+            
+            # If no valid Caddyfile exists, create the default one
             if not self.config_path.exists() or not self.config_path.is_file():
-                initial_config = self._generate_initial_caddyfile()
-                with open(self.config_path, 'w') as f:
+                initial_config = self._get_default_caddyfile()
+                with open(self.config_path, 'w', encoding='utf-8') as f:
                     f.write(initial_config)
-                logger.info(f"Created initial Caddyfile at {self.config_path}")
-                
-                # Reload Caddy after creating initial config
-                self._schedule_reload()
-            else:
-                logger.info(f"Caddyfile already exists at {self.config_path}")
+                logger.info(f"✅ Created WakeDock Caddyfile at {self.config_path}")
                 
         except Exception as e:
-            logger.error(f"Error creating initial Caddyfile: {e}")
+            logger.error(f"❌ Error ensuring Caddyfile: {e}")
     
     def _generate_initial_caddyfile(self) -> str:
         """Generate initial Caddyfile configuration."""
