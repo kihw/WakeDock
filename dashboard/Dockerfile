@@ -8,8 +8,8 @@ RUN apk add --no-cache curl
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies with better error handling
-RUN npm ci --only=production=false --silent
+# Install dependencies with legacy peer deps to resolve conflicts
+RUN npm install --legacy-peer-deps
 
 # Copy source code
 COPY . .
