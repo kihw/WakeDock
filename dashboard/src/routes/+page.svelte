@@ -115,20 +115,20 @@
     try {
       loading = true;
       error = '';
-      
+
       // Try to load from API, fallback to mock data
       try {
         // Import the API - handle SSR case
         if (typeof window !== 'undefined') {
           const { api } = await import('$lib/api');
           const apiServices = await api.services.getAll();
-          services = apiServices.map(service => ({
+          services = apiServices.map((service) => ({
             id: service.id,
             name: service.name,
             subdomain: service.name.toLowerCase(),
             status: service.status,
             docker_image: service.image,
-            ports: service.ports.map(p => `${p.host}:${p.container}`),
+            ports: service.ports.map((p) => `${p.host}:${p.container}`),
             last_accessed: service.updated_at,
             resource_usage: {
               cpu_percent: Math.random() * 50,
@@ -144,55 +144,55 @@
         console.warn('API not available, using mock data:', apiError);
         // Fallback to mock data
         const mockServices: Service[] = [
-        {
-          id: '1',
-          name: 'nginx-proxy',
-          subdomain: 'proxy',
-          status: 'running',
-          docker_image: 'nginx:alpine',
-          ports: ['80:80', '443:443'],
-          last_accessed: new Date(Date.now() - 300000).toISOString(),
-          resource_usage: {
-            cpu_percent: 12.5,
-            memory_usage: 64 * 1024 * 1024,
-            memory_percent: 8.2,
+          {
+            id: '1',
+            name: 'nginx-proxy',
+            subdomain: 'proxy',
+            status: 'running',
+            docker_image: 'nginx:alpine',
+            ports: ['80:80', '443:443'],
+            last_accessed: new Date(Date.now() - 300000).toISOString(),
+            resource_usage: {
+              cpu_percent: 12.5,
+              memory_usage: 64 * 1024 * 1024,
+              memory_percent: 8.2,
+            },
           },
-        },
-        {
-          id: '2',
-          name: 'postgres-db',
-          subdomain: 'db',
-          status: 'running',
-          docker_image: 'postgres:15',
-          ports: ['5432:5432'],
-          last_accessed: new Date(Date.now() - 600000).toISOString(),
-          resource_usage: {
-            cpu_percent: 5.8,
-            memory_usage: 128 * 1024 * 1024,
-            memory_percent: 16.4,
+          {
+            id: '2',
+            name: 'postgres-db',
+            subdomain: 'db',
+            status: 'running',
+            docker_image: 'postgres:15',
+            ports: ['5432:5432'],
+            last_accessed: new Date(Date.now() - 600000).toISOString(),
+            resource_usage: {
+              cpu_percent: 5.8,
+              memory_usage: 128 * 1024 * 1024,
+              memory_percent: 16.4,
+            },
           },
-        },
-        {
-          id: '3',
-          name: 'redis-cache',
-          subdomain: 'cache',
-          status: 'stopped',
-          docker_image: 'redis:7-alpine',
-          ports: ['6379:6379'],
-          last_accessed: new Date(Date.now() - 3600000).toISOString(),
-        },
-        {
-          id: '4',
-          name: 'web-app',
-          subdomain: 'app',
-          status: 'starting',
-          docker_image: 'node:18-alpine',
-          ports: ['3000:3000'],
-          last_accessed: new Date(Date.now() - 1800000).toISOString(),
-        },
-      ];
+          {
+            id: '3',
+            name: 'redis-cache',
+            subdomain: 'cache',
+            status: 'stopped',
+            docker_image: 'redis:7-alpine',
+            ports: ['6379:6379'],
+            last_accessed: new Date(Date.now() - 3600000).toISOString(),
+          },
+          {
+            id: '4',
+            name: 'web-app',
+            subdomain: 'app',
+            status: 'starting',
+            docker_image: 'node:18-alpine',
+            ports: ['3000:3000'],
+            last_accessed: new Date(Date.now() - 1800000).toISOString(),
+          },
+        ];
 
-      services = mockServices;
+        services = mockServices;
       }
       error = '';
     } catch (e) {
