@@ -17,6 +17,9 @@ class LoggingSettings(BaseSettings):
     max_bytes: int = 10485760  # 10MB
     backup_count: int = 5
 
+    class Config:
+        extra = "ignore"
+
 
 class WakeDockSettings(BaseSettings):
     domain: str = "localhost"
@@ -27,6 +30,9 @@ class WakeDockSettings(BaseSettings):
     debug: bool = False
     data_path: str = "/app/data"
 
+    class Config:
+        extra = "ignore"
+
 
 class CaddySettings(BaseSettings):
     api_endpoint: str = "http://caddy:2019"
@@ -36,9 +42,15 @@ class CaddySettings(BaseSettings):
     admin_port: int = 2019
     admin_host: str = "localhost"
 
+    class Config:
+        extra = "ignore"
+
 
 class DatabaseSettings(BaseSettings):
     url: str = "sqlite:///./data/wakedock.db"
+
+    class Config:
+        extra = "ignore"
 
 
 class MonitoringSettings(BaseSettings):
@@ -46,6 +58,9 @@ class MonitoringSettings(BaseSettings):
     metrics_retention: str = "7d"
     collect_interval: int = 30
     endpoints: List[str] = ["/health", "/metrics"]
+
+    class Config:
+        extra = "ignore"
 
 
 class LoadingPageSettings(BaseSettings):
@@ -55,6 +70,9 @@ class LoadingPageSettings(BaseSettings):
     custom_css: Optional[str] = None
     estimated_time: int = 30
 
+    class Config:
+        extra = "ignore"
+
 
 class AutoShutdownSettings(BaseSettings):
     inactive_minutes: int = 30
@@ -63,6 +81,9 @@ class AutoShutdownSettings(BaseSettings):
     check_interval: int = 300  # seconds
     grace_period: int = 60  # seconds
 
+    class Config:
+        extra = "ignore"
+
 
 class HealthCheckSettings(BaseSettings):
     enabled: bool = True
@@ -70,6 +91,9 @@ class HealthCheckSettings(BaseSettings):
     timeout: int = 30
     retries: int = 3
     interval: int = 10
+
+    class Config:
+        extra = "ignore"
 
 
 class ServiceSettings(BaseSettings):
@@ -84,6 +108,9 @@ class ServiceSettings(BaseSettings):
     health_check: HealthCheckSettings = HealthCheckSettings()
     startup_script: Optional[str] = None
 
+    class Config:
+        extra = "ignore"
+
 
 class Settings(BaseSettings):
     wakedock: WakeDockSettings = WakeDockSettings()
@@ -96,6 +123,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_nested_delimiter = "__"
+        extra = "ignore"  # Allow extra fields from YAML
 
 
 def load_config_from_yaml(config_path: str) -> dict:

@@ -9,6 +9,7 @@ from datetime import datetime
 
 from wakedock.config import ServiceSettings, get_settings
 from wakedock.core.orchestrator import DockerOrchestrator
+from wakedock.api.dependencies import get_orchestrator
 
 router = APIRouter()
 
@@ -47,11 +48,6 @@ class ServiceUpdateRequest(BaseModel):
     environment: Optional[Dict[str, str]] = None
     auto_shutdown: Optional[Dict[str, Any]] = None
     loading_page: Optional[Dict[str, Any]] = None
-
-
-def get_orchestrator(request: Request) -> DockerOrchestrator:
-    """Dependency to get orchestrator instance from app state"""
-    return request.app.state.orchestrator
 
 
 @router.get("", response_model=List[ServiceResponse])

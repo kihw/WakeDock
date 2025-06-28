@@ -96,7 +96,7 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     
     # Store dependencies in app state
     app.state.orchestrator = orchestrator
-    app.state.monitoring = monitoring
+    app.state.monitoring_service = monitoring
     app.state.settings = settings
     
     @app.on_event("startup")

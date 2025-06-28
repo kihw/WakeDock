@@ -9,6 +9,7 @@ from datetime import datetime
 
 from wakedock.core.monitoring import MonitoringService
 from wakedock.core.caddy import caddy_manager
+from wakedock.api.dependencies import get_monitoring_service, get_orchestrator
 
 router = APIRouter()
 
@@ -40,11 +41,6 @@ class SystemOverviewResponse(BaseModel):
     system: SystemStats
     docker: DockerStatus
     caddy: CaddyStatus
-
-
-def get_monitoring_service(request: Request) -> MonitoringService:
-    """Dependency to get monitoring service from app state"""
-    return request.app.state.monitoring
 
 
 @router.get("/overview", response_model=SystemOverviewResponse)
@@ -110,19 +106,9 @@ async def reload_caddy_config():
 
 
 @router.post("/caddy/update")
-async def update_caddy_config(request: Request):
+async def update_caddy_config(orchestrator = Depends(get_orchestrator)):
     """Force update Caddy configuration with all services"""
     try:
-        # Get orchestrator from app state
-        orchestrator = getattr(request.app.state, 'orchestrator', None)
-        
-        if not orchestrator:
-            return {
-                "success": False,
-                "message": "Orchestrator not available",
-                "timestamp": datetime.now()
-            }
-        
         # Force update Caddy configuration
         success = await orchestrator._update_caddy_configuration()
         
