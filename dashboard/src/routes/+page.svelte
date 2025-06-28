@@ -39,6 +39,9 @@
     let statusFilter = "all";
     let refreshing = false;
 
+    // Initialize filteredServices to prevent SSR errors
+    let filteredServices: Service[] = [];
+
     const stats = writable({
         services: {
             total: 0,
@@ -65,19 +68,19 @@
     });
 
     // Filtered services based on search and status
-    $: filteredServices = services.filter(service => {
+    $: filteredServices = (services || []).filter(service => {
         const matchesSearch = service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             service.subdomain.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === "all" || service.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
 
-    // Quick stats for the filtered services
+    // Quick stats for the filtered services - ensure safe access
     $: quickStats = {
-        total: filteredServices?.length || 0,
-        running: filteredServices?.filter(s => s.status === "running").length || 0,
-        stopped: filteredServices?.filter(s => s.status === "stopped").length || 0,
-        error: filteredServices?.filter(s => s.status === "error").length || 0
+        total: (filteredServices || []).length,
+        running: (filteredServices || []).filter(s => s.status === "running").length,
+        stopped: (filteredServices || []).filter(s => s.status === "stopped").length,
+        error: (filteredServices || []).filter(s => s.status === "error").length
     };
 
     onMount(async () => {
@@ -244,11 +247,11 @@
         }
     }
 
-    const statusOptions = [
-        { value: "all", label: "All Services", count: quickStats.total },
-        { value: "running", label: "Running", count: quickStats.running },
-        { value: "stopped", label: "Stopped", count: quickStats.stopped },
-        { value: "error", label: "Error", count: quickStats.error }
+    $: statusOptions = [
+        { value: "all", label: "All Services", count: quickStats?.total || 0 },
+        { value: "running", label: "Running", count: quickStats?.running || 0 },
+        { value: "stopped", label: "Stopped", count: quickStats?.stopped || 0 },
+        { value: "error", label: "Error", count: quickStats?.error || 0 }
     ];
 </script>
 
@@ -270,15 +273,15 @@
                 </p>
                 <div class="hero-stats">
                     <div class="hero-stat">
-                        <div class="hero-stat-value">{quickStats.total}</div>
+                        <div class="hero-stat-value">{quickStats?.total || 0}</div>
                         <div class="hero-stat-label">Total Services</div>
                     </div>
                     <div class="hero-stat">
-                        <div class="hero-stat-value text-green-600">{quickStats.running}</div>
+                        <div class="hero-stat-value text-green-600">{quickStats?.running || 0}</div>
                         <div class="hero-stat-label">Running</div>
                     </div>
                     <div class="hero-stat">
-                        <div class="hero-stat-value text-gray-600">{quickStats.stopped}</div>
+                        <div class="hero-stat-value text-gray-600">{quickStats?.stopped || 0}</div>
                         <div class="hero-stat-label">Stopped</div>
                     </div>
                 </div>
