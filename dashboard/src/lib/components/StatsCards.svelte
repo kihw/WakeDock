@@ -143,7 +143,7 @@
     <!-- CPU Usage -->
     <div class="stat-card">
         <div class="card-header">
-            <div class="stat-icon-wrapper {getUsageColor($stats.system.cpu_usage).color}">
+            <div class="stat-icon-wrapper {getUsageColor($stats?.system?.cpu_usage || 0).color}">
                 <Cpu size={24} />
             </div>
             <div class="trend-indicator">
@@ -160,15 +160,15 @@
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value {getUsageColor($stats.system.cpu_usage).color}">
-                    {$stats.system.cpu_usage.toFixed(1)}%
+                <div class="stat-value {getUsageColor($stats?.system?.cpu_usage || 0).color}">
+                    {($stats?.system?.cpu_usage || 0).toFixed(1)}%
                 </div>
                 <div class="stat-label">CPU Usage</div>
             </div>
             
             <div class="usage-bar">
-                <div class="usage-fill {getUsageColor($stats.system.cpu_usage).fill}" 
-                     style="width: {Math.min($stats.system.cpu_usage, 100)}%">
+                <div class="usage-fill {getUsageColor($stats?.system?.cpu_usage || 0).fill}" 
+                     style="width: {Math.min($stats?.system?.cpu_usage || 0, 100)}%">
                 </div>
             </div>
         </div>
@@ -183,7 +183,7 @@
     <!-- Memory Usage -->
     <div class="stat-card">
         <div class="card-header">
-            <div class="stat-icon-wrapper {getUsageColor($stats.system.memory_usage).color}">
+            <div class="stat-icon-wrapper {getUsageColor($stats?.system?.memory_usage || 0).color}">
                 <HardDrive size={24} />
             </div>
             <div class="trend-indicator">
@@ -200,15 +200,15 @@
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value {getUsageColor($stats.system.memory_usage).color}">
-                    {$stats.system.memory_usage.toFixed(1)}%
+                <div class="stat-value {getUsageColor($stats?.system?.memory_usage || 0).color}">
+                    {($stats?.system?.memory_usage || 0).toFixed(1)}%
                 </div>
                 <div class="stat-label">Memory Usage</div>
             </div>
             
             <div class="usage-bar">
-                <div class="usage-fill {getUsageColor($stats.system.memory_usage).fill}" 
-                     style="width: {Math.min($stats.system.memory_usage, 100)}%">
+                <div class="usage-fill {getUsageColor($stats?.system?.memory_usage || 0).fill}" 
+                     style="width: {Math.min($stats?.system?.memory_usage || 0, 100)}%">
                 </div>
             </div>
         </div>
@@ -240,7 +240,7 @@
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value">{formatUptime($stats.system.uptime)}</div>
+                <div class="stat-value">{formatUptime($stats?.system?.uptime || 0)}</div>
                 <div class="stat-label">System Uptime</div>
             </div>
             
@@ -252,26 +252,26 @@
         
         <div class="stat-footer">
             <span class="stat-trend">
-                Running for {formatUptime($stats.system.uptime)} continuously
+                Running for {formatUptime($stats?.system?.uptime || 0)} continuously
             </span>
         </div>
     </div>
 
     <!-- Docker Status -->
-    <div class="stat-card {getHealthStatus($stats.docker.status).bg}">
+    <div class="stat-card {getHealthStatus($stats?.docker?.status || 'unknown').bg}">
         <div class="card-header">
-            <div class="stat-icon-wrapper {getHealthStatus($stats.docker.status).color}">
-                <svelte:component this={getHealthStatus($stats.docker.status).icon} size={24} />
+            <div class="stat-icon-wrapper {getHealthStatus($stats?.docker?.status || 'unknown').color}">
+                <svelte:component this={getHealthStatus($stats?.docker?.status || 'unknown').icon} size={24} />
             </div>
             <div class="version-badge">
-                v{$stats.docker.version}
+                v{$stats?.docker?.version || 'unknown'}
             </div>
         </div>
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value {getHealthStatus($stats.docker.status).color}">
-                    {$stats.docker.status === 'healthy' ? 'Healthy' : 'Unhealthy'}
+                <div class="stat-value {getHealthStatus($stats?.docker?.status || 'unknown').color}">
+                    {($stats?.docker?.status || 'unknown') === 'healthy' ? 'Healthy' : 'Unhealthy'}
                 </div>
                 <div class="stat-label">Docker Engine</div>
             </div>
@@ -279,7 +279,7 @@
             <div class="service-info">
                 <div class="info-item">
                     <span class="info-label">API Version</span>
-                    <span class="info-value">{$stats.docker.api_version}</span>
+                    <span class="info-value">{$stats?.docker?.api_version || 'unknown'}</span>
                 </div>
             </div>
         </div>
@@ -292,20 +292,20 @@
     </div>
 
     <!-- Caddy Status -->
-    <div class="stat-card {getHealthStatus($stats.caddy.status).bg}">
+    <div class="stat-card {getHealthStatus($stats?.caddy?.status || 'unknown').bg}">
         <div class="card-header">
-            <div class="stat-icon-wrapper {getHealthStatus($stats.caddy.status).color}">
+            <div class="stat-icon-wrapper {getHealthStatus($stats?.caddy?.status || 'unknown').color}">
                 <Zap size={24} />
             </div>
             <div class="routes-badge">
-                {$stats.caddy.active_routes} routes
+                {$stats?.caddy?.active_routes || 0} routes
             </div>
         </div>
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value {getHealthStatus($stats.caddy.status).color}">
-                    {$stats.caddy.status === 'healthy' ? 'Healthy' : 'Unhealthy'}
+                <div class="stat-value {getHealthStatus($stats?.caddy?.status || 'unknown').color}">
+                    {($stats?.caddy?.status || 'unknown') === 'healthy' ? 'Healthy' : 'Unhealthy'}
                 </div>
                 <div class="stat-label">Caddy Server</div>
             </div>
@@ -313,11 +313,11 @@
             <div class="service-info">
                 <div class="info-item">
                     <span class="info-label">Version</span>
-                    <span class="info-value">{$stats.caddy.version}</span>
+                    <span class="info-value">{$stats?.caddy?.version || 'unknown'}</span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">Active Routes</span>
-                    <span class="info-value">{$stats.caddy.active_routes}</span>
+                    <span class="info-value">{$stats?.caddy?.active_routes || 0}</span>
                 </div>
             </div>
         </div>
