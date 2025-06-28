@@ -26,18 +26,21 @@
     let modalElement: HTMLDivElement;
 
     onMount(() => {
-        // Focus trap and escape key handling
-        const handleKeydown = (event: KeyboardEvent) => {
-            if (open && closeOnEscape && event.key === "Escape") {
-                handleClose();
-            }
-        };
+        // Only run in browser (not during SSR)
+        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            // Focus trap and escape key handling
+            const handleKeydown = (event: KeyboardEvent) => {
+                if (open && closeOnEscape && event.key === "Escape") {
+                    handleClose();
+                }
+            };
 
-        document.addEventListener("keydown", handleKeydown);
+            document.addEventListener("keydown", handleKeydown);
 
-        return () => {
-            document.removeEventListener("keydown", handleKeydown);
-        };
+            return () => {
+                document.removeEventListener("keydown", handleKeydown);
+            };
+        }
     });
 
     const handleBackdropClick = (event: MouseEvent) => {
