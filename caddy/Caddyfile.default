@@ -1,5 +1,5 @@
 # WakeDock Default Caddyfile
-# This file will be replaced by WakeDock when it starts
+# Configuration de base - ne sera pas modifiée par WakeDock
 
 {
     admin 0.0.0.0:2019
@@ -58,3 +58,8 @@
 :2019 {
     respond "Caddy Admin API" 200
 }
+
+# === WAKEDOCK MANAGED SERVICES START ===
+# Cette section est automatiquement gérée par WakeDock
+# Ne pas modifier manuellement
+# === WAKEDOCK MANAGED SERVICES END ===

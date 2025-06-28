@@ -202,8 +202,11 @@ class DockerOrchestrator:
                     'enable_auth': service.get('enable_auth', False)
                 })()
                 
-                # Add route to Caddy
+                # Add route to Caddy (legacy method)
                 await caddy_manager.add_service_route(caddy_service)
+                
+                # Regenerate complete Caddyfile with all services
+                await self._update_caddy_configuration()
             
             return success
             
@@ -315,8 +318,11 @@ class DockerOrchestrator:
                     'status': ServiceStatus.STOPPED
                 })()
                 
-                # Remove route from Caddy
+                # Remove route from Caddy (legacy method)
                 await caddy_manager.remove_service_route(caddy_service)
+                
+                # Regenerate complete Caddyfile with remaining services
+                await self._update_caddy_configuration()
             
             return success
             
@@ -444,6 +450,42 @@ class DockerOrchestrator:
             logger.error(f"Failed to get stats for service {service['name']}: {str(e)}")
             return None
     
+    async def _update_caddy_configuration(self):
+        """Update Caddy configuration with all running services."""
+        try:
+            from wakedock.database.models import Service, ServiceStatus
+            
+            # Collect all running services
+            running_services = []
+            
+            for service_id, service_data in self.services.items():
+                if service_data.get("status") == "running" and service_data.get("domain"):
+                    # Create service object for Caddy
+                    caddy_service = type('Service', (), {
+                        'name': service_data['name'],
+                        'domain': service_data.get('domain'),
+                        'status': ServiceStatus.RUNNING,
+                        'ports': service_data.get('ports', []),
+                        'enable_ssl': service_data.get('enable_ssl', True),
+                        'enable_auth': service_data.get('enable_auth', False)
+                    })()
+                    running_services.append(caddy_service)
+            
+            # Update Caddy configuration with all services
+            logger.info(f"Updating Caddy configuration with {len(running_services)} running services")
+            success = await caddy_manager.update_service_config(running_services)
+            
+            if success:
+                logger.info("✅ Caddy configuration updated successfully")
+            else:
+                logger.error("❌ Failed to update Caddy configuration")
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"❌ Error updating Caddy configuration: {e}")
+            return False
+
     def _check_docker_available(self) -> bool:
         """Check if Docker client is available"""
         if self.client is None:

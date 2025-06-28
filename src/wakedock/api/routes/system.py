@@ -68,39 +68,67 @@ async def get_system_metrics(monitoring: MonitoringService = Depends(get_monitor
 async def reload_caddy_config():
     """Force reload Caddy configuration"""
     try:
-        success = await caddy_manager.force_reload()
-        if success:
-            return {
-                "status": "success",
-                "message": "Caddy configuration reloaded successfully",
-                "timestamp": datetime.now()
-            }
-        else:
-            return {
-                "status": "error", 
-                "message": "Failed to reload Caddy configuration",
-                "timestamp": datetime.now()
-            }
+        success = await caddy_manager.reload_caddy()
+        
+        return {
+            "success": success,
+            "message": "Caddy configuration reloaded" if success else "Failed to reload Caddy",
+            "timestamp": datetime.now()
+        }
     except Exception as e:
         return {
-            "status": "error",
+            "success": False,
             "message": f"Error reloading Caddy: {str(e)}",
+            "timestamp": datetime.now()
+        }
+
+
+@router.post("/caddy/update")
+async def update_caddy_config(request: Request):
+    """Force update Caddy configuration with all services"""
+    try:
+        # Get orchestrator from app state
+        orchestrator = getattr(request.app.state, 'orchestrator', None)
+        
+        if not orchestrator:
+            return {
+                "success": False,
+                "message": "Orchestrator not available",
+                "timestamp": datetime.now()
+            }
+        
+        # Force update Caddy configuration
+        success = await orchestrator._update_caddy_configuration()
+        
+        return {
+            "success": success,
+            "message": "Caddy configuration updated" if success else "Failed to update Caddy configuration",
+            "timestamp": datetime.now()
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Error updating Caddy configuration: {str(e)}",
             "timestamp": datetime.now()
         }
 
 
 @router.get("/caddy/status")
 async def get_caddy_status():
-    """Get Caddy server status"""
+    """Get Caddy proxy status"""
     try:
-        status = await caddy_manager.get_caddy_status()
+        # Try to get Caddy admin API status
+        status = await caddy_manager.get_status()
+        
         return {
-            "timestamp": datetime.now(),
-            **status
+            "caddy_admin_api": "accessible" if status else "not accessible",
+            "config_path": str(caddy_manager.config_path),
+            "timestamp": datetime.now()
         }
     except Exception as e:
         return {
-            "status": "error",
-            "message": f"Error getting Caddy status: {str(e)}",
+            "caddy_admin_api": "error",
+            "error": str(e),
+            "config_path": str(caddy_manager.config_path),
             "timestamp": datetime.now()
         }

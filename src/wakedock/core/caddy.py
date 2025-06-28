@@ -288,57 +288,175 @@ class CaddyManager:
         return 8080
     
     async def update_service_config(self, services: List[Service]) -> bool:
-        """Update Caddy configuration with current services."""
+        """Update only the WakeDock-managed sections of the Caddyfile."""
         try:
-            # Generate configuration for all running services
-            config_blocks = []
+            logger.info(f"Updating WakeDock-managed sections with {len(services)} services...")
             
+            # Read current Caddyfile
+            current_content = await self._read_current_caddyfile()
+            
+            # Generate configuration for running services only
+            services_config = []
             for service in services:
                 if service.status == ServiceStatus.RUNNING and service.domain:
                     config_block = self.generate_service_config(service)
                     if config_block:
-                        config_blocks.append(config_block)
+                        services_config.append(config_block)
+                        logger.info(f"Added config for service: {service.name} -> {service.domain}")
             
-            # Generate global configuration
-            global_config = self._generate_global_config()
+            # Update only the WakeDock-managed sections
+            updated_content = self._update_wakedock_sections(current_content, services_config)
             
-            # Combine all configurations
-            full_config = "\n\n".join([global_config] + config_blocks)
-            
-            # Write to Caddyfile
-            await self._write_caddyfile(full_config)
+            # Write updated configuration
+            await self._write_caddyfile(updated_content)
             
             # Reload Caddy
-            return await self.reload_caddy()
+            reload_success = await self.reload_caddy()
+            
+            if reload_success:
+                logger.info("WakeDock sections updated and Caddy reloaded successfully!")
+            else:
+                logger.error("WakeDock sections updated but Caddy reload failed")
+            
+            return reload_success
             
         except Exception as e:
-            logger.error(f"Error updating service config: {e}")
+            logger.error(f"Error updating WakeDock sections: {e}")
             return False
     
-    def _generate_global_config(self) -> str:
-        """Generate global Caddy configuration."""
-        return """# WakeDock Generated Caddyfile
+    async def _read_current_caddyfile(self) -> str:
+        """Read the current Caddyfile content."""
+        try:
+            if self.config_path.exists():
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                logger.debug(f"Read existing Caddyfile: {len(content)} characters")
+                return content
+            else:
+                logger.info("No existing Caddyfile, using default")
+                return self._get_default_caddyfile()
+        except Exception as e:
+            logger.error(f"Error reading Caddyfile: {e}")
+            return self._get_default_caddyfile()
+    
+    def _get_default_caddyfile(self) -> str:
+        """Get the default Caddyfile content."""
+        return """# WakeDock Caddyfile
 {
-    admin localhost:2019
-    auto_https on
-}"""
+    admin 0.0.0.0:2019
+    auto_https off
+    log default {
+        output stdout
+        format console
+    }
+}
+
+:80 {
+    log {
+        output stdout
+        format console
+    }
+
+    # API routes pour WakeDock
+    handle_path /api/* {
+        reverse_proxy wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Health check
+    handle /health {
+        respond "WakeDock Proxy OK" 200
+    }
+
+    # Dashboard WakeDock
+    handle {
+        reverse_proxy dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}
+
+:2019 {
+    respond "Caddy Admin API Active" 200
+}
+
+# === WAKEDOCK MANAGED SERVICES START ===
+# Cette section est automatiquement gérée par WakeDock
+# Ne pas modifier manuellement
+# === WAKEDOCK MANAGED SERVICES END ==="""
+
+    def _update_wakedock_sections(self, current_content: str, services_config: List[str]) -> str:
+        """Update only the WakeDock-managed sections in the Caddyfile."""
+        try:
+            start_marker = "# === WAKEDOCK MANAGED SERVICES START ==="
+            end_marker = "# === WAKEDOCK MANAGED SERVICES END ==="
+            
+            # Find the markers
+            start_pos = current_content.find(start_marker)
+            end_pos = current_content.find(end_marker)
+            
+            if start_pos == -1 or end_pos == -1:
+                logger.warning("WakeDock markers not found, appending services at the end")
+                # Add markers and services at the end
+                services_section = f"\n\n{start_marker}\n"
+                services_section += "# Cette section est automatiquement gérée par WakeDock\n"
+                services_section += "# Ne pas modifier manuellement\n\n"
+                if services_config:
+                    services_section += "\n\n".join(services_config) + "\n"
+                services_section += f"\n{end_marker}"
+                
+                return current_content + services_section
+            
+            # Replace content between markers
+            before_section = current_content[:start_pos]
+            after_section = current_content[end_pos + len(end_marker):]
+            
+            # Build new services section
+            services_section = f"{start_marker}\n"
+            services_section += "# Cette section est automatiquement gérée par WakeDock\n"
+            services_section += "# Ne pas modifier manuellement\n"
+            
+            if services_config:
+                services_section += "\n" + "\n\n".join(services_config) + "\n"
+            
+            services_section += f"\n{end_marker}"
+            
+            updated_content = before_section + services_section + after_section
+            
+            logger.info(f"Updated WakeDock section with {len(services_config)} services")
+            return updated_content
+            
+        except Exception as e:
+            logger.error(f"Error updating WakeDock sections: {e}")
+            return current_content
     
     async def _write_caddyfile(self, content: str) -> None:
-        """Write content to Caddyfile."""
-        # Ensure directory exists
-        self.config_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        # Write configuration
-        with open(self.config_path, 'w') as f:
-            f.write(content)
-        
-        logger.info(f"Updated Caddyfile at {self.config_path}")
-        
-        # Automatically reload Caddy after writing the file
+        """Write content to Caddyfile, preserving the base configuration."""
         try:
-            await self.reload_caddy()
+            # Ensure directory exists
+            self.config_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Write updated configuration
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            # Verify the file was written
+            if self.config_path.exists():
+                file_size = self.config_path.stat().st_size
+                logger.info(f"✅ Caddyfile updated (WakeDock sections only): {self.config_path} ({file_size} bytes)")
+            else:
+                logger.error(f"❌ Failed to write Caddyfile: {self.config_path}")
+                
         except Exception as e:
-            logger.error(f"Failed to reload Caddy after writing config: {e}")
+            logger.error(f"❌ Error writing Caddyfile: {e}")
+            raise
     
     async def add_service_route(self, service: Service) -> bool:
         """Add a route for a new service."""

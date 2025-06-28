@@ -1,0 +1,62 @@
+# WakeDock Caddyfile pour Dokploy
+# Configuration simplifiée pour le déploiement
+
+{
+    admin 0.0.0.0:2019
+    auto_https off
+    log default {
+        output stdout
+        format console
+    }
+}
+
+# Configuration pour tous les domaines
+:80 {
+    # Logs pour debug
+    log {
+        output stdout
+        format console
+    }
+
+    # API routes - priorité haute
+    handle_path /api/* {
+        reverse_proxy wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Health check
+    handle /health {
+        respond "WakeDock Proxy OK" 200
+    }
+    
+    # Caddy admin status
+    handle /caddy-status {
+        respond "Caddy running - WakeDock proxy active" 200
+    }
+
+    # Dashboard - route par défaut
+    handle {
+        # Essayer le dashboard en premier
+        reverse_proxy dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+            
+            # Si le dashboard n'est pas disponible, rediriger vers l'API
+            @dashboard_down status 502 503 504
+            handle_response @dashboard_down {
+                redir /api/v1/system/overview temporary
+            }
+        }
+    }
+}
+
+# Admin API port
+:2019 {
+    respond "Caddy Admin API Active" 200
+}
