@@ -27,7 +27,7 @@
 
     onMount(() => {
         // Only run in browser (not during SSR)
-        if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        if (typeof window !== "undefined" && typeof document !== "undefined") {
             // Focus trap and escape key handling
             const handleKeydown = (event: KeyboardEvent) => {
                 if (open && closeOnEscape && event.key === "Escape") {
