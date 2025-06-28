@@ -14,9 +14,13 @@ RUN npm ci --only=production=false --silent
 # Copy source code
 COPY . .
 
-# Build the application with error handling
-RUN npm run build && \
-    test -f build/index.js || (echo "Build failed: index.js not found" && exit 1)
+# Build the application with comprehensive error handling
+RUN echo "Building SvelteKit application..." && \
+    npm run build && \
+    echo "Build completed, checking output..." && \
+    ls -la build/ && \
+    test -f build/index.js || (echo "❌ Build failed: index.js not found in build/" && ls -la build/ && exit 1) && \
+    echo "✅ Dashboard build successful"
 
 # Clean up devDependencies after build to reduce image size
 RUN npm prune --production

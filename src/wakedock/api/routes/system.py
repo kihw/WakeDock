@@ -151,3 +151,29 @@ async def fix_caddy_default_page():
             "message": f"Error fixing Caddy default page: {str(e)}",
             "timestamp": datetime.now()
         }
+
+
+@router.get("/dashboard/diagnose")
+async def diagnose_dashboard():
+    """Diagnose dashboard connection and build issues"""
+    try:
+        success = await caddy_manager.diagnose_dashboard_connection()
+        
+        return {
+            "dashboard_accessible": success,
+            "message": "Dashboard diagnostics completed",
+            "timestamp": datetime.now(),
+            "troubleshooting": {
+                "check_container": "docker ps | grep dashboard",
+                "check_logs": "docker logs wakedock-dashboard",
+                "check_build": "docker exec wakedock-dashboard ls -la build/",
+                "test_health": "docker exec wakedock-dashboard curl -f http://localhost:3000/health",
+                "rebuild": "docker-compose build dashboard"
+            }
+        }
+    except Exception as e:
+        return {
+            "dashboard_accessible": False,
+            "message": f"Error diagnosing dashboard: {str(e)}",
+            "timestamp": datetime.now()
+        }

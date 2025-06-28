@@ -703,6 +703,23 @@ class CaddyManager:
                         logger.warning(f"⚠️ API endpoint returned status {response.status_code}")
                 except Exception as e:
                     logger.warning(f"⚠️ Could not test API endpoint: {e}")
+                
+                # Test dashboard through Caddy
+                try:
+                    response = await client.get("http://localhost/", timeout=10)
+                    if response.status_code == 200 and "WakeDock" in response.text:
+                        logger.info("✅ Dashboard accessible through Caddy")
+                    elif response.status_code == 200:
+                        logger.warning("⚠️ Got response but may not be WakeDock dashboard")
+                        if "Congratulations" in response.text:
+                            logger.warning("🎊 Still showing Caddy default page")
+                    else:
+                        logger.warning(f"⚠️ Dashboard returned status {response.status_code}")
+                        # If dashboard fails, run diagnostics
+                        await self.diagnose_dashboard_connection()
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not test dashboard: {e}")
+                    await self.diagnose_dashboard_connection()
                     
         except Exception as e:
             logger.warning(f"Could not test routes: {e}")
@@ -747,6 +764,52 @@ class CaddyManager:
         except Exception as e:
             logger.error(f"Error detecting/fixing default page: {e}")
             return False
+    
+    async def diagnose_dashboard_connection(self) -> bool:
+        """Diagnose dashboard connection issues."""
+        try:
+            logger.info("🔍 Diagnosing dashboard connection...")
+            
+            # Test direct connection to dashboard
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get("http://dashboard:3000/health", timeout=10)
+                    if response.status_code == 200:
+                        logger.info("✅ Dashboard health endpoint accessible directly")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ Dashboard health returned status {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"❌ Dashboard health endpoint failed: {e}")
+                
+                # Try root endpoint
+                try:
+                    response = await client.get("http://dashboard:3000/", timeout=10)
+                    if response.status_code == 200:
+                        logger.info("✅ Dashboard root endpoint accessible")
+                        return True
+                    else:
+                        logger.warning(f"⚠️ Dashboard root returned status {response.status_code}")
+                except Exception as e:
+                    logger.error(f"❌ Dashboard root endpoint failed: {e}")
+                    logger.error("💡 Dashboard container may not be running or build failed")
+                    
+                    # Additional diagnostics
+                    await self._suggest_dashboard_fixes()
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"❌ Error diagnosing dashboard: {e}")
+            return False
+    
+    async def _suggest_dashboard_fixes(self) -> None:
+        """Suggest fixes for dashboard issues."""
+        logger.info("🔧 Dashboard troubleshooting suggestions:")
+        logger.info("1. Check if dashboard container is running: docker ps | grep dashboard")
+        logger.info("2. Check dashboard logs: docker logs wakedock-dashboard")
+        logger.info("3. Verify SvelteKit build: docker exec wakedock-dashboard ls -la build/")
+        logger.info("4. Test dashboard health: docker exec wakedock-dashboard curl -f http://localhost:3000/health")
+        logger.info("5. Rebuild dashboard: docker-compose build dashboard")
 
 
 # Global Caddy manager instance

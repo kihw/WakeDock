@@ -6,10 +6,13 @@
     "scripts": {
         "dev": "vite dev",
         "build": "vite build",
+        "build:debug": "vite build --mode development --debug",
         "preview": "vite preview",
         "start": "node build/index.js",
+        "start:debug": "node --inspect=0.0.0.0:9229 build/index.js",
         "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+        "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+        "test:build": "npm run build && test -f build/index.js && echo 'Build test passed' || echo 'Build test failed'"
     },
     "devDependencies": {
         "@sveltejs/adapter-node": "^1.3.1",

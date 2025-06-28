@@ -5,7 +5,14 @@ import { vitePreprocess } from '@sveltejs/kit/vite';
 const config = {
     preprocess: vitePreprocess(),
     kit: {
-        adapter: adapter()
+        adapter: adapter({
+            // Explicitly set the output directory
+            out: 'build',
+            // Precompress files for better performance
+            precompress: false,
+            // Environment variables prefix
+            envPrefix: ''
+        })
     }
 };
 
