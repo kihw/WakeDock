@@ -13,13 +13,33 @@ from wakedock.core.caddy import caddy_manager
 router = APIRouter()
 
 
+class ServicesOverview(BaseModel):
+    total: int
+    running: int
+    stopped: int
+    error: int
+
+class SystemStats(BaseModel):
+    cpu_usage: float
+    memory_usage: float
+    disk_usage: float
+    uptime: int
+
+class DockerStatus(BaseModel):
+    version: str
+    api_version: str
+    status: str
+
+class CaddyStatus(BaseModel):
+    version: str
+    status: str
+    active_routes: int
+
 class SystemOverviewResponse(BaseModel):
-    total_services: int
-    running_services: int
-    stopped_services: int
-    total_cpu_usage: float
-    total_memory_usage: int
-    timestamp: datetime
+    services: ServicesOverview
+    system: SystemStats
+    docker: DockerStatus
+    caddy: CaddyStatus
 
 
 def get_monitoring_service(request: Request) -> MonitoringService:
@@ -31,7 +51,13 @@ def get_monitoring_service(request: Request) -> MonitoringService:
 async def get_system_overview(monitoring: MonitoringService = Depends(get_monitoring_service)):
     """Get system overview metrics"""
     overview = await monitoring.get_system_overview()
-    return SystemOverviewResponse(**overview)
+    
+    return SystemOverviewResponse(
+        services=ServicesOverview(**overview["services"]),
+        system=SystemStats(**overview["system"]),
+        docker=DockerStatus(**overview["docker"]),
+        caddy=CaddyStatus(**overview["caddy"])
+    )
 
 
 @router.get("/health")
