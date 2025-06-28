@@ -26,6 +26,7 @@
     "dependencies": {
         "@fontsource/inter": "^5.0.8",
         "chart.js": "^4.3.0",
-        "lucide-svelte": "^0.262.0"
+        "lucide-svelte": "^0.262.0",
+        "polka": "^0.5.2"
     }
 }
