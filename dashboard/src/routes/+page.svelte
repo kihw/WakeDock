@@ -74,10 +74,10 @@
 
     // Quick stats for the filtered services
     $: quickStats = {
-        total: filteredServices.length,
-        running: filteredServices.filter(s => s.status === "running").length,
-        stopped: filteredServices.filter(s => s.status === "stopped").length,
-        error: filteredServices.filter(s => s.status === "error").length
+        total: filteredServices?.length || 0,
+        running: filteredServices?.filter(s => s.status === "running").length || 0,
+        stopped: filteredServices?.filter(s => s.status === "stopped").length || 0,
+        error: filteredServices?.filter(s => s.status === "error").length || 0
     };
 
     onMount(async () => {

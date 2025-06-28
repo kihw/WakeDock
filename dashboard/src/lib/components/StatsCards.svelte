@@ -108,7 +108,7 @@
         
         <div class="stat-content">
             <div class="stat-value-section">
-                <div class="stat-value">{$stats.services.total}</div>
+                <div class="stat-value">{$stats?.services?.total || 0}</div>
                 <div class="stat-label">Total Services</div>
             </div>
             
@@ -116,18 +116,18 @@
                 <div class="breakdown-item">
                     <div class="breakdown-dot running"></div>
                     <span class="breakdown-label">Running</span>
-                    <span class="breakdown-value">{$stats.services.running}</span>
+                    <span class="breakdown-value">{$stats?.services?.running || 0}</span>
                 </div>
                 <div class="breakdown-item">
                     <div class="breakdown-dot stopped"></div>
                     <span class="breakdown-label">Stopped</span>
-                    <span class="breakdown-value">{$stats.services.stopped}</span>
+                    <span class="breakdown-value">{$stats?.services?.stopped || 0}</span>
                 </div>
-                {#if $stats.services.error > 0}
+                {#if ($stats?.services?.error || 0) > 0}
                     <div class="breakdown-item">
                         <div class="breakdown-dot error"></div>
                         <span class="breakdown-label">Error</span>
-                        <span class="breakdown-value">{$stats.services.error}</span>
+                        <span class="breakdown-value">{$stats?.services?.error || 0}</span>
                     </div>
                 {/if}
             </div>
