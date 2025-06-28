@@ -3,11 +3,28 @@
     import type { Writable } from "svelte/store";
 
     export let stats: Writable<{
-        total_services: number;
-        running_services: number;
-        stopped_services: number;
-        total_cpu_usage: number;
-        total_memory_usage: number;
+        services: {
+            total: number;
+            running: number;
+            stopped: number;
+            error: number;
+        };
+        system: {
+            cpu_usage: number;
+            memory_usage: number;
+            disk_usage: number;
+            uptime: number;
+        };
+        docker: {
+            version: string;
+            api_version: string;
+            status: string;
+        };
+        caddy: {
+            version: string;
+            status: string;
+            active_routes: number;
+        };
     }>;
 
     function formatBytes(bytes: number): string {
@@ -27,7 +44,7 @@
             <Container size={24} />
         </div>
         <div class="stat-content">
-            <div class="stat-value">{$stats.total_services}</div>
+            <div class="stat-value">{$stats.services.total}</div>
             <div class="stat-label">Total Services</div>
         </div>
     </div>
@@ -37,7 +54,7 @@
             <Activity size={24} />
         </div>
         <div class="stat-content">
-            <div class="stat-value">{$stats.running_services}</div>
+            <div class="stat-value">{$stats.services.running}</div>
             <div class="stat-label">Running</div>
         </div>
     </div>
@@ -47,7 +64,7 @@
             <Cpu size={24} />
         </div>
         <div class="stat-content">
-            <div class="stat-value">{$stats.total_cpu_usage.toFixed(1)}%</div>
+            <div class="stat-value">{$stats.system.cpu_usage.toFixed(1)}%</div>
             <div class="stat-label">CPU Usage</div>
         </div>
     </div>
@@ -58,7 +75,7 @@
         </div>
         <div class="stat-content">
             <div class="stat-value">
-                {formatBytes($stats.total_memory_usage)}
+                {$stats.system.memory_usage.toFixed(1)}%
             </div>
             <div class="stat-label">Memory Usage</div>
         </div>

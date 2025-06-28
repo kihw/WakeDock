@@ -26,11 +26,28 @@
     let error = "";
 
     const stats = writable({
-        total_services: 0,
-        running_services: 0,
-        stopped_services: 0,
-        total_cpu_usage: 0,
-        total_memory_usage: 0,
+        services: {
+            total: 0,
+            running: 0,
+            stopped: 0,
+            error: 0,
+        },
+        system: {
+            cpu_usage: 0,
+            memory_usage: 0,
+            disk_usage: 0,
+            uptime: 0,
+        },
+        docker: {
+            version: "unknown",
+            api_version: "unknown",
+            status: "unknown",
+        },
+        caddy: {
+            version: "unknown",
+            status: "unknown",
+            active_routes: 0,
+        },
     });
 
     onMount(async () => {
