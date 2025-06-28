@@ -2,7 +2,7 @@
     import { goto } from "$app/navigation";
     import { onMount } from "svelte";
     import type { CreateUserRequest } from "$lib/types/user";
-    import { authStore } from "$lib/stores/authStore";
+    import { auth } from "$lib/stores/auth";
     import { api } from "$lib/api";
     import Button from "$lib/components/forms/Button.svelte";
     import { toast } from "$lib/stores/toastStore";
@@ -20,7 +20,7 @@
     let errors: Record<string, string> = {};
 
     // Check if current user is admin
-    $: isAdmin = $authStore.user?.role === "admin";
+    $: isAdmin = $auth.user?.role === "admin";
 
     onMount(() => {
         if (!isAdmin) {

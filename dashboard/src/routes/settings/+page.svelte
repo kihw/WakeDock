@@ -1,13 +1,13 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
-    import { authStore } from "$lib/stores/authStore";
+    import { auth } from "$lib/stores/auth";
     import { toast } from "$lib/stores/toastStore";
     import Button from "$lib/components/forms/Button.svelte";
     import Modal from "$lib/components/modals/Modal.svelte";
 
     // Check if current user is admin
-    $: isAdmin = $authStore.user?.role === "admin";
+    $: isAdmin = $auth.user?.role === "admin";
 
     interface SystemSettings {
         general: {

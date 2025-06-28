@@ -3,7 +3,7 @@
     import { goto } from "$app/navigation";
     import type { User } from "$lib/types/user";
     import { userStore } from "$lib/stores/userStore";
-    import { authStore } from "$lib/stores/authStore";
+    import { auth } from "$lib/stores/auth";
     import { api } from "$lib/api";
     import Button from "$lib/components/forms/Button.svelte";
     import DataTable from "$lib/components/DataTable.svelte";
@@ -20,7 +20,7 @@
     let editingUser: Partial<User> = {};
 
     // Check if current user is admin
-    $: isAdmin = $authStore.user?.role === "admin";
+    $: isAdmin = $auth.user?.role === "admin";
 
     const columns = [
         { key: "id", label: "ID", sortable: true },
@@ -55,7 +55,7 @@
     }
 
     async function handleDelete(user: User) {
-        if (user.id === $authStore.user?.id) {
+        if (user.id === $auth.user?.id) {
             toast.error("Cannot delete your own account");
             return;
         }
@@ -212,7 +212,7 @@
                                 on:click={() => handleDelete(item)}
                                 size="sm"
                                 class="bg-red-600 hover:bg-red-700 text-white"
-                                disabled={item.id === $authStore.user?.id}
+                                disabled={item.id === $auth.user?.id}
                             >
                                 Delete
                             </Button>
