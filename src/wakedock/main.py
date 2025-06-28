@@ -67,17 +67,20 @@ async def main():
         # Create a dummy orchestrator that doesn't do anything
         orchestrator = None
 
-    # Initialize Caddy manager and ensure initial configuration
+    # Initialize Caddy manager and force correct configuration
     try:
         logger.info("Initializing Caddy manager...")
         # Just importing caddy_manager will trigger initialization
         
-        # Ensure initial Caddy configuration is set up
+        # Detect and fix Caddy default page if present
+        logger.info("Checking Caddy configuration...")
+        await caddy_manager.detect_and_fix_default_page()
+        
         if orchestrator:
-            logger.info("Setting up initial Caddy configuration...")
+            logger.info("Updating Caddy with current services...")
             await orchestrator._update_caddy_configuration()
         
-        logger.info("Caddy manager initialized successfully")
+        logger.info("Caddy manager initialized and configured successfully")
     except Exception as e:
         logger.warning(f"Caddy manager initialization failed: {e}")
         logger.warning("Application will continue but Caddy management features will not work")

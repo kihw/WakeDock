@@ -650,6 +650,103 @@ class CaddyManager:
             
         except Exception as e:
             logger.warning(f"Could not start file watcher: {e}")
+    
+    async def ensure_wakedock_configuration(self) -> bool:
+        """Force WakeDock configuration in Caddy, regardless of current state."""
+        try:
+            logger.info("🔧 Forcing WakeDock configuration in Caddy...")
+            
+            # Get or create WakeDock Caddyfile content
+            wakedock_content = self._get_default_caddyfile()
+            
+            # Write it to Caddy
+            await self._write_caddyfile(wakedock_content)
+            
+            # Force reload Caddy
+            reload_success = await self.reload_caddy()
+            
+            if reload_success:
+                logger.info("✅ WakeDock Caddy configuration forced successfully!")
+                
+                # Test if the configuration is working
+                await self._test_wakedock_routes()
+                
+                return True
+            else:
+                logger.error("❌ Failed to reload Caddy after forcing configuration")
+                return False
+                
+        except Exception as e:
+            logger.error(f"❌ Error forcing WakeDock configuration: {e}")
+            return False
+    
+    async def _test_wakedock_routes(self) -> None:
+        """Test if WakeDock routes are working correctly."""
+        try:
+            # Test health endpoint through Caddy
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get("http://localhost/health", timeout=5)
+                    if response.status_code == 200:
+                        logger.info("✅ WakeDock health endpoint accessible through Caddy")
+                    else:
+                        logger.warning(f"⚠️ Health endpoint returned status {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not test health endpoint: {e}")
+                    
+                # Test API endpoint through Caddy
+                try:
+                    response = await client.get("http://localhost/api/v1/system/overview", timeout=5)
+                    if response.status_code == 200:
+                        logger.info("✅ WakeDock API accessible through Caddy")
+                    else:
+                        logger.warning(f"⚠️ API endpoint returned status {response.status_code}")
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not test API endpoint: {e}")
+                    
+        except Exception as e:
+            logger.warning(f"Could not test routes: {e}")
+    
+    async def detect_and_fix_default_page(self) -> bool:
+        """Detect if Caddy is showing default page and fix it."""
+        try:
+            logger.info("🔍 Checking if Caddy is showing default page...")
+            
+            # Test if we get the default Caddy page
+            async with httpx.AsyncClient() as client:
+                try:
+                    response = await client.get("http://localhost/", timeout=10)
+                    
+                    # Check if it's the default Caddy page
+                    if (response.status_code == 200 and 
+                        ("Congratulations" in response.text or 
+                         "Caddy is ready" in response.text or
+                         "make it work for you" in response.text)):
+                        
+                        logger.warning("⚠️ Detected Caddy default page! Fixing configuration...")
+                        
+                        # Force WakeDock configuration
+                        success = await self.ensure_wakedock_configuration()
+                        
+                        if success:
+                            logger.info("✅ Successfully replaced Caddy default page with WakeDock!")
+                            return True
+                        else:
+                            logger.error("❌ Failed to replace Caddy default page")
+                            return False
+                            
+                    else:
+                        logger.info("✅ Caddy is not showing default page")
+                        return True
+                        
+                except Exception as e:
+                    logger.warning(f"Could not check Caddy page: {e}")
+                    # If we can't check, force configuration anyway
+                    return await self.ensure_wakedock_configuration()
+                    
+        except Exception as e:
+            logger.error(f"Error detecting/fixing default page: {e}")
+            return False
 
 
 # Global Caddy manager instance

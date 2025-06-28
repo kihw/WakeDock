@@ -56,9 +56,11 @@ services:
       - CADDY_ADMIN_API_ENABLED=${CADDY_ADMIN_API_ENABLED}
     command: >
       sh -c "
-        echo 'Initializing WakeDock Caddyfile...'
-        cp /tmp/Caddyfile.default /etc/caddy/Caddyfile
-        echo 'WakeDock Caddyfile installed successfully'
+        if [ ! -f /etc/caddy/Caddyfile ]; then
+          echo 'Copying default Caddyfile...'
+          cp /tmp/Caddyfile.default /etc/caddy/Caddyfile
+        fi
+        echo 'Starting Caddy with configuration from /etc/caddy/Caddyfile'
         caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
       "
     networks:
