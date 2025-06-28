@@ -37,11 +37,9 @@ safety==2.3.4
 types-pyyaml==6.0.12.12
 types-requests==2.31.0.10
 types-redis==4.6.0.11
+types-aiofiles==23.2.0.0
 
 # Additional development utilities
 tox==4.11.4
 coverage==7.3.2
 wheel==0.42.0
-types-redis==4.6.0.11
-types-PyYAML==6.0.12.12
-types-aiofiles==23.2.0.0
