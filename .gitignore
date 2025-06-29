@@ -1,6 +1,7 @@
 # Logs
 logs/
 *.log
+*.log.*
 
 # Python
 __pycache__/
@@ -14,6 +15,18 @@ ENV/
 env.bak/
 venv.bak/
 .env
+.venv/
+*.pyc
+*.pyo
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+.mypy_cache/
+.cache
 
 # Node.js
 node_modules/
@@ -22,11 +35,15 @@ yarn-debug.log*
 yarn-error.log*
 .npm
 .node_repl_history
+package-lock.json
 
 # Build outputs
 build/
 dist/
 .svelte-kit/
+.vite/
+.next/
+out/
 
 # Database
 *.db
@@ -57,14 +74,23 @@ data/
 config/config.yml
 caddy/data/
 caddy/config/
+backups/
+backup/
 
 # Temporary files
 *.tmp
 *.temp
 *.bak
+tmp/
+.tmp/
 
 # Certificates
 *.pem
 *.key
 *.crt
 *.cert
+
+# Backup files
+*.tar.gz
+*.sql.bak
+backup-*
