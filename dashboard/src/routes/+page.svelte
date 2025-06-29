@@ -1,8 +1,12 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { writable } from 'svelte/store';
   import ServiceCard from '$lib/components/ServiceCard.svelte';
   import StatsCards from '$lib/components/StatsCards.svelte';
+  import { api, type Service, type SystemOverview } from '$lib/api.js';
+  import { auth } from '$lib/stores/auth.js';
+  import { websocketClient } from '$lib/websocket.js';
+  import { goto } from '$app/navigation';
   import {
     Container,
     Play,
@@ -16,28 +20,13 @@
     Filter,
   } from 'lucide-svelte';
 
-  interface Service {
-    id: string;
-    name: string;
-    subdomain: string;
-    status: string;
-    docker_image?: string;
-    docker_compose?: string;
-    ports: string[];
-    last_accessed?: string;
-    resource_usage?: {
-      cpu_percent: number;
-      memory_usage: number;
-      memory_percent: number;
-    };
-  }
-
   let services: Service[] = [];
   let loading = true;
   let error = '';
   let searchTerm = '';
   let statusFilter = 'all';
   let refreshing = false;
+  let systemOverview: SystemOverview | null = null;
 
   // Initialize with safe defaults to prevent SSR errors
   let quickStats = {
@@ -99,17 +88,86 @@
     { value: 'error', label: 'Error', count: quickStats.error },
   ];
 
+  let refreshInterval: ReturnType<typeof setInterval> | null = null;
+  let wsUnsubscribers: (() => void)[] = [];
+
   onMount(async () => {
+    // Check if user is authenticated
+    if (!$auth.user) {
+      goto('/login');
+      return;
+    }
+
     await loadServices();
-    await loadStats();
+    await loadSystemOverview();
+
+    // Set up WebSocket subscriptions for real-time updates
+    setupWebSocketSubscriptions();
 
     // Refresh data every 30 seconds
-    const interval = setInterval(async () => {
+    refreshInterval = setInterval(async () => {
       await refreshData();
     }, 30000);
-
-    return () => clearInterval(interval);
   });
+
+  onDestroy(() => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    // Clean up WebSocket subscriptions
+    wsUnsubscribers.forEach(unsubscribe => unsubscribe());
+  });
+
+  function setupWebSocketSubscriptions() {
+    // Subscribe to service updates
+    const serviceUnsubscribe = websocketClient.serviceUpdates.subscribe((updates) => {
+      if (updates.length > 0) {
+        // Update services with real-time data
+        services = services.map(service => {
+          const update = updates.find(u => u.id === service.id);
+          if (update) {
+            return {
+              ...service,
+              status: update.status,
+              health_status: update.health_status,
+              resource_usage: update.stats ? {
+                cpu_percent: update.stats.cpu_usage,
+                memory_usage: update.stats.memory_usage,
+                memory_percent: (update.stats.memory_usage / (1024 * 1024 * 1024)) * 100, // Assuming 1GB total
+                network_io: update.stats.network_io
+              } : service.resource_usage
+            };
+          }
+          return service;
+        });
+        updateQuickStats();
+      }
+    });
+
+    // Subscribe to system updates
+    const systemUnsubscribe = websocketClient.systemUpdates.subscribe((update) => {
+      if (update) {
+        systemOverview = {
+          services: update.services_count,
+          system: {
+            cpu_usage: update.cpu_usage,
+            memory_usage: update.memory_usage,
+            disk_usage: update.disk_usage,
+            uptime: update.uptime
+          }
+        };
+        quickStats = update.services_count;
+        stats.update(s => ({
+          ...s,
+          cpu: update.cpu_usage,
+          memory: update.memory_usage,
+          disk: update.disk_usage
+        }));
+      }
+    });
+
+    wsUnsubscribers.push(serviceUnsubscribe, systemUnsubscribe);
+  }
 
   async function loadServices() {
     try {
@@ -118,81 +176,19 @@
 
       // Try to load from API, fallback to mock data
       try {
-        // Import the API - handle SSR case
-        if (typeof window !== 'undefined') {
-          const { api } = await import('$lib/api');
+        // Load services from API
+        if (typeof window !== 'undefined' && api.isAuthenticated()) {
           const apiServices = await api.services.getAll();
-          services = apiServices.map((service) => ({
-            id: service.id,
-            name: service.name,
-            subdomain: service.name.toLowerCase(),
-            status: service.status,
-            docker_image: service.image,
-            ports: service.ports.map((p) => `${p.host}:${p.container}`),
-            last_accessed: service.updated_at,
-            resource_usage: {
-              cpu_percent: Math.random() * 50,
-              memory_usage: Math.random() * 512 * 1024 * 1024,
-              memory_percent: Math.random() * 30,
-            },
-          }));
+          services = apiServices;
+          updateQuickStats();
         } else {
-          // SSR fallback
+          // SSR fallback or not authenticated
           services = [];
         }
       } catch (apiError) {
-        console.warn('API not available, using mock data:', apiError);
-        // Fallback to mock data
-        const mockServices: Service[] = [
-          {
-            id: '1',
-            name: 'nginx-proxy',
-            subdomain: 'proxy',
-            status: 'running',
-            docker_image: 'nginx:alpine',
-            ports: ['80:80', '443:443'],
-            last_accessed: new Date(Date.now() - 300000).toISOString(),
-            resource_usage: {
-              cpu_percent: 12.5,
-              memory_usage: 64 * 1024 * 1024,
-              memory_percent: 8.2,
-            },
-          },
-          {
-            id: '2',
-            name: 'postgres-db',
-            subdomain: 'db',
-            status: 'running',
-            docker_image: 'postgres:15',
-            ports: ['5432:5432'],
-            last_accessed: new Date(Date.now() - 600000).toISOString(),
-            resource_usage: {
-              cpu_percent: 5.8,
-              memory_usage: 128 * 1024 * 1024,
-              memory_percent: 16.4,
-            },
-          },
-          {
-            id: '3',
-            name: 'redis-cache',
-            subdomain: 'cache',
-            status: 'stopped',
-            docker_image: 'redis:7-alpine',
-            ports: ['6379:6379'],
-            last_accessed: new Date(Date.now() - 3600000).toISOString(),
-          },
-          {
-            id: '4',
-            name: 'web-app',
-            subdomain: 'app',
-            status: 'starting',
-            docker_image: 'node:18-alpine',
-            ports: ['3000:3000'],
-            last_accessed: new Date(Date.now() - 1800000).toISOString(),
-          },
-        ];
-
-        services = mockServices;
+        console.warn('API not available:', apiError);
+        error = 'Unable to connect to WakeDock API. Please check your connection.';
+        services = [];
       }
       error = '';
     } catch (e) {
@@ -203,44 +199,49 @@
     }
   }
 
-  async function loadStats() {
+  async function loadSystemOverview() {
     try {
-      // Mock data - replace with actual API call
-      const mockStats = {
-        services: {
-          total: services.length,
-          running: services.filter((s) => s.status === 'running').length,
-          stopped: services.filter((s) => s.status === 'stopped').length,
-          error: services.filter((s) => s.status === 'error').length,
-        },
-        system: {
-          cpu_usage: 24.5,
-          memory_usage: 68.2,
-          disk_usage: 45.8,
-          uptime: 1234567,
-        },
-        docker: {
-          version: '24.0.7',
-          api_version: '1.43',
-          status: 'healthy',
-        },
-        caddy: {
-          version: '2.7.6',
-          status: 'healthy',
-          active_routes: 12,
-        },
-      };
-
-      stats.set(mockStats);
-    } catch (e) {
-      console.error('Failed to load stats:', e);
+      if (typeof window !== 'undefined' && api.isAuthenticated()) {
+        systemOverview = await api.getSystemOverview();
+        quickStats = systemOverview.services;
+        stats.update(s => ({
+          ...s,
+          cpu: systemOverview.system.cpu_usage,
+          memory: systemOverview.system.memory_usage,
+          disk: systemOverview.system.disk_usage,
+          uptime: systemOverview.system.uptime
+        }));
+      }
+    } catch (error) {
+      console.warn('Failed to load system overview:', error);
     }
+  }
+
+  function updateQuickStats() {
+    quickStats = services.reduce(
+      (acc, service) => {
+        acc.total++;
+        switch (service.status) {
+          case 'running':
+            acc.running++;
+            break;
+          case 'stopped':
+            acc.stopped++;
+            break;
+          case 'error':
+            acc.error++;
+            break;
+        }
+        return acc;
+      },
+      { total: 0, running: 0, stopped: 0, error: 0 }
+    );
   }
 
   async function refreshData() {
     refreshing = true;
     try {
-      await Promise.all([loadServices(), loadStats()]);
+      await Promise.all([loadServices(), loadSystemOverview()]);
     } finally {
       refreshing = false;
     }
@@ -250,14 +251,15 @@
     try {
       // Find and update service status optimistically
       services = services.map((s) => (s.id === serviceId ? { ...s, status: 'starting' } : s));
+      updateQuickStats();
 
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Update to running
-      services = services.map((s) => (s.id === serviceId ? { ...s, status: 'running' } : s));
-
-      await loadStats(); // Refresh stats
+      // Call API to start service
+      if (api.isAuthenticated()) {
+        await api.startService(serviceId);
+        // The WebSocket will update the actual status when it changes
+      } else {
+        throw new Error('Not authenticated');
+      }
     } catch (e) {
       console.error('Failed to wake service:', e);
       // Revert optimistic update
@@ -269,14 +271,15 @@
     try {
       // Find and update service status optimistically
       services = services.map((s) => (s.id === serviceId ? { ...s, status: 'stopping' } : s));
+      updateQuickStats();
 
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Update to stopped
-      services = services.map((s) => (s.id === serviceId ? { ...s, status: 'stopped' } : s));
-
-      await loadStats(); // Refresh stats
+      // Call API to stop service
+      if (api.isAuthenticated()) {
+        await api.stopService(serviceId);
+        // The WebSocket will update the actual status when it changes
+      } else {
+        throw new Error('Not authenticated');
+      }
     } catch (e) {
       console.error('Failed to sleep service:', e);
       // Revert optimistic update

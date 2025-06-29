@@ -1,0 +1,17 @@
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_app/
+Disallow: /build/
+Disallow: /.svelte-kit/
+
+# Allow access to main pages
+Allow: /
+Allow: /login
+Allow: /register
+
+# Sitemap location (if you have one)
+# Sitemap: https://your-domain.com/sitemap.xml
+
+# Crawl delay (optional, in seconds)
+Crawl-delay: 1

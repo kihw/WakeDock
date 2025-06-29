@@ -60,7 +60,7 @@ function Show-DiskUsage {
     param([string]$Label)
     Write-Header "Utilisation du disque ($Label)"
     $size = (Get-ChildItem -Path $PROJECT_ROOT -Recurse -ErrorAction SilentlyContinue | 
-             Measure-Object -Property Length -Sum).Sum
+        Measure-Object -Property Length -Sum).Sum
     $sizeMB = [math]::Round($size / 1MB, 2)
     Write-Host "Taille du projet: $sizeMB MB"
 }
@@ -172,7 +172,8 @@ function Clean-OldBackups {
                 Write-Host "Suppression: $($_.Name)" -ForegroundColor Yellow
                 if ($_.PSIsContainer) {
                     Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
-                } else {
+                }
+                else {
                     Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
                 }
                 $cleanedCount++
@@ -207,7 +208,8 @@ function Clean-TempFiles {
             Write-Host "Suppression: $($_.Name)" -ForegroundColor Yellow
             if ($_.PSIsContainer) {
                 Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
-            } else {
+            }
+            else {
                 Remove-Item -Path $_.FullName -Force -ErrorAction SilentlyContinue
             }
             $cleanedCount++
@@ -229,10 +231,12 @@ function Clean-VirtualEnv {
             Remove-Item -Path $venvPath -Recurse -Force -ErrorAction SilentlyContinue
             Write-Log "INFO" "Environnement virtuel Python supprimé"
             Write-Host "✓ Environnement virtuel supprimé" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "⚠ Environnement virtuel non trouvé" -ForegroundColor Yellow
         }
-    } else {
+    }
+    else {
         Write-Host "⚠ Nettoyage de l'environnement virtuel annulé" -ForegroundColor Yellow
     }
 }
@@ -248,10 +252,12 @@ function Clean-NodeModules {
             Remove-Item -Path $nodeModulesPath -Recurse -Force -ErrorAction SilentlyContinue
             Write-Log "INFO" "node_modules supprimé"
             Write-Host "✓ node_modules supprimé" -ForegroundColor Green
-        } else {
+        }
+        else {
             Write-Host "⚠ node_modules non trouvé" -ForegroundColor Yellow
         }
-    } else {
+    }
+    else {
         Write-Host "⚠ Nettoyage de node_modules annulé" -ForegroundColor Yellow
     }
 }
@@ -296,7 +302,8 @@ function Main {
     if (-not $Auto) {
         Clean-VirtualEnv
         Clean-NodeModules
-    } else {
+    }
+    else {
         Write-Host "`n⚠ Mode automatique activé, opérations interactives ignorées" -ForegroundColor Yellow
     }
     

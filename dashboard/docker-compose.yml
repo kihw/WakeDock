@@ -1,0 +1,217 @@
+version: '3.8'
+
+services:
+  # WakeDock Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      target: production
+    container_name: wakedock-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-http://localhost:8000}
+      - PUBLIC_WS_URL=${PUBLIC_WS_URL:-ws://localhost:8000/ws}
+      - PUBLIC_API_TIMEOUT=${PUBLIC_API_TIMEOUT:-30000}
+      - PUBLIC_SESSION_TIMEOUT=${PUBLIC_SESSION_TIMEOUT:-86400000}
+      - PUBLIC_THEME=${PUBLIC_THEME:-auto}
+      - PUBLIC_ENABLE_DEBUG=${PUBLIC_ENABLE_DEBUG:-false}
+      - PUBLIC_FEATURE_ANALYTICS=${PUBLIC_FEATURE_ANALYTICS:-true}
+      - PUBLIC_FEATURE_NOTIFICATIONS=${PUBLIC_FEATURE_NOTIFICATIONS:-true}
+      - PUBLIC_FEATURE_REALTIME=${PUBLIC_FEATURE_REALTIME:-true}
+    volumes:
+      # Mount logs directory for persistence
+      - dashboard-logs:/app/logs
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    depends_on:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    labels:
+      # Traefik labels for reverse proxy
+      - "traefik.enable=true"
+      - "traefik.docker.network=wakedock-network"
+      - "traefik.http.routers.dashboard.rule=Host(`${DASHBOARD_DOMAIN:-dashboard.localhost}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=3000"
+      
+      # Dashboard specific labels
+      - "wakedock.service=dashboard"
+      - "wakedock.version=${DASHBOARD_VERSION:-latest}"
+      - "wakedock.environment=${ENVIRONMENT:-production}"
+
+  # WakeDock API (placeholder - should be defined in main docker-compose)
+  api:
+    image: wakedock/api:${API_VERSION:-latest}
+    container_name: wakedock-api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL:-postgresql://wakedock:password@postgres:5432/wakedock}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - JWT_SECRET=${JWT_SECRET:-your-jwt-secret-change-this}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,https://dashboard.localhost}
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - api
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Redis for caching and sessions
+  redis:
+    image: redis:7-alpine
+    container_name: wakedock-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:15-alpine
+    container_name: wakedock-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-wakedock}
+      - POSTGRES_USER=${POSTGRES_USER:-wakedock}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-wakedock}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Traefik reverse proxy
+  traefik:
+    image: traefik:v3.0
+    container_name: wakedock-traefik
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-data:/data
+      - ./config/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./config/dynamic.yml:/etc/traefik/dynamic.yml:ro
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls=true"
+      - "traefik.http.routers.traefik.service=api@internal"
+
+  # Monitoring with Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: wakedock-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+  # Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: wakedock-grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    networks:
+      - wakedock-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+    depends_on:
+      - prometheus
+
+# Network configuration
+networks:
+  wakedock-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Volume configuration
+volumes:
+  dashboard-logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs/dashboard
+
+  postgres-data:
+    driver: local
+
+  redis-data:
+    driver: local
+
+  traefik-data:
+    driver: local
+
+  prometheus-data:
+    driver: local
+
+  grafana-data:
+    driver: local
