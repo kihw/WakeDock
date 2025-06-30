@@ -410,18 +410,18 @@ describe('StatsCards Component', () => {
 
     it('should render different states based on metric values', async () => {
         render(StatsCards);
-        
+
         // Initial render should show normal state (not critical)
         expect(screen.getByText('45%')).toBeDefined(); // CPU
         expect(document.querySelector('.stats-card-normal')).not.toBeNull();
         expect(document.querySelector('.stats-card-critical')).toBeNull();
-        
+
         // Update with critical values and test rendering
         mockSystemStore.set({
             status: 'warning',
             metrics: {
                 cpu: 92,
-                memory: 67, 
+                memory: 67,
                 disk: 23
             }
         });
@@ -441,7 +441,7 @@ describe('StatsCards Component', () => {
         } as any);
 
         render(StatsCards);
-        
+
         expect(document.querySelector('.loading-indicator')).not.toBeNull();
         expect(screen.queryByText('CPU')).toBeNull();
     });
@@ -458,7 +458,7 @@ describe('StatsCards Component', () => {
         } as any);
 
         render(StatsCards);
-        
+
         expect(screen.getByText('0%')).toBeDefined(); // Should show 0% for invalid metrics
     });
 });
@@ -478,11 +478,11 @@ describe('SystemStatus Component', () => {
 
     it('should render healthy status with green indicator', () => {
         render(SystemStatus);
-        
+
         expect(screen.getByText('System Status: Healthy')).toBeDefined();
         expect(document.querySelector('.status-healthy')).not.toBeNull();
     });
-    
+
     it('should render warning status with amber indicator', async () => {
         mockSystemStore.set({
             status: 'warning',
@@ -492,15 +492,15 @@ describe('SystemStatus Component', () => {
                 disk: 23
             }
         });
-        
+
         render(SystemStatus);
-        
+
         await waitFor(() => {
             expect(screen.getByText('System Status: Warning')).toBeDefined();
             expect(document.querySelector('.status-warning')).not.toBeNull();
         });
     });
-    
+
     it('should render critical status with red indicator', async () => {
         mockSystemStore.set({
             status: 'critical',
@@ -510,9 +510,9 @@ describe('SystemStatus Component', () => {
                 disk: 23
             }
         });
-        
+
         render(SystemStatus);
-        
+
         await waitFor(() => {
             expect(screen.getByText('System Status: Critical')).toBeDefined();
             expect(document.querySelector('.status-critical')).not.toBeNull();

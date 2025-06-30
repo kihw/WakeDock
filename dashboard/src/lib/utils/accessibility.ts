@@ -286,6 +286,69 @@ class AccessibilityManager {
     }
 }
 
+// Instance singleton
+const a11yManager = new AccessibilityManager();
+
+// Exported functions for easier usage in components
+/**
+ * Annonce un message pour les lecteurs d'écran
+ * 
+ * @param message - Le message à annoncer
+ * @param priority - La priorité (polite ou assertive)
+ */
+export function announce(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
+    a11yManager.announce(message, priority);
+}
+
+/**
+ * Alias pour announce - permet d'utiliser un nom plus explicite
+ * 
+ * @param message - Le message à annoncer
+ * @param priority - La priorité (polite ou assertive)
+ */
+export function announceToScreenReader(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
+    a11yManager.announce(message, priority);
+}
+
+/**
+ * Gère le focus d'un élément
+ * 
+ * @param element - L'élément à focus
+ */
+export function manageFocus(element: HTMLElement): void {
+    if (element) {
+        element.focus();
+    }
+}
+
+/**
+ * Piège le focus dans un conteneur
+ * 
+ * @param container - L'élément qui contient le focus
+ */
+export function trapFocus(container: HTMLElement): void {
+    // Cette fonction est appelée directement avec un élément, non pas un événement
+    // C'est donc une implémentation simplifiée par rapport à celle interne
+    if (container) {
+        container.setAttribute('tabindex', '-1');
+        container.focus();
+    }
+}
+
+/**
+ * Restaure le focus à l'élément précédent
+ * 
+ * @param previousElement - L'élément qui avait le focus avant
+ */
+export function restoreFocus(previousElement: HTMLElement | null): void {
+    if (previousElement) {
+        previousElement.focus();
+    }
+}
+
+// Exporter l'instance pour usage avancé
+export default a11yManager;
+
 // Instance globale
 export const a11y = new AccessibilityManager();
 

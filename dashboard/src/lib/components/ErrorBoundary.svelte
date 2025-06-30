@@ -7,13 +7,13 @@
   import { logger } from '../utils/logger';
   import { notifications } from '../services/notifications';
   import { monitoring } from '../services/monitoring';
-  import { 
-    getErrorBoundary, 
-    captureError, 
-    retryFromError, 
-    clearError, 
+  import {
+    getErrorBoundary,
+    captureError,
+    retryFromError,
+    clearError,
     getUserFriendlyMessage,
-    type ErrorInfo 
+    type ErrorInfo,
   } from '../utils/errorHandling';
   import Icon from './Icon.svelte';
   import LoadingSpinner from './LoadingSpinner.svelte';
@@ -45,6 +45,7 @@
   let isRecovering = false;
   let autoRecoverTimer: number | null = null;
   let showDetailedError = false;
+  let errorId: string | null = null;
 
   // Error handling
   function handleError(err: ErrorEvent | PromiseRejectionEvent | Error, context?: any) {
@@ -85,7 +86,7 @@
         context,
         retryCount,
         userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
-        url: typeof window !== 'undefined' ? window.location.href : undefined
+        url: typeof window !== 'undefined' ? window.location.href : undefined,
       });
     }
 
@@ -93,14 +94,24 @@
     notifications.show({
       type: 'error',
       title: 'An error occurred',
-      message: getUserFriendlyMessage(errorInfo || { error: errorObj, level: 'error', source: boundaryId, id: '', timestamp: new Date() }),
-      persistent: true,
-      actions: canRetry ? [
-        {
-          label: 'Retry',
-          action: () => handleRetry()
+      message: getUserFriendlyMessage(
+        errorInfo || {
+          error: errorObj,
+          level: 'error',
+          source: boundaryId,
+          id: '',
+          timestamp: new Date(),
         }
-      ] : []
+      ),
+      persistent: true,
+      actions: canRetry
+        ? [
+            {
+              label: 'Retry',
+              action: () => handleRetry(),
+            },
+          ]
+        : [],
     });
 
     // Auto-recover if enabled
@@ -119,7 +130,7 @@
     }
 
     isRecovering = true;
-    
+
     setTimeout(() => {
       retryFromError(boundaryId);
       isRecovering = false;
@@ -133,7 +144,7 @@
       clearTimeout(autoRecoverTimer);
       autoRecoverTimer = null;
     }
-    
+
     clearError(boundaryId);
     showDetailedError = false;
     dispatch('recover');
@@ -143,63 +154,45 @@
   function handleReportError() {
     if (!errorInfo) return;
 
-    const reportData = {
-      error: {
-        name: errorInfo.error.name,
-        message: errorInfo.error.message,
-        stack: errorInfo.error.stack
-      },
-      boundary: boundaryId,
-      timestamp: errorInfo.timestamp,
-      url: errorInfo.url,
-      userAgent: errorInfo.userAgent,
-      retryCount,
-      additionalInfo: prompt('Please describe what you were doing when the error occurred (optional):')
-    };
-
-    // Send report (implement your reporting logic here)
-    logger.info('Error report', reportData);
-    
-    notifications.show({
-      type: 'success',
-      title: 'Error Report Sent',
-      message: 'Thank you for reporting this error. We will investigate and fix it.',
-      duration: 5000
-    });
-  
-  } catch (callbackError) {
-        logger.error('Error in onError callback', callbackError);
-      }
-    }
-
-    // Report to monitoring
-    if (reportErrors) {
-      errorId = monitoring.reportError(errorObj, context, 'high');
-    }
-
-    // Show notification
-    notifications.error('Une erreur est survenue', errorObj.message, {
-      persistent: true,
-      actions: [
-        {
-          label: 'Recharger',
-          action: () => window.location.reload(),
-          style: 'primary',
+    try {
+      const reportData = {
+        error: {
+          name: errorInfo.error.name,
+          message: errorInfo.error.message,
+          stack: errorInfo.error.stack,
         },
-        {
-          label: 'Signaler',
-          action: () => reportError(),
-          style: 'secondary',
-        },
-      ],
-    });
+        boundary: boundaryId,
+        timestamp: errorInfo.timestamp,
+        url: errorInfo.url,
+        userAgent: errorInfo.userAgent,
+        retryCount,
+        additionalInfo: prompt(
+          'Please describe what you were doing when the error occurred (optional):'
+        ),
+      };
+
+      // Send report (implement your reporting logic here)
+      logger.info('Error report', reportData);
+
+      notifications.show({
+        type: 'success',
+        title: 'Error Report Sent',
+        message: 'Thank you for reporting this error. We will investigate and fix it.',
+        duration: 5000,
+      });
+
+      // Generate an error ID for tracking
+      errorId = `ERR_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`;
+    } catch (callbackError) {
+      logger.error('Error in error reporting', callbackError);
+    }
   }
 
   function reportError() {
-    if (!error || !errorId) return;
+    if (!errorInfo || !errorId) return;
 
     // Ouvrir un modal de rapport d'erreur ou rediriger vers un formulaire
-    const subject = encodeURIComponent(`Erreur WakeDock: ${error.message}`);
+    const subject = encodeURIComponent(`Erreur WakeDock: ${errorInfo.error.message}`);
     const body = encodeURIComponent(`
 ID d'erreur: ${errorId}
 URL: ${window.location.href}
@@ -207,280 +200,221 @@ User Agent: ${navigator.userAgent}
 Timestamp: ${new Date().toISOString()}
 
 Détails:
-${error.stack || error.message}
+${errorInfo.error.stack || errorInfo.error.message}
 
 Informations supplémentaires:
 ${JSON.stringify(errorInfo, null, 2)}
-		`);
+    `);
 
     window.open(`mailto:support@wakedock.com?subject=${subject}&body=${body}`, '_blank');
   }
 
   function retry() {
     hasError = false;
-    error = null;
-    errorInfo = null;
     errorId = null;
+    handleRetry();
   }
 
   // Lifecycle
   onMount(() => {
-    // Écouter les erreurs JavaScript non capturées
+    // Listen for global errors
     window.addEventListener('error', handleError);
-
-    // Écouter les promesses rejetées non capturées
     window.addEventListener('unhandledrejection', handleError);
   });
 
   onDestroy(() => {
+    // Clean up
     window.removeEventListener('error', handleError);
     window.removeEventListener('unhandledrejection', handleError);
-  });
 
-  // Helper pour formater la stack trace
-  function formatStackTrace(stack: string): string[] {
-    return stack
-      .split('\n')
-      .filter((line) => line.trim())
-      .slice(0, 10); // Limiter à 10 lignes
-  }
+    if (autoRecoverTimer) {
+      clearTimeout(autoRecoverTimer);
+      autoRecoverTimer = null;
+    }
+  });
 </script>
 
 {#if hasError && fallback}
-  <div class="error-boundary">
-    <div class="error-container">
-      <div class="error-icon">
-        <Icon name="alert-triangle" size="48" color="currentColor" />
-      </div>
+  <div class="error-boundary {isRecovering ? 'recovering' : ''}" data-testid="error-boundary">
+    <div class="error-content">
+      {#if isRecovering}
+        <div class="recovering-indicator">
+          <LoadingSpinner size="medium" />
+          <p>Recovering...</p>
+        </div>
+      {:else if customFallback}
+        {@html customFallback}
+      {:else}
+        <div class="error-header">
+          <Icon name="alert-circle" size={24} />
+          <h2>Something went wrong</h2>
+        </div>
 
-      <div class="error-content">
-        <h2 class="error-title">Oups ! Quelque chose s'est mal passé</h2>
+        <div class="error-message">
+          <p>{getUserFriendlyMessage(errorInfo)}</p>
+        </div>
 
-        <p class="error-message">
-          Une erreur inattendue s'est produite. L'équipe technique a été automatiquement notifiée.
-        </p>
+        {#if showDetails && errorInfo}
+          <div class="error-details">
+            <button
+              class="toggle-details"
+              on:click={() => (showDetailedError = !showDetailedError)}
+              aria-expanded={showDetailedError}
+            >
+              {showDetailedError ? 'Hide' : 'Show'} technical details
+            </button>
 
-        {#if error}
-          <div class="error-technical">
-            <strong>Erreur:</strong>
-            {error.message}
-            {#if errorId}
-              <br /><strong>ID:</strong> <code>{errorId}</code>
+            {#if showDetailedError}
+              <div class="details-content">
+                <pre>{errorInfo.error.stack || errorInfo.error.message}</pre>
+                <p><strong>Error ID:</strong> {errorId || 'Not available'}</p>
+                <p><strong>Time:</strong> {errorInfo.timestamp.toLocaleString()}</p>
+              </div>
             {/if}
           </div>
         {/if}
 
-        {#if showDetails && error?.stack}
-          <details class="error-details">
-            <summary>Détails techniques</summary>
-            <pre class="error-stack">
-							{#each formatStackTrace(error.stack) as line}
-                <div>{line}</div>
-              {/each}
-						</pre>
-
-            {#if errorInfo}
-              <div class="error-context">
-                <strong>Contexte:</strong>
-                <pre>{JSON.stringify(errorInfo, null, 2)}</pre>
-              </div>
-            {/if}
-          </details>
-        {/if}
-
-        <div class="error-actions">
-          {#if showRetry}
-            <button class="btn btn-primary" on:click={retry}>
-              <Icon name="refresh-cw" size="16" />
-              Réessayer
+        <div class="actions">
+          {#if showRetry && canRetry && retryCount < maxRetries}
+            <button class="retry-button" on:click={handleRetry} disabled={isRecovering}>
+              <Icon name="refresh-cw" size={16} />
+              Try again ({maxRetries - retryCount} attempts left)
             </button>
           {/if}
 
-          <button class="btn btn-secondary" on:click={() => window.location.reload()}>
-            <Icon name="refresh-ccw" size="16" />
-            Recharger la page
+          <button class="clear-button" on:click={handleClearError} disabled={isRecovering}>
+            <Icon name="x" size={16} />
+            Dismiss
           </button>
 
           {#if showReport}
-            <button class="btn btn-outline" on:click={reportError}>
-              <Icon name="mail" size="16" />
-              Signaler le problème
+            <button class="report-button" on:click={handleReportError} disabled={isRecovering}>
+              <Icon name="flag" size={16} />
+              Report this issue
             </button>
           {/if}
         </div>
-      </div>
+      {/if}
     </div>
   </div>
-{:else if !hasError}
+{:else}
   <slot />
 {/if}
 
 <style>
   .error-boundary {
+    background-color: var(--color-error-bg, #fff1f0);
+    border: 1px solid var(--color-error-border, #ffccc7);
+    border-radius: 4px;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    max-width: 100%;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .error-boundary.recovering {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .error-header {
     display: flex;
     align-items: center;
-    justify-content: center;
-    min-height: 60vh;
-    padding: 2rem;
-    background: var(--color-background);
-  }
-
-  .error-container {
-    max-width: 600px;
-    text-align: center;
-    background: var(--color-surface);
-    border-radius: 12px;
-    padding: 3rem;
-    box-shadow: var(--shadow-lg);
-    border: 1px solid var(--color-border);
-  }
-
-  .error-icon {
-    color: var(--color-error);
-    margin-bottom: 1.5rem;
-  }
-
-  .error-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--color-text-primary);
-    margin: 0 0 1rem 0;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    color: var(--color-error, #f5222d);
   }
 
   .error-message {
-    color: var(--color-text-secondary);
-    margin: 0 0 1.5rem 0;
-    line-height: 1.6;
-  }
-
-  .error-technical {
-    background: var(--color-error-light);
-    border: 1px solid var(--color-error);
-    border-radius: 6px;
-    padding: 1rem;
-    margin: 1rem 0;
-    text-align: left;
-    font-size: 0.875rem;
-  }
-
-  .error-technical code {
-    background: var(--color-background);
-    padding: 2px 4px;
-    border-radius: 3px;
-    font-family: var(--font-mono);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
   }
 
   .error-details {
-    text-align: left;
-    margin: 1.5rem 0;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
+    margin: 1rem 0;
   }
 
-  .error-details summary {
-    padding: 0.75rem;
-    background: var(--color-background);
+  .toggle-details {
+    background: none;
+    border: none;
+    color: var(--color-link, #1890ff);
     cursor: pointer;
-    font-weight: 500;
-    border-radius: 6px 6px 0 0;
+    padding: 0;
+    font-size: 0.875rem;
+    text-decoration: underline;
   }
 
-  .error-details summary:hover {
-    background: var(--color-surface-hover);
-  }
-
-  .error-stack {
-    background: var(--color-background);
+  .details-content {
+    background-color: var(--color-code-bg, #f5f5f5);
+    border-radius: 4px;
     padding: 1rem;
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.4;
-    overflow-x: auto;
-    border-top: 1px solid var(--color-border);
+    margin-top: 0.5rem;
+    font-family: monospace;
+    font-size: 0.875rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 300px;
+    overflow: auto;
   }
 
-  .error-context {
-    padding: 1rem;
-    border-top: 1px solid var(--color-border);
-  }
-
-  .error-context pre {
-    background: var(--color-background);
-    padding: 0.75rem;
-    border-radius: 3px;
-    margin: 0.5rem 0 0 0;
-    font-size: 0.75rem;
-    overflow-x: auto;
-  }
-
-  .error-actions {
+  .actions {
     display: flex;
-    gap: 0.75rem;
-    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
     flex-wrap: wrap;
-    margin-top: 2rem;
   }
 
-  .btn {
+  button {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: 6px;
-    font-weight: 500;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-    transition: all 0.2s;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
     font-size: 0.875rem;
+    cursor: pointer;
+    transition:
+      background-color 0.2s,
+      color 0.2s;
   }
 
-  .btn-primary {
-    background: var(--color-primary);
-    color: var(--color-primary-contrast);
+  .retry-button {
+    background-color: var(--color-primary, #1890ff);
+    color: white;
+    border: none;
   }
 
-  .btn-primary:hover {
-    background: var(--color-primary-hover);
+  .retry-button:hover {
+    background-color: var(--color-primary-dark, #096dd9);
   }
 
-  .btn-secondary {
-    background: var(--color-secondary);
-    color: var(--color-secondary-contrast);
+  .clear-button {
+    background-color: transparent;
+    color: var(--color-text, #333);
+    border: 1px solid var(--color-border, #d9d9d9);
   }
 
-  .btn-secondary:hover {
-    background: var(--color-secondary-hover);
+  .clear-button:hover {
+    background-color: var(--color-bg-hover, #f5f5f5);
   }
 
-  .btn-outline {
-    background: transparent;
-    color: var(--color-text-primary);
-    border: 1px solid var(--color-border);
+  .report-button {
+    background-color: transparent;
+    color: var(--color-warning, #faad14);
+    border: 1px solid var(--color-warning-border, #ffe58f);
   }
 
-  .btn-outline:hover {
-    background: var(--color-surface-hover);
-    border-color: var(--color-primary);
+  .report-button:hover {
+    background-color: var(--color-warning-bg, #fffbe6);
   }
 
-  @media (max-width: 640px) {
-    .error-boundary {
-      padding: 1rem;
-    }
-
-    .error-container {
-      padding: 2rem 1.5rem;
-    }
-
-    .error-actions {
-      flex-direction: column;
-    }
-
-    .btn {
-      width: 100%;
-      justify-content: center;
-    }
+  .recovering-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
   }
 </style>
