@@ -65,7 +65,7 @@
     // Announce selection to screen readers
     const selectedLabel = multiple
       ? `${(newValue as string[]).length} options selected`
-      : options.find((opt) => opt.value === newValue)?.label || newValue;
+      : options.find((opt) => opt.value.toString() === newValue.toString())?.label || newValue;
 
     announceToScreenReader(`Selected: ${selectedLabel}`);
   };
@@ -92,7 +92,7 @@
       id={selectId}
       {required}
       {disabled}
-      {multiple}
+      multiple={multiple}
       {autocomplete}
       class="block w-full {sizeClasses[
         size
@@ -101,7 +101,7 @@
         ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
         : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}"
       class:pr-10={error && !multiple}
-      bind:value
+      value={value}
       on:change={handleChange}
       on:blur={handleBlur}
       on:focus={handleFocus}

@@ -166,8 +166,8 @@
       message: 'Thank you for reporting this error. We will investigate and fix it.',
       duration: 5000
     });
-  }
-      } catch (callbackError) {
+  
+  } catch (callbackError) {
         logger.error('Error in onError callback', callbackError);
       }
     }
