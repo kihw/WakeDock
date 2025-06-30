@@ -22,7 +22,10 @@
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "type-check": "tsc --noEmit",
-        "ci": "npm run format:check && npm run lint && npm run type-check && npm run test:run && npm run build"
+        "ci": "npm run format:check && npm run lint && npm run type-check && npm run test:run && npm run build",
+        "optimize:images": "node scripts/optimize-images.js",
+        "build:analyze": "vite build && open build/stats.html",
+        "prepare": "husky install"
     },
     "keywords": [
         "docker",
@@ -69,7 +72,9 @@
         "eslint": "^9.12.0",
         "eslint-config-prettier": "^9.1.0",
         "eslint-plugin-svelte": "^2.44.1",
+        "husky": "^8.0.0",
         "jsdom": "^25.0.1",
+        "lint-staged": "^16.1.2",
         "postcss": "^8.4.47",
         "prettier": "^3.3.3",
         "prettier-plugin-svelte": "^3.2.7",
@@ -153,5 +158,17 @@
     "volta": {
         "node": "20.18.0",
         "npm": "10.8.2"
+    },
+    "lint-staged": {
+        "*.{js,ts,svelte}": [
+            "eslint --fix",
+            "prettier --write"
+        ],
+        "*.{css,scss,postcss}": [
+            "prettier --write"
+        ],
+        "*.{md,json,yaml,yml}": [
+            "prettier --write"
+        ]
     }
 }

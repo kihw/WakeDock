@@ -13,10 +13,10 @@ Améliorer la couverture de tests, la qualité du code et la fiabilité de l'app
   - Files: `src/lib/components/`
 
 #### Integration Testing
-- [x] **Store Integration** ✅ COMPLÉTÉ
-  - ✅ Valider data flow
-  - ✅ Vérifier side effects
-  - ✅ Files: `tests/integration/`
+- [ ] **Store Integration** 🔄 EN COURS
+  - [ ] Valider data flow
+  - [ ] Vérifier side effects
+  - Files: `tests/integration/`
 
 ### 🟡 MOYENNE PRIORITÉ
 

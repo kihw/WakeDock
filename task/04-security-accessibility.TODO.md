@@ -56,51 +56,48 @@ Renforcer la sécurité de l'application et améliorer l'accessibilité pour tou
 ### 🔴 HAUTE PRIORITÉ
 
 #### WCAG 2.1 Compliance
-- [x] **Keyboard Navigation** ✅ COMPLÉTÉ
-  - ✅ Tous les éléments accessibles au clavier
-  - ✅ Ordre de tabulation logique
-  - ✅ Focus indicators visibles
-  - ✅ Files: Tous les composants interactifs
+- [ ] **Keyboard Navigation**
+  - Tous les éléments accessibles au clavier
+  - Ordre de tabulation logique
+  - Focus indicators visibles
+  - Files: Tous les composants interactifs
 
-- [x] **Screen Readers** ✅ COMPLÉTÉ
-  - ✅ ARIA labels appropriés
-  - ✅ Landmarks et headings structure
-  - ✅ Alternative text pour images
-  - ✅ Files: Tous les composants UI
+- [ ] **Screen Readers**
+  - ARIA labels appropriés
+  - Landmarks et headings structure
+  - Alternative text pour images
+  - Files: Tous les composants UI
 
-- [x] **Color & Contrast** ✅ COMPLÉTÉ
-  - ✅ Ratio de contraste WCAG AA (4.5:1)
-  - ✅ Information non basée sur couleur seule
-  - ✅ Support mode haut contraste
-  - ✅ Files: CSS et thèmes
+- [ ] **Color & Contrast**
+  - Ratio de contraste WCAG AA (4.5:1)
+  - Information non basée sur couleur seule
+  - Support mode haut contraste
+  - Files: CSS et thèmes
 
 #### Form Accessibility
-- [x] **Form Labels** ✅ COMPLÉTÉ
-  - ✅ Labels associés aux inputs
-  - ✅ Instructions claires
-  - ✅ Messages d'erreur descriptifs
-  - ✅ Files: `src/routes/register/+page.svelte`, `src/routes/services/new/+page.svelte`
+- [ ] **Form Labels**
+  - Labels associés aux inputs
+  - Instructions claires
+  - Messages d'erreur descriptifs
+  - Files: `src/routes/register/+page.svelte`, `src/routes/services/new/+page.svelte`
 
-- [x] **Error Handling** ✅ COMPLÉTÉ
-  - ✅ Annonces d'erreur aux lecteurs d'écran
-  - ✅ Focus management sur erreurs
-  - ✅ Instructions de correction
-  - ✅ Files: Composants avec validation
+- [ ] **Error Handling**
+  - Annonces d'erreur aux lecteurs d'écran
+  - Focus management sur erreurs
+  - Instructions de correction
+  - Files: Composants avec validation
 
 ### 🟡 MOYENNE PRIORITÉ
 
 #### Interactive Elements
-- [x] **Buttons & Links** ✅ COMPLÉTÉ
-  - ✅ Distinction claire boutons/liens
-  - ✅ Taille minimum 44px
-  - ✅ States accessibles (hover, focus, active)
-  - ✅ Files: Composants interactifs
+- [ ] **Buttons & Links**
+  - Distinction claire boutons/liens
+  - Taille minimum 44px
+  - States accessibles (hover, focus, active)
+  - Files: Composants interactifs
 
-- [x] **Modal & Dialogs** ✅ COMPLÉTÉ
-  - ✅ Focus trapping
-  - ✅ ESC key pour fermer
-  - ✅ ARIA dialog roles
-  - ✅ Files: `src/lib/components/modals/`
+- [ ] **Modal & Dialogs**
+  - Focus trapping
   - Échappement au clavier
   - Annonce aux lecteurs d'écran
   - Files: `src/lib/components/modals/`
