@@ -58,7 +58,7 @@
     }
 
     await loadAnalytics();
-    
+
     // Setup WebSocket for real-time metrics
     websocket.connect();
     websocket.subscribe('system_metrics', (data) => {
@@ -85,7 +85,7 @@
   const loadAnalytics = async () => {
     loading = true;
     error = '';
-    
+
     try {
       const response = await api.get(`/analytics?timeRange=${selectedTimeRange}`);
       if (response.ok) {
@@ -96,7 +96,7 @@
     } catch (err) {
       error = 'Failed to load analytics data: ' + (err as Error).message;
       console.error('Analytics error:', err);
-      
+
       // Fallback to mock data if API fails
       analyticsData = {
         overview: {
@@ -173,9 +173,6 @@
     selectedTimeRange = range;
     await loadAnalytics();
   };
-      loading = false;
-    }
-  });
 </script>
 
 <svelte:head>

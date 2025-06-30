@@ -78,8 +78,8 @@ function generateErrorId(): string {
  * Create enhanced error info
  */
 function createErrorInfo(
-    error: Error, 
-    source: string, 
+    error: Error,
+    source: string,
     level: 'error' | 'warning' | 'info' = 'error',
     additionalInfo?: any
 ): ErrorInfo {
@@ -103,8 +103,8 @@ function logError(errorInfo: ErrorInfo) {
     if (!config.enableLogging) return;
 
     const { error, source, level, timestamp, id } = errorInfo;
-    const logMethod = level === 'error' ? console.error : 
-                     level === 'warning' ? console.warn : console.info;
+    const logMethod = level === 'error' ? console.error :
+        level === 'warning' ? console.warn : console.info;
 
     logMethod(`[${level.toUpperCase()}] ${source} - ${error.message}`, {
         id,
@@ -212,7 +212,7 @@ export function captureError(
  */
 export function retryFromError(boundaryId: string): void {
     const boundary = getErrorBoundary(boundaryId);
-    
+
     boundary.update((state: ErrorBoundaryState) => {
         if (!state.canRetry || state.retryCount >= config.maxRetries) {
             return state;
@@ -290,7 +290,7 @@ export function getUserFriendlyMessage(error: ErrorInfo): string {
 export function clearAllErrors(): void {
     globalErrors.set([]);
     criticalErrors.set([]);
-    
+
     // Clear all error boundaries
     for (const [, boundary] of errorBoundaries) {
         boundary.set({
@@ -347,7 +347,7 @@ export async function withErrorHandling<T>(
     } = {}
 ): Promise<T> {
     const { retries = 0, retryDelay = 1000, fallback, throwOnFailure = true } = options;
-    
+
     for (let attempt = 0; attempt <= retries; attempt++) {
         try {
             return await fn();

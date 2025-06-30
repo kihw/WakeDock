@@ -5,41 +5,7 @@ Renforcer la sécurité de l'application et améliorer l'accessibilité pour tou
 
 ## 📋 Tâches de Sécurité
 
-### 🔴 HAUTE PRIORITÉ
-
-#### Authentication Security
-- [ ] **Token Security**
-  - Implémenter rotation automatique des tokens
-  - Ajouter fingerprinting des sessions
-  - Renforcer validation côté client
-  - File: `src/lib/stores/auth.ts`
-
-- [ ] **Input Validation**
-  - Sanitiser toutes les entrées utilisateur
-  - Prévenir XSS dans les logs
-  - Valider formats côté client
-  - Files: `src/lib/utils/validation.ts`, tous les formulaires
-
-- [ ] **CSRF Protection**
-  - Implémenter tokens CSRF
-  - Valider origin des requêtes
-  - Sécuriser state changes
-  - File: `src/lib/api.ts`
-
-#### Data Protection
-- [ ] **Secure Storage**
-  - Chiffrer données sensibles en localStorage
-  - Implémenter auto-cleanup
-  - Audit des données stockées
-  - File: `src/lib/utils/storage.ts`
-
-- [ ] **API Security**
-  - Headers de sécurité appropriés
-  - Rate limiting côté client
-  - Timeout sécurisés
-  - File: `src/lib/api.ts`
-
-### 🟡 MOYENNE PRIORITÉ
+###  MOYENNE PRIORITÉ
 
 #### Content Security
 - [ ] **Content Security Policy**
@@ -90,48 +56,51 @@ Renforcer la sécurité de l'application et améliorer l'accessibilité pour tou
 ### 🔴 HAUTE PRIORITÉ
 
 #### WCAG 2.1 Compliance
-- [ ] **Keyboard Navigation**
-  - Tous les éléments accessibles au clavier
-  - Ordre de tabulation logique
-  - Focus indicators visibles
-  - Files: Tous les composants interactifs
+- [x] **Keyboard Navigation** ✅ COMPLÉTÉ
+  - ✅ Tous les éléments accessibles au clavier
+  - ✅ Ordre de tabulation logique
+  - ✅ Focus indicators visibles
+  - ✅ Files: Tous les composants interactifs
 
-- [ ] **Screen Readers**
-  - ARIA labels appropriés
-  - Landmarks et headings structure
-  - Alternative text pour images
-  - Files: Tous les composants UI
+- [x] **Screen Readers** ✅ COMPLÉTÉ
+  - ✅ ARIA labels appropriés
+  - ✅ Landmarks et headings structure
+  - ✅ Alternative text pour images
+  - ✅ Files: Tous les composants UI
 
-- [ ] **Color & Contrast**
-  - Ratio de contraste WCAG AA (4.5:1)
-  - Information non basée sur couleur seule
-  - Support mode haut contraste
-  - Files: CSS et thèmes
+- [x] **Color & Contrast** ✅ COMPLÉTÉ
+  - ✅ Ratio de contraste WCAG AA (4.5:1)
+  - ✅ Information non basée sur couleur seule
+  - ✅ Support mode haut contraste
+  - ✅ Files: CSS et thèmes
 
 #### Form Accessibility
-- [ ] **Form Labels**
-  - Labels associés aux inputs
-  - Instructions claires
-  - Messages d'erreur descriptifs
-  - Files: `src/routes/register/+page.svelte`, `src/routes/services/new/+page.svelte`
+- [x] **Form Labels** ✅ COMPLÉTÉ
+  - ✅ Labels associés aux inputs
+  - ✅ Instructions claires
+  - ✅ Messages d'erreur descriptifs
+  - ✅ Files: `src/routes/register/+page.svelte`, `src/routes/services/new/+page.svelte`
 
-- [ ] **Error Handling**
-  - Annonces d'erreur aux lecteurs d'écran
-  - Focus management sur erreurs
-  - Instructions de correction
-  - Files: Composants avec validation
+- [x] **Error Handling** ✅ COMPLÉTÉ
+  - ✅ Annonces d'erreur aux lecteurs d'écran
+  - ✅ Focus management sur erreurs
+  - ✅ Instructions de correction
+  - ✅ Files: Composants avec validation
 
 ### 🟡 MOYENNE PRIORITÉ
 
 #### Interactive Elements
-- [ ] **Buttons & Links**
-  - Distinction claire boutons/liens
-  - Taille minimum 44px
-  - States accessibles (hover, focus, active)
-  - Files: Composants interactifs
+- [x] **Buttons & Links** ✅ COMPLÉTÉ
+  - ✅ Distinction claire boutons/liens
+  - ✅ Taille minimum 44px
+  - ✅ States accessibles (hover, focus, active)
+  - ✅ Files: Composants interactifs
 
-- [ ] **Modal & Dialogs**
-  - Focus trapping
+- [x] **Modal & Dialogs** ✅ COMPLÉTÉ
+  - ✅ Focus trapping
+  - ✅ ESC key pour fermer
+  - ✅ ARIA dialog roles
+  - ✅ Files: `src/lib/components/modals/`
   - Échappement au clavier
   - Annonce aux lecteurs d'écran
   - Files: `src/lib/components/modals/`

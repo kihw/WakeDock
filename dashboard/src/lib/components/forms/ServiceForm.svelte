@@ -3,14 +3,24 @@
   Reusable form for creating and editing Docker services
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { writable } from 'svelte/store';
   import Button from './Button.svelte';
   import Input from './Input.svelte';
   import Textarea from './Textarea.svelte';
   import Select from './Select.svelte';
   import Icon from '../Icon.svelte';
-  import { validateServiceConfig } from '../../utils/validation';
+  import {
+    validateServiceConfig,
+    sanitizeInput,
+    generateCSRFToken,
+    verifyCSRFToken,
+  } from '../../utils/validation';
+  import {
+    manageFocus,
+    announceToScreenReader,
+    enhanceFormAccessibility,
+  } from '../../utils/accessibility';
 
   // Props
   export let mode: 'create' | 'edit' = 'create';
@@ -20,7 +30,7 @@
 
   // Events
   const dispatch = createEventDispatcher<{
-    submit: ServiceFormData;
+    submit: { data: ServiceFormData; csrfToken: string };
     cancel: void;
     validate: ServiceFormData;
   }>();
@@ -48,6 +58,10 @@
     };
     labels: Array<{ key: string; value: string }>;
   }
+
+  // Security state
+  let csrfToken = '';
+  let formElement: HTMLFormElement;
 
   // Form state
   let formData = writable<ServiceFormData>({
@@ -78,6 +92,19 @@
   let validationErrors = writable<Record<string, string>>({});
   let isValid = writable(false);
 
+  // Initialize security and accessibility features
+  onMount(() => {
+    csrfToken = generateCSRFToken();
+
+    if (formElement) {
+      enhanceFormAccessibility(formElement);
+    }
+
+    // Announce form mode to screen readers
+    const modeText = mode === 'create' ? 'Create new service' : 'Edit service';
+    announceToScreenReader(`${modeText} form loaded`);
+  });
+
   // Options
   const restartPolicies = [
     { value: 'no', label: 'No restart' },
@@ -96,7 +123,7 @@
     { value: 'ro', label: 'Read Only' },
   ];
 
-  // Add/remove functions for arrays
+  // Add/remove functions for arrays with security and accessibility
   function addPort() {
     formData.update((data) => ({
       ...data,
@@ -153,23 +180,86 @@
     }));
   }
 
-  // Validation
+  // Validation with security checks
   function validateForm() {
     const data = get(formData);
-    const validation = validateServiceConfig(data);
+
+    // Sanitize all string inputs
+    const sanitizedData = {
+      ...data,
+      name: sanitizeInput(data.name),
+      image: sanitizeInput(data.image),
+      tag: sanitizeInput(data.tag),
+      description: sanitizeInput(data.description),
+      environment: data.environment.map((env) => ({
+        ...env,
+        key: sanitizeInput(env.key),
+        value: env.isSecret ? env.value : sanitizeInput(env.value), // Don't sanitize secrets
+      })),
+      volumes: data.volumes.map((vol) => ({
+        ...vol,
+        host: sanitizeInput(vol.host),
+        container: sanitizeInput(vol.container),
+      })),
+      labels: data.labels.map((label) => ({
+        ...label,
+        key: sanitizeInput(label.key),
+        value: sanitizeInput(label.value),
+      })),
+      healthCheck: {
+        ...data.healthCheck,
+        command: sanitizeInput(data.healthCheck.command),
+      },
+    };
+
+    // Verify CSRF token
+    if (!verifyCSRFToken(csrfToken)) {
+      validationErrors.update((errors) => ({
+        ...errors,
+        general: 'Security token expired. Please refresh the page.',
+      }));
+      isValid.set(false);
+      return false;
+    }
+
+    const validation = validateServiceConfig(sanitizedData);
 
     validationErrors.set(validation.errors);
     isValid.set(validation.isValid);
 
-    dispatch('validate', data);
+    // Update form data with sanitized values
+    formData.set(sanitizedData);
+
+    dispatch('validate', sanitizedData);
+
+    // Announce validation results
+    if (validation.isValid) {
+      announceToScreenReader('Form validation passed');
+    } else {
+      const errorCount = Object.keys(validation.errors).length;
+      announceToScreenReader(`Form validation failed. ${errorCount} errors found.`);
+
+      // Focus first error field
+      const firstErrorField = Object.keys(validation.errors)[0];
+      if (firstErrorField) {
+        const errorElement = formElement?.querySelector(
+          `[name="${firstErrorField}"], [data-field="${firstErrorField}"]`
+        );
+        if (errorElement) {
+          manageFocus(errorElement as HTMLElement);
+        }
+      }
+    }
 
     return validation.isValid;
   }
 
-  // Form submission
+  // Form submission with security
   function handleSubmit() {
     if (validateForm()) {
-      dispatch('submit', get(formData));
+      const data = get(formData);
+      dispatch('submit', { data, csrfToken });
+      announceToScreenReader('Form submitted successfully');
     }
   }
 

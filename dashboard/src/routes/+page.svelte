@@ -3,7 +3,7 @@
   import { writable } from 'svelte/store';
   import ServiceCard from '$lib/components/ServiceCard.svelte';
   import StatsCards from '$lib/components/StatsCards.svelte';
-  import { api, type Service, type SystemOverview } from '$lib/api.js';
+  import { api, type Service, type SystemOverview } from '$lib/api';
   import { auth } from '$lib/stores/auth.js';
   import { websocketClient } from '$lib/websocket.js';
   import { goto } from '$app/navigation';
@@ -284,6 +284,27 @@
       }
     } catch (e) {
       console.error('Failed to sleep service:', e);
+      // Revert optimistic update
+      await loadServices();
+    }
+  }
+
+  async function wakeAllServices() {
+    try {
+      // Optimistically update all stopped services to starting
+      services = services.map((s) => (s.status === 'stopped' ? { ...s, status: 'starting' } : s));
+      updateQuickStats();
+
+      // Start all stopped services
+      if (api.isAuthenticated()) {
+        const stoppedServices = services.filter((s) => s.status === 'starting');
+        await Promise.all(stoppedServices.map((service) => api.startService(service.id)));
+        // The WebSocket will update the actual statuses when they change
+      } else {
+        throw new Error('Not authenticated');
+      }
+    } catch (e) {
+      console.error('Failed to wake all services:', e);
       // Revert optimistic update
       await loadServices();
     }

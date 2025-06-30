@@ -87,43 +87,43 @@ export interface UpdateServiceRequest extends Partial<CreateServiceRequest> {
 
 // Security headers utility
 export const securityHeaders = {
-  /**
-   * Get default security headers for API requests
-   */
-  getDefaults(): Record<string, string> {
-    return {
-      'X-Frame-Options': 'DENY',
-      'X-Content-Type-Options': 'nosniff',
-      'X-XSS-Protection': '1; mode=block',
-      'Referrer-Policy': 'strict-origin-when-cross-origin',
-      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
-    };
-  },
+    /**
+     * Get default security headers for API requests
+     */
+    getDefaults(): Record<string, string> {
+        return {
+            'X-Frame-Options': 'DENY',
+            'X-Content-Type-Options': 'nosniff',
+            'X-XSS-Protection': '1; mode=block',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+        };
+    },
 
-  /**
-   * Validate response headers for security
-   */
-  validateResponse(headers: Headers): string[] {
-    const warnings: string[] = [];
-    
-    if (!headers.get('X-Frame-Options') && !headers.get('x-frame-options')) {
-      warnings.push('Missing X-Frame-Options header');
+    /**
+     * Validate response headers for security
+     */
+    validateResponse(headers: Headers): string[] {
+        const warnings: string[] = [];
+
+        if (!headers.get('X-Frame-Options') && !headers.get('x-frame-options')) {
+            warnings.push('Missing X-Frame-Options header');
+        }
+
+        if (!headers.get('X-Content-Type-Options') && !headers.get('x-content-type-options')) {
+            warnings.push('Missing X-Content-Type-Options header');
+        }
+
+        return warnings;
     }
-    
-    if (!headers.get('X-Content-Type-Options') && !headers.get('x-content-type-options')) {
-      warnings.push('Missing X-Content-Type-Options header');
-    }
-    
-    return warnings;
-  }
 };
 
 // Enhanced request options for security
 export interface SecureRequestOptions extends RequestInit {
-  skipCSRF?: boolean;
-  skipRateLimit?: boolean;
-  timeout?: number;
-  retries?: number;
+    skipCSRF?: boolean;
+    skipRateLimit?: boolean;
+    timeout?: number;
+    retries?: number;
 }
 
 class ApiClient {
@@ -150,12 +150,12 @@ class ApiClient {
 
     private shouldRetry(error: any, attempt: number): boolean {
         if (attempt >= this.maxRetries) return false;
-        
+
         // Retry on network errors, timeouts, and 5xx server errors
         if (error.name === 'TypeError' || error.name === 'NetworkError') return true;
         if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') return true;
         if (error.details?.status >= 500) return true;
-        
+
         return false;
     }
 
@@ -171,7 +171,7 @@ class ApiClient {
         retryAttempt: number = 0
     ): Promise<T> {
         const url = `${this.baseUrl}${path}`;
-        
+
         // Rate limiting check
         if (!options.skipRateLimit) {
             const rateLimitKey = `api_${path}_${this.token ? 'auth' : 'anon'}`;
@@ -212,16 +212,16 @@ class ApiClient {
         // Create timeout controller
         const timeoutController = this.createTimeoutController(this.timeout);
         const originalSignal = options.signal;
-        
+
         // Combine timeout signal with any existing signal
         let combinedSignal = timeoutController.signal;
         if (originalSignal) {
             const combinedController = new AbortController();
             const abortBoth = () => combinedController.abort();
-            
+
             timeoutController.signal.addEventListener('abort', abortBoth);
             originalSignal.addEventListener('abort', abortBoth);
-            
+
             combinedSignal = combinedController.signal;
         }
 
@@ -275,14 +275,14 @@ class ApiClient {
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
                 const responseData = await response.json();
-                
+
                 // Basic response validation
                 if (typeof responseData === 'object' && responseData !== null) {
                     // Remove any potentially dangerous properties
                     delete responseData.__proto__;
                     delete responseData.constructor;
                 }
-                
+
                 return responseData;
             } else {
                 return {} as T;
@@ -312,7 +312,7 @@ class ApiClient {
             if (this.shouldRetry(error, retryAttempt)) {
                 const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
                 console.warn(`API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`, error);
-                
+
                 await this.sleep(delay);
                 return this.request<T>(path, options, retryAttempt + 1);
             }

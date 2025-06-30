@@ -51,7 +51,7 @@ function decodeToken(token: string): any {
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function (c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
         return JSON.parse(jsonPayload);
@@ -65,7 +65,7 @@ function decodeToken(token: string): any {
 function isTokenExpired(token: string): boolean {
     const decoded = decodeToken(token);
     if (!decoded || !decoded.exp) return true;
-    
+
     const now = Date.now() / 1000;
     // Check if token expires within 5 minutes
     return decoded.exp < (now + 300);
@@ -286,7 +286,7 @@ export const auth = {
     // Refresh token
     refreshToken: async (): Promise<boolean> => {
         const currentState = get({ subscribe });
-        
+
         if (currentState.isRefreshing) {
             return false;
         }
@@ -296,14 +296,14 @@ export const auth = {
         try {
             // Try to get refresh token from localStorage or current state
             const refreshToken = currentState.refreshToken || localStorage.getItem('wakedock_refresh_token');
-            
+
             if (!refreshToken) {
                 throw new Error('No refresh token available');
             }
 
             // Call API to refresh token
             const response = await api.auth.refreshToken();
-            
+
             // Get updated user info
             const user = await api.auth.getCurrentUser();
 
@@ -329,7 +329,7 @@ export const auth = {
 
         } catch (error) {
             console.error('Token refresh failed:', error);
-            
+
             // If refresh fails, logout user
             update((state: AuthState) => ({
                 ...state,

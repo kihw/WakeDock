@@ -428,7 +428,7 @@ class StorageManager {
         try {
             const encoder = new TextEncoder();
             const salt = crypto.getRandomValues(new Uint8Array(16));
-            
+
             // Derive key from password
             const passwordKey = await crypto.subtle.importKey(
                 'raw',
@@ -637,7 +637,7 @@ class StorageManager {
         const encoder = new TextEncoder();
         const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
         const hashArray = Array.from(new Uint8Array(hashBuffer));
-        
+
         return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
 
@@ -682,39 +682,39 @@ export const storageHelpers = {
 
 // Memory-safe operations for security
 export const memoryUtils = {
-  /**
-   * Clear sensitive data from memory (best effort)
-   */
-  clearSensitiveData(obj: any): void {
-    if (typeof obj === 'object' && obj !== null) {
-      for (const key in obj) {
-        if (obj.hasOwnProperty(key)) {
-          if (typeof obj[key] === 'string' && 
-              (key.toLowerCase().includes('password') || 
-               key.toLowerCase().includes('token') || 
-               key.toLowerCase().includes('secret'))) {
-            // Overwrite string memory (JavaScript doesn't guarantee this)
-            obj[key] = '0'.repeat(obj[key].length);
-            delete obj[key];
-          } else if (typeof obj[key] === 'object') {
-            this.clearSensitiveData(obj[key]);
-          }
+    /**
+     * Clear sensitive data from memory (best effort)
+     */
+    clearSensitiveData(obj: any): void {
+        if (typeof obj === 'object' && obj !== null) {
+            for (const key in obj) {
+                if (obj.hasOwnProperty(key)) {
+                    if (typeof obj[key] === 'string' &&
+                        (key.toLowerCase().includes('password') ||
+                            key.toLowerCase().includes('token') ||
+                            key.toLowerCase().includes('secret'))) {
+                        // Overwrite string memory (JavaScript doesn't guarantee this)
+                        obj[key] = '0'.repeat(obj[key].length);
+                        delete obj[key];
+                    } else if (typeof obj[key] === 'object') {
+                        this.clearSensitiveData(obj[key]);
+                    }
+                }
+            }
         }
-      }
-    }
-  },
+    },
 
-  /**
-   * Secure string comparison (constant time)
-   */
-  constantTimeCompare(a: string, b: string): boolean {
-    if (a.length !== b.length) return false;
-    
-    let result = 0;
-    for (let i = 0; i < a.length; i++) {
-      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    /**
+     * Secure string comparison (constant time)
+     */
+    constantTimeCompare(a: string, b: string): boolean {
+        if (a.length !== b.length) return false;
+
+        let result = 0;
+        for (let i = 0; i < a.length; i++) {
+            result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+        }
+
+        return result === 0;
     }
-    
-    return result === 0;
-  }
 };

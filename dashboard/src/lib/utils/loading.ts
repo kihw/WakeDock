@@ -36,13 +36,13 @@ export function getLoadingStore(key: string): Writable<LoadingState> {
  * Start a loading operation
  */
 export function startLoading(
-    key: string, 
-    operation?: string, 
+    key: string,
+    operation?: string,
     options: { canCancel?: boolean; timeout?: number } = {}
 ): () => void {
     const store = getLoadingStore(key);
     const startTime = new Date();
-    
+
     store.set({
         isLoading: true,
         operation,
@@ -112,16 +112,16 @@ export function hasActiveLoading(): boolean {
 export function cancelLoading(key: string): boolean {
     const store = getLoadingStore(key);
     let canCancel = false;
-    
+
     store.subscribe((state: LoadingState) => {
         canCancel = state.canCancel || false;
     })();
-    
+
     if (canCancel) {
         stopLoading(key);
         return true;
     }
-    
+
     return false;
 }
 
@@ -136,10 +136,10 @@ export function withLoading<T>(
 ): Promise<T> {
     return new Promise((resolve, reject) => {
         const cleanup = startLoading(key, operation, options);
-        
+
         let isCancelled = false;
         const originalAsyncFn = asyncFn;
-        
+
         // Create a cancellable version if needed
         if (options.canCancel) {
             const cancelHandler = () => {
@@ -147,7 +147,7 @@ export function withLoading<T>(
                 cleanup();
                 reject(new Error('Operation cancelled'));
             };
-            
+
             // Store cancel handler for external access
             const store = getLoadingStore(key);
             store.update((state: LoadingState) => ({
@@ -155,7 +155,7 @@ export function withLoading<T>(
                 canCancel: true
             }));
         }
-        
+
         originalAsyncFn()
             .then(result => {
                 if (!isCancelled) {
@@ -187,7 +187,7 @@ export function debouncedLoading(
         if (existingTimeout) {
             clearTimeout(existingTimeout);
         }
-        
+
         // Set new timeout
         const timeoutId = setTimeout(() => {
             withLoading(key, operation, asyncFn)
@@ -197,7 +197,7 @@ export function debouncedLoading(
                     loadingTimeouts.delete(key);
                 });
         }, delay);
-        
+
         loadingTimeouts.set(key, timeoutId);
     });
 }
@@ -211,20 +211,20 @@ const loadingTimeouts = new Map<string, number>();
 export class LoadingBatch {
     private operations: Map<string, Promise<any>> = new Map();
     private batchKey: string;
-    
+
     constructor(batchKey: string) {
         this.batchKey = batchKey;
     }
-    
+
     add<T>(key: string, operation: string, asyncFn: () => Promise<T>): Promise<T> {
         const promise = withLoading(`${this.batchKey}_${key}`, operation, asyncFn);
         this.operations.set(key, promise);
         return promise;
     }
-    
+
     async waitAll(): Promise<Map<string, any>> {
         const results = new Map<string, any>();
-        
+
         for (const [key, promise] of this.operations) {
             try {
                 const result = await promise;
@@ -234,10 +234,10 @@ export class LoadingBatch {
                 results.set(key, { error });
             }
         }
-        
+
         return results;
     }
-    
+
     cancelAll(): void {
         for (const [key] of this.operations) {
             cancelLoading(`${this.batchKey}_${key}`);

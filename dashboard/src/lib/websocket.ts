@@ -123,7 +123,7 @@ class WebSocketClient {
             this.connectionState.set(
                 this.reconnectAttempts > 0 ? ConnectionState.RECONNECTING : ConnectionState.CONNECTING
             );
-            
+
             debugLog('Connecting to WebSocket:', config.wsUrl);
             this.connectionStartTime = Date.now();
 

@@ -9,421 +9,421 @@ import type { WebSocketMessage, ServiceUpdate, SystemUpdate } from '../../src/li
 
 // Mock WebSocket
 class MockWebSocket {
-  public static CONNECTING = 0;
-  public static OPEN = 1;
-  public static CLOSING = 2;
-  public static CLOSED = 3;
+    public static CONNECTING = 0;
+    public static OPEN = 1;
+    public static CLOSING = 2;
+    public static CLOSED = 3;
 
-  public readyState = MockWebSocket.CONNECTING;
-  public onopen: ((event: Event) => void) | null = null;
-  public onclose: ((event: CloseEvent) => void) | null = null;
-  public onmessage: ((event: MessageEvent) => void) | null = null;
-  public onerror: ((event: Event) => void) | null = null;
+    public readyState = MockWebSocket.CONNECTING;
+    public onopen: ((event: Event) => void) | null = null;
+    public onclose: ((event: CloseEvent) => void) | null = null;
+    public onmessage: ((event: MessageEvent) => void) | null = null;
+    public onerror: ((event: Event) => void) | null = null;
 
-  constructor(public url: string) {
-    // Simulate connection delay
-    setTimeout(() => {
-      this.readyState = MockWebSocket.OPEN;
-      if (this.onopen) {
-        this.onopen(new Event('open'));
-      }
-    }, 10);
-  }
-
-  send(data: string) {
-    if (this.readyState !== MockWebSocket.OPEN) {
-      throw new Error('WebSocket is not open');
+    constructor(public url: string) {
+        // Simulate connection delay
+        setTimeout(() => {
+            this.readyState = MockWebSocket.OPEN;
+            if (this.onopen) {
+                this.onopen(new Event('open'));
+            }
+        }, 10);
     }
-    // Simulate sending
-  }
 
-  close(code?: number, reason?: string) {
-    this.readyState = MockWebSocket.CLOSED;
-    if (this.onclose) {
-      this.onclose(new CloseEvent('close', { code, reason }));
+    send(data: string) {
+        if (this.readyState !== MockWebSocket.OPEN) {
+            throw new Error('WebSocket is not open');
+        }
+        // Simulate sending
     }
-  }
 
-  // Helper method to simulate receiving messages
-  simulateMessage(data: any) {
-    if (this.onmessage) {
-      this.onmessage(new MessageEvent('message', { 
-        data: typeof data === 'string' ? data : JSON.stringify(data) 
-      }));
+    close(code?: number, reason?: string) {
+        this.readyState = MockWebSocket.CLOSED;
+        if (this.onclose) {
+            this.onclose(new CloseEvent('close', { code, reason }));
+        }
     }
-  }
 
-  // Helper method to simulate errors
-  simulateError() {
-    if (this.onerror) {
-      this.onerror(new Event('error'));
+    // Helper method to simulate receiving messages
+    simulateMessage(data: any) {
+        if (this.onmessage) {
+            this.onmessage(new MessageEvent('message', {
+                data: typeof data === 'string' ? data : JSON.stringify(data)
+            }));
+        }
     }
-  }
+
+    // Helper method to simulate errors
+    simulateError() {
+        if (this.onerror) {
+            this.onerror(new Event('error'));
+        }
+    }
 }
 
 // Mock global WebSocket
 global.WebSocket = MockWebSocket as any;
 
 describe('WebSocketClient', () => {
-  let wsClient: WebSocketClient;
-  let mockWs: MockWebSocket;
+    let wsClient: WebSocketClient;
+    let mockWs: MockWebSocket;
 
-  beforeEach(() => {
-    vi.clearAllMocks();
-    wsClient = new WebSocketClient();
-    
-    // Get reference to the mock WebSocket instance
-    vi.spyOn(global, 'WebSocket').mockImplementation((url: string) => {
-      mockWs = new MockWebSocket(url);
-      return mockWs as any;
-    });
-  });
+    beforeEach(() => {
+        vi.clearAllMocks();
+        wsClient = new WebSocketClient();
 
-  afterEach(() => {
-    wsClient.disconnect();
-    vi.restoreAllMocks();
-  });
-
-  describe('Connection Management', () => {
-    it('should connect to WebSocket server', async () => {
-      await wsClient.connect();
-
-      expect(global.WebSocket).toHaveBeenCalledWith(
-        expect.stringContaining('ws://') || expect.stringContaining('wss://')
-      );
+        // Get reference to the mock WebSocket instance
+        vi.spyOn(global, 'WebSocket').mockImplementation((url: string) => {
+            mockWs = new MockWebSocket(url);
+            return mockWs as any;
+        });
     });
 
-    it('should handle connection state changes', async () => {
-      const stateChanges: string[] = [];
-      
-      wsClient.connectionState.subscribe(state => {
-        stateChanges.push(state);
-      });
-
-      await wsClient.connect();
-
-      // Wait for connection to establish
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(stateChanges).toContain('connecting');
-      expect(stateChanges).toContain('connected');
+    afterEach(() => {
+        wsClient.disconnect();
+        vi.restoreAllMocks();
     });
 
-    it('should disconnect properly', async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
+    describe('Connection Management', () => {
+        it('should connect to WebSocket server', async () => {
+            await wsClient.connect();
 
-      wsClient.disconnect();
+            expect(global.WebSocket).toHaveBeenCalledWith(
+                expect.stringContaining('ws://') || expect.stringContaining('wss://')
+            );
+        });
 
-      expect(mockWs.readyState).toBe(MockWebSocket.CLOSED);
-    });
-  });
+        it('should handle connection state changes', async () => {
+            const stateChanges: string[] = [];
 
-  describe('Reconnection Logic', () => {
-    it('should attempt reconnection on connection loss', async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
+            wsClient.connectionState.subscribe(state => {
+                stateChanges.push(state);
+            });
 
-      // Simulate connection loss
-      mockWs.simulateError();
-      mockWs.close(1006, 'Connection lost');
+            await wsClient.connect();
 
-      // Wait for reconnection attempt
-      await new Promise(resolve => setTimeout(resolve, 100));
+            // Wait for connection to establish
+            await new Promise(resolve => setTimeout(resolve, 20));
 
-      // Should attempt to reconnect
-      expect(global.WebSocket).toHaveBeenCalledTimes(2);
-    });
+            expect(stateChanges).toContain('connecting');
+            expect(stateChanges).toContain('connected');
+        });
 
-    it('should implement exponential backoff for reconnections', async () => {
-      const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
-      
-      await wsClient.connect();
-      
-      // Simulate multiple connection failures
-      for (let i = 0; i < 3; i++) {
-        mockWs.simulateError();
-        mockWs.close(1006, 'Connection lost');
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
+        it('should disconnect properly', async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
 
-      // Check that timeout delays increase (exponential backoff)
-      const delays = setTimeoutSpy.mock.calls
-        .filter(call => typeof call[1] === 'number')
-        .map(call => call[1] as number)
-        .sort((a, b) => a - b);
+            wsClient.disconnect();
 
-      expect(delays.length).toBeGreaterThan(1);
-      // Later delays should be longer
-      expect(delays[delays.length - 1]).toBeGreaterThan(delays[0]);
+            expect(mockWs.readyState).toBe(MockWebSocket.CLOSED);
+        });
     });
 
-    it('should stop reconnecting after max attempts', async () => {
-      await wsClient.connect();
-      
-      // Simulate many connection failures
-      for (let i = 0; i < 10; i++) {
-        mockWs.simulateError();
-        mockWs.close(1006, 'Connection lost');
-        await new Promise(resolve => setTimeout(resolve, 10));
-      }
+    describe('Reconnection Logic', () => {
+        it('should attempt reconnection on connection loss', async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
 
-      // Should not exceed max reconnection attempts
-      expect(global.WebSocket).toHaveBeenCalledTimes(4); // Initial + 3 max retries
-    });
-  });
+            // Simulate connection loss
+            mockWs.simulateError();
+            mockWs.close(1006, 'Connection lost');
 
-  describe('Message Handling', () => {
-    beforeEach(async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
-    });
+            // Wait for reconnection attempt
+            await new Promise(resolve => setTimeout(resolve, 100));
 
-    it('should handle service update messages', async () => {
-      const serviceUpdates: ServiceUpdate[] = [];
-      
-      wsClient.serviceUpdates.subscribe(updates => {
-        serviceUpdates.push(...updates);
-      });
+            // Should attempt to reconnect
+            expect(global.WebSocket).toHaveBeenCalledTimes(2);
+        });
 
-      const updateMessage: WebSocketMessage = {
-        type: 'service_update',
-        data: {
-          id: 'service-1',
-          status: 'running',
-          health_status: 'healthy'
-        },
-        timestamp: new Date().toISOString()
-      };
+        it('should implement exponential backoff for reconnections', async () => {
+            const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
 
-      mockWs.simulateMessage(updateMessage);
+            await wsClient.connect();
 
-      await new Promise(resolve => setTimeout(resolve, 10));
+            // Simulate multiple connection failures
+            for (let i = 0; i < 3; i++) {
+                mockWs.simulateError();
+                mockWs.close(1006, 'Connection lost');
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
 
-      expect(serviceUpdates).toHaveLength(1);
-      expect(serviceUpdates[0]).toMatchObject({
-        id: 'service-1',
-        status: 'running',
-        health_status: 'healthy'
-      });
-    });
+            // Check that timeout delays increase (exponential backoff)
+            const delays = setTimeoutSpy.mock.calls
+                .filter(call => typeof call[1] === 'number')
+                .map(call => call[1] as number)
+                .sort((a, b) => a - b);
 
-    it('should handle system update messages', async () => {
-      let systemUpdate: SystemUpdate | null = null;
-      
-      wsClient.systemUpdates.subscribe(update => {
-        systemUpdate = update;
-      });
+            expect(delays.length).toBeGreaterThan(1);
+            // Later delays should be longer
+            expect(delays[delays.length - 1]).toBeGreaterThan(delays[0]);
+        });
 
-      const updateMessage: WebSocketMessage = {
-        type: 'system_update',
-        data: {
-          cpu_usage: 45.2,
-          memory_usage: 68.5,
-          disk_usage: 32.1,
-          uptime: 86400,
-          services_count: {
-            total: 5,
-            running: 4,
-            stopped: 1,
-            error: 0
-          }
-        },
-        timestamp: new Date().toISOString()
-      };
+        it('should stop reconnecting after max attempts', async () => {
+            await wsClient.connect();
 
-      mockWs.simulateMessage(updateMessage);
+            // Simulate many connection failures
+            for (let i = 0; i < 10; i++) {
+                mockWs.simulateError();
+                mockWs.close(1006, 'Connection lost');
+                await new Promise(resolve => setTimeout(resolve, 10));
+            }
 
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(systemUpdate).toMatchObject({
-        cpu_usage: 45.2,
-        memory_usage: 68.5,
-        disk_usage: 32.1,
-        uptime: 86400
-      });
+            // Should not exceed max reconnection attempts
+            expect(global.WebSocket).toHaveBeenCalledTimes(4); // Initial + 3 max retries
+        });
     });
 
-    it('should handle log entry messages', async () => {
-      const logs: any[] = [];
-      
-      wsClient.logs.subscribe(logEntries => {
-        logs.push(...logEntries);
-      });
+    describe('Message Handling', () => {
+        beforeEach(async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
+        });
 
-      const logMessage: WebSocketMessage = {
-        type: 'log_entry',
-        data: {
-          id: 'log-1',
-          service_id: 'service-1',
-          level: 'info',
-          message: 'Service started successfully',
-          timestamp: new Date().toISOString()
-        },
-        timestamp: new Date().toISOString()
-      };
+        it('should handle service update messages', async () => {
+            const serviceUpdates: ServiceUpdate[] = [];
 
-      mockWs.simulateMessage(logMessage);
+            wsClient.serviceUpdates.subscribe(updates => {
+                serviceUpdates.push(...updates);
+            });
 
-      await new Promise(resolve => setTimeout(resolve, 10));
+            const updateMessage: WebSocketMessage = {
+                type: 'service_update',
+                data: {
+                    id: 'service-1',
+                    status: 'running',
+                    health_status: 'healthy'
+                },
+                timestamp: new Date().toISOString()
+            };
 
-      expect(logs).toHaveLength(1);
-      expect(logs[0]).toMatchObject({
-        id: 'log-1',
-        service_id: 'service-1',
-        level: 'info',
-        message: 'Service started successfully'
-      });
+            mockWs.simulateMessage(updateMessage);
+
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(serviceUpdates).toHaveLength(1);
+            expect(serviceUpdates[0]).toMatchObject({
+                id: 'service-1',
+                status: 'running',
+                health_status: 'healthy'
+            });
+        });
+
+        it('should handle system update messages', async () => {
+            let systemUpdate: SystemUpdate | null = null;
+
+            wsClient.systemUpdates.subscribe(update => {
+                systemUpdate = update;
+            });
+
+            const updateMessage: WebSocketMessage = {
+                type: 'system_update',
+                data: {
+                    cpu_usage: 45.2,
+                    memory_usage: 68.5,
+                    disk_usage: 32.1,
+                    uptime: 86400,
+                    services_count: {
+                        total: 5,
+                        running: 4,
+                        stopped: 1,
+                        error: 0
+                    }
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            mockWs.simulateMessage(updateMessage);
+
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(systemUpdate).toMatchObject({
+                cpu_usage: 45.2,
+                memory_usage: 68.5,
+                disk_usage: 32.1,
+                uptime: 86400
+            });
+        });
+
+        it('should handle log entry messages', async () => {
+            const logs: any[] = [];
+
+            wsClient.logs.subscribe(logEntries => {
+                logs.push(...logEntries);
+            });
+
+            const logMessage: WebSocketMessage = {
+                type: 'log_entry',
+                data: {
+                    id: 'log-1',
+                    service_id: 'service-1',
+                    level: 'info',
+                    message: 'Service started successfully',
+                    timestamp: new Date().toISOString()
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            mockWs.simulateMessage(logMessage);
+
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(logs).toHaveLength(1);
+            expect(logs[0]).toMatchObject({
+                id: 'log-1',
+                service_id: 'service-1',
+                level: 'info',
+                message: 'Service started successfully'
+            });
+        });
+
+        it('should limit log entries to prevent memory issues', async () => {
+            const logs: any[] = [];
+
+            wsClient.logs.subscribe(logEntries => {
+                logs.length = 0; // Clear previous
+                logs.push(...logEntries);
+            });
+
+            // Send 1500 log messages (more than the 1000 limit)
+            for (let i = 0; i < 1500; i++) {
+                const logMessage: WebSocketMessage = {
+                    type: 'log_entry',
+                    data: {
+                        id: `log-${i}`,
+                        service_id: 'service-1',
+                        level: 'info',
+                        message: `Log message ${i}`,
+                        timestamp: new Date().toISOString()
+                    },
+                    timestamp: new Date().toISOString()
+                };
+
+                mockWs.simulateMessage(logMessage);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            // Should be limited to 1000 entries
+            expect(logs).toHaveLength(1000);
+            // Should contain the most recent entries
+            expect(logs[0].id).toBe('log-1499');
+        });
     });
 
-    it('should limit log entries to prevent memory issues', async () => {
-      const logs: any[] = [];
-      
-      wsClient.logs.subscribe(logEntries => {
-        logs.length = 0; // Clear previous
-        logs.push(...logEntries);
-      });
+    describe('Subscription Management', () => {
+        beforeEach(async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
+        });
 
-      // Send 1500 log messages (more than the 1000 limit)
-      for (let i = 0; i < 1500; i++) {
-        const logMessage: WebSocketMessage = {
-          type: 'log_entry',
-          data: {
-            id: `log-${i}`,
-            service_id: 'service-1',
-            level: 'info',
-            message: `Log message ${i}`,
-            timestamp: new Date().toISOString()
-          },
-          timestamp: new Date().toISOString()
-        };
+        it('should send subscription messages', () => {
+            const sendSpy = vi.spyOn(mockWs, 'send');
 
-        mockWs.simulateMessage(logMessage);
-      }
+            wsClient.subscribe('service_updates');
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+            expect(sendSpy).toHaveBeenCalledWith(
+                JSON.stringify({
+                    type: 'subscribe',
+                    data: { event_type: 'service_updates' }
+                })
+            );
+        });
 
-      // Should be limited to 1000 entries
-      expect(logs).toHaveLength(1000);
-      // Should contain the most recent entries
-      expect(logs[0].id).toBe('log-1499');
-    });
-  });
+        it('should send unsubscription messages', () => {
+            const sendSpy = vi.spyOn(mockWs, 'send');
 
-  describe('Subscription Management', () => {
-    beforeEach(async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
-    });
+            wsClient.unsubscribe('service_updates');
 
-    it('should send subscription messages', () => {
-      const sendSpy = vi.spyOn(mockWs, 'send');
-      
-      wsClient.subscribe('service_updates');
+            expect(sendSpy).toHaveBeenCalledWith(
+                JSON.stringify({
+                    type: 'unsubscribe',
+                    data: { event_type: 'service_updates' }
+                })
+            );
+        });
 
-      expect(sendSpy).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'subscribe',
-          data: { event_type: 'service_updates' }
-        })
-      );
-    });
+        it('should resubscribe after reconnection', async () => {
+            const sendSpy = vi.spyOn(mockWs, 'send');
 
-    it('should send unsubscription messages', () => {
-      const sendSpy = vi.spyOn(mockWs, 'send');
-      
-      wsClient.unsubscribe('service_updates');
+            // Subscribe to events
+            wsClient.subscribe('service_updates');
+            wsClient.subscribe('system_updates');
 
-      expect(sendSpy).toHaveBeenCalledWith(
-        JSON.stringify({
-          type: 'unsubscribe',
-          data: { event_type: 'service_updates' }
-        })
-      );
+            sendSpy.mockClear();
+
+            // Simulate connection loss and reconnection
+            mockWs.close(1006, 'Connection lost');
+            await new Promise(resolve => setTimeout(resolve, 100));
+
+            // Should resubscribe to all previous subscriptions
+            expect(sendSpy).toHaveBeenCalledWith(
+                expect.stringContaining('service_updates')
+            );
+            expect(sendSpy).toHaveBeenCalledWith(
+                expect.stringContaining('system_updates')
+            );
+        });
     });
 
-    it('should resubscribe after reconnection', async () => {
-      const sendSpy = vi.spyOn(mockWs, 'send');
-      
-      // Subscribe to events
-      wsClient.subscribe('service_updates');
-      wsClient.subscribe('system_updates');
+    describe('Error Handling', () => {
+        it('should handle malformed JSON messages gracefully', async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
 
-      sendSpy.mockClear();
+            const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
 
-      // Simulate connection loss and reconnection
-      mockWs.close(1006, 'Connection lost');
-      await new Promise(resolve => setTimeout(resolve, 100));
+            // Send invalid JSON
+            mockWs.simulateMessage('invalid json {');
 
-      // Should resubscribe to all previous subscriptions
-      expect(sendSpy).toHaveBeenCalledWith(
-        expect.stringContaining('service_updates')
-      );
-      expect(sendSpy).toHaveBeenCalledWith(
-        expect.stringContaining('system_updates')
-      );
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(errorSpy).toHaveBeenCalled();
+            errorSpy.mockRestore();
+        });
+
+        it('should handle unknown message types', async () => {
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
+
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { });
+
+            const unknownMessage = {
+                type: 'unknown_type',
+                data: { some: 'data' },
+                timestamp: new Date().toISOString()
+            };
+
+            mockWs.simulateMessage(unknownMessage);
+
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+            expect(warnSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Unknown message type')
+            );
+            warnSpy.mockRestore();
+        });
     });
-  });
 
-  describe('Error Handling', () => {
-    it('should handle malformed JSON messages gracefully', async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
+    describe('Connection Statistics', () => {
+        it('should track connection statistics', async () => {
+            let stats: any = null;
 
-      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+            wsClient.connectionStats.subscribe(s => {
+                stats = s;
+            });
 
-      // Send invalid JSON
-      mockWs.simulateMessage('invalid json {');
+            await wsClient.connect();
+            await new Promise(resolve => setTimeout(resolve, 20));
 
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(errorSpy).toHaveBeenCalled();
-      errorSpy.mockRestore();
+            expect(stats).toMatchObject({
+                reconnectAttempts: 0,
+                uptime: expect.any(Number),
+                lastPing: expect.any(Number),
+                messagesReceived: expect.any(Number),
+                messagesSent: expect.any(Number)
+            });
+        });
     });
-
-    it('should handle unknown message types', async () => {
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-      const unknownMessage = {
-        type: 'unknown_type',
-        data: { some: 'data' },
-        timestamp: new Date().toISOString()
-      };
-
-      mockWs.simulateMessage(unknownMessage);
-
-      await new Promise(resolve => setTimeout(resolve, 10));
-
-      expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Unknown message type')
-      );
-      warnSpy.mockRestore();
-    });
-  });
-
-  describe('Connection Statistics', () => {
-    it('should track connection statistics', async () => {
-      let stats: any = null;
-      
-      wsClient.connectionStats.subscribe(s => {
-        stats = s;
-      });
-
-      await wsClient.connect();
-      await new Promise(resolve => setTimeout(resolve, 20));
-
-      expect(stats).toMatchObject({
-        reconnectAttempts: 0,
-        uptime: expect.any(Number),
-        lastPing: expect.any(Number),
-        messagesReceived: expect.any(Number),
-        messagesSent: expect.any(Number)
-      });
-    });
-  });
 });
 
 // Export mocks for other tests

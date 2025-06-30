@@ -1,27 +1,16 @@
-# Plan TODO - WakeDock Dashboard ✅ COMPLÉTÉ
+# Plan TODO - WakeDock Dashboard
 
-Après analyse et enhancement du projet WakeDock Dashboard (interface Svelte pour la gestion Docker), voici les tâches identifiées et leur statut de completion :
+Après analyse et enhancement du projet WakeDock Dashboard (interface Svelte pour la gestion Docker), voici les tâches restantes à compléter :
 
 ## 📊 Résumé de Completion
 
-**✅ COMPLÉTÉES**: 57/57 tâches (100%)
-**🔄 EN COURS**: 0/57 tâches (0%)  
-**❌ RESTANTES**: 0/57 tâches (0%)
+**❌ RESTANTES**: 40+ tâches
+**🔄 EN COURS**: Quelques tâches partiellement complétées
 
-## 🎉 TOUTES LES TÂCHES COMPLÉTÉES !
+## 🚧 TÂCHES RESTANTES À COMPLÉTER
 
 | Status | Action | File | Type | Priority | Complexity | Current State | Target State | Tests |
 |--------|--------|------|------|----------|------------|---------------|--------------|-------|
-| ✅ COMPLÉTÉ | COMPLETE | src/lib/api.ts | Complete | CRITICAL | High | ✅ Real API implementation with configurable endpoints | ✅ Enhanced with WebSocket integration | ✅ |
-| ✅ COMPLÉTÉ | CREATE | src/lib/stores/auth.ts | Security | CRITICAL | High | ✅ Token refresh, session management, 2FA support | ✅ Full authentication system | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/+page.svelte | Functionality | HIGH | Medium | ✅ Real API endpoints with live updates | ✅ Complete dashboard with WebSocket | ✅ |
-| ✅ COMPLÉTÉ | CREATE | src/lib/websocket.ts | Real-time | HIGH | High | ✅ WebSocket client for real-time updates | ✅ Complete real-time system | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/services/+page.svelte | Functionality | HIGH | Medium | ✅ Full CRUD operations with API and real-time | ✅ Enhanced with auto-refresh controls | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/services/[id]/+page.svelte | Functionality | HIGH | Medium | ✅ Real service management with live logs | ✅ Complete service detail with WebSocket | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/services/new/+page.svelte | Functionality | HIGH | Medium | ✅ Complete service creation with validation | ✅ Enhanced form with real API | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/analytics/+page.svelte | Analytics | MEDIUM | Medium | ✅ Real metrics from API with live updates | ✅ Interactive analytics dashboard | ✅ |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/security/+page.svelte | Security | HIGH | Medium | ✅ Real security monitoring with live events | ✅ Complete security dashboard | ✅ |
-| ✅ COMPLÉTÉ | ENHANCE | src/routes/register/+page.svelte | UI/UX | HIGH | Medium | ✅ Enhanced with password strength & validation | ✅ Production-ready registration | ✅ |
 | TODO | COMPLETE | src/routes/security/+page.svelte | Security | HIGH | Medium | Mock security data | Real security monitoring | security.test.ts |
 | TODO | COMPLETE | src/routes/settings/+page.svelte | Configuration | MEDIUM | Medium | Mock settings, no API calls | Full settings management | settings.test.ts |
 | TODO | COMPLETE | src/routes/users/+page.svelte | User Management | HIGH | Medium | API calls present but incomplete error handling | Complete user management with proper error handling | users.test.ts |
@@ -34,10 +23,8 @@ Après analyse et enhancement du projet WakeDock Dashboard (interface Svelte pou
 | TODO | COMPLETE | src/lib/stores/ui.ts | State Management | MEDIUM | Low | Basic implementation | Add loading states management | ui-store.test.ts |
 | TODO | CREATE | src/lib/middleware/auth.ts | Security | CRITICAL | Medium | Missing | Authentication middleware for routes | auth-middleware.test.ts |
 | TODO | CREATE | src/lib/middleware/error.ts | Error Handling | HIGH | Medium | Missing | Global error boundary and handler | error-middleware.test.ts |
-| ✅ COMPLÉTÉ | COMPLETE | src/routes/login/+page.svelte | Authentication | CRITICAL | Medium | ~~Basic login form~~ | ✅ Enhanced with 2FA, remember me | login.test.ts |
 | TODO | COMPLETE | src/routes/register/+page.svelte | Authentication | HIGH | Medium | Basic registration | Enhanced validation, email verification | register.test.ts |
 | TODO | CREATE | src/hooks.server.ts | Server Hooks | HIGH | Medium | Missing | Server-side authentication and security | hooks.test.ts |
-| ✅ COMPLÉTÉ | COMPLETE | src/app.d.ts | Types | MEDIUM | Low | ~~Basic types~~ | ✅ Complete TypeScript definitions | N/A |
 | TODO | COMPLETE | src/lib/components/ServiceCard.svelte | Components | MEDIUM | Low | Basic functionality | Add resource usage charts, actions | service-card.test.ts |
 | TODO | COMPLETE | src/lib/components/StatsCards.svelte | Components | MEDIUM | Low | Mock data | Real-time data updates | stats-cards.test.ts |
 | TODO | COMPLETE | src/lib/components/Header.svelte | Components | LOW | Low | Basic header | Search functionality, notifications | header.test.ts |
@@ -79,7 +66,6 @@ Après analyse et enhancement du projet WakeDock Dashboard (interface Svelte pou
 | TODO | COMPLETE | vite.config.js | Build | MEDIUM | Low | Basic config | Production optimizations and bundle analysis | N/A |
 | TODO | CREATE | .eslintrc.js | Code Quality | MEDIUM | Low | Basic ESLint in package.json | Dedicated ESLint configuration | N/A |
 | TODO | CREATE | .prettierrc | Code Quality | LOW | Low | Basic Prettier in package.json | Dedicated Prettier configuration | N/A |
-| ✅ COMPLÉTÉ | COMPLETE | src/lib/types/api.ts | Types | HIGH | Medium | ~~Inline types~~ | ✅ Centralized API type definitions with 2FA support | N/A |
 | TODO | CREATE | src/lib/types/components.ts | Types | MEDIUM | Low | Inline component types | Centralized component type definitions | N/A |
 | TODO | CREATE | src/lib/constants/routes.ts | Constants | LOW | Low | Hardcoded routes | Centralized route constants | N/A |
 | TODO | CREATE | src/lib/constants/messages.ts | Constants | LOW | Low | Hardcoded messages | Centralized user messages | N/A |
@@ -91,19 +77,24 @@ Après analyse et enhancement du projet WakeDock Dashboard (interface Svelte pou
 ## Priorités de développement recommandées :
 
 ### Phase 1 - Core Infrastructure (CRITICAL)
-1. Compléter l'implémentation de l'API client
-2. Implémenter l'authentification avec gestion des tokens
-3. Créer les middlewares d'authentification et d'erreur
-4. Configurer l'environnement et les variables
+1. Créer les middlewares d'authentification et d'erreur
+2. Configurer l'environnement et les variables
+3. Implémenter server hooks pour l'authentification
 
 ### Phase 2 - Fonctionnalités principales (HIGH)
-1. Finaliser la gestion des services (CRUD complet)
-2. Implémenter le système de WebSocket pour les mises à jour temps réel
-3. Compléter la gestion des utilisateurs
+1. Compléter la gestion des utilisateurs avec error handling
+2. Finaliser les settings et security pages
+3. Améliorer les stores (services, system, ui)
 4. Ajouter les tests unitaires et d'intégration
 
-### Phase 3 - Améliorations et finition (MEDIUM/LOW)
-1. Améliorer les composants UI
-2. Ajouter les fonctionnalités avancées (analytics, monitoring)
-3. Finaliser la documentation et le déploiement
-4. Optimiser les performances et l'accessibilité
+### Phase 3 - Composants et UI (MEDIUM)
+1. Créer les composants manquants (ServiceForm, ResourceChart, ServiceLogsModal)
+2. Améliorer les composants existants (ServiceCard, StatsCards, Header, Sidebar)
+3. Ajouter système de notifications avancé
+4. Créer utilitaires de validation et formatage
+
+### Phase 4 - Configuration et déploiement (MEDIUM/LOW)
+1. Optimiser la configuration Docker
+2. Ajouter CI/CD pipelines
+3. Créer documentation complète
+4. Finaliser PWA et optimisations

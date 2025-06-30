@@ -8,50 +8,29 @@ Améliorer la couverture de tests, la qualité du code et la fiabilité de l'app
 ### 🔴 HAUTE PRIORITÉ
 
 #### Coverage Improvement
-- [ ] **Unit Tests Coverage**
-  - Atteindre 80% de couverture minimum
-  - Tester tous les stores critiques
-  - Couvrir utilitaires et helpers
-  - Target: `src/lib/stores/`, `src/lib/utils/`
-
-- [ ] **API Client Tests**
-  - Mocker toutes les endpoints
-  - Tester error handling
-  - Valider retry logic
-  - File: `src/lib/api.ts`
-
-- [ ] **Component Tests**
-  - Tester props et events
-  - Valider conditional rendering
-  - Vérifier accessibility
+- [ ] **Component Tests** 🔄 PARTIEL
+  - [ ] Valider conditional rendering
   - Files: `src/lib/components/`
 
 #### Integration Testing
-- [ ] **Store Integration**
-  - Tester interactions entre stores
-  - Valider data flow
-  - Vérifier side effects
-  - Files: `tests/integration/`
-
-- [ ] **WebSocket Testing**
-  - Mocker WebSocket server
-  - Tester reconnections
-  - Valider message handling
-  - File: `src/lib/websocket.ts`
+- [x] **Store Integration** ✅ COMPLÉTÉ
+  - ✅ Valider data flow
+  - ✅ Vérifier side effects
+  - ✅ Files: `tests/integration/`
 
 ### 🟡 MOYENNE PRIORITÉ
 
 #### E2E Testing
-- [ ] **User Workflows**
-  - Login/logout complet
-  - Service CRUD operations
-  - Dashboard navigation
-  - Files: `tests/e2e/`
+- [x] **User Workflows** ✅ COMPLÉTÉ
+  - ✅ Login/logout complet
+  - ✅ Service CRUD operations
+  - ✅ Dashboard navigation
+  - ✅ Files: `tests/e2e/`
 
-- [ ] **Error Scenarios**
-  - API indisponible
-  - Network timeouts
-  - Invalid data handling
+- [ ] **Error Scenarios** 🔄 PARTIEL
+  - [ ] API indisponible
+  - ✅ Network timeouts
+  - ✅ Invalid data handling
   - Files: `tests/e2e/error-scenarios.spec.ts`
 
 #### Visual Testing

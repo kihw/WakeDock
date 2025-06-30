@@ -47,7 +47,8 @@
     if (typeof document !== 'undefined') {
       const meta = document.createElement('meta');
       meta.httpEquiv = 'Content-Security-Policy';
-      meta.content = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
+      meta.content =
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
       document.head.appendChild(meta);
     }
 
@@ -65,10 +66,10 @@
   function validateEmail() {
     const sanitizedEmail = sanitizeInput.email(email);
     const validation = securityValidate.email(sanitizedEmail);
-    
+
     emailErrors = validation.valid ? [] : [validation.error];
     email = sanitizedEmail; // Update with sanitized value
-    
+
     return validation.valid;
   }
 
@@ -77,13 +78,13 @@
       passwordErrors = ['Password is required'];
       return false;
     }
-    
+
     // Basic validation for login (detailed validation is for registration)
     if (password.length < 3) {
       passwordErrors = ['Password is too short'];
       return false;
     }
-    
+
     passwordErrors = [];
     return true;
   }
@@ -93,12 +94,12 @@
       twoFactorErrors = ['Two-factor authentication code is required'];
       return false;
     }
-    
+
     if (requiresTwoFactor && !/^\d{6}$/.test(twoFactorCode)) {
       twoFactorErrors = ['Please enter a valid 6-digit code'];
       return false;
     }
-    
+
     twoFactorErrors = [];
     return true;
   }
@@ -106,13 +107,13 @@
   function checkRateLimit() {
     const rateLimitKey = `login_attempt_${email}`;
     rateLimited = rateLimit.isLimited(rateLimitKey, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
-    
+
     if (rateLimited) {
       error = 'Too many login attempts. Please try again in 15 minutes.';
       secureAccessibility.form.announceError('Rate limit exceeded. Too many login attempts.');
       return false;
     }
-    
+
     return true;
   }
 
@@ -156,7 +157,7 @@
         twoFactorCode: requiresTwoFactor ? sanitizeInput.text(twoFactorCode) : undefined,
         rememberMe,
         csrfToken,
-        fingerprint: await generateFingerprint()
+        fingerprint: await generateFingerprint(),
       };
 
       const result = await auth.login(loginData);
@@ -164,8 +165,10 @@
       if (result.requiresTwoFactor && !requiresTwoFactor) {
         requiresTwoFactor = true;
         showTwoFactorInput = true;
-        secureAccessibility.form.announceChange('Two-factor authentication required. Please enter your 6-digit code.');
-        
+        secureAccessibility.form.announceChange(
+          'Two-factor authentication required. Please enter your 6-digit code.'
+        );
+
         // Focus on 2FA input
         setTimeout(() => {
           const twoFactorInput = document.getElementById('twoFactorCode');
@@ -173,7 +176,7 @@
             twoFactorInput.focus();
           }
         }, 100);
-        
+
         loading = false;
         return;
       }
@@ -181,21 +184,20 @@
       // Clear sensitive data
       password = '';
       twoFactorCode = '';
-      
+
       // Success announcement
       secureAccessibility.form.announceChange('Login successful. Redirecting...');
-      
+
       // Redirect
       const redirectTo = $page.url.searchParams.get('redirect') || '/';
       goto(redirectTo);
-      
     } catch (err) {
       console.error('Login error:', err);
-      
+
       // Sanitize error message to prevent XSS
       const sanitizedError = sanitizeInput.text(err.message || 'Login failed');
       error = sanitizedError;
-      
+
       // Handle specific error cases
       if (err.message?.includes('2FA')) {
         requiresTwoFactor = true;
@@ -203,10 +205,10 @@
       } else if (err.message?.includes('rate limit')) {
         rateLimited = true;
       }
-      
+
       // Announce error to screen readers
       secureAccessibility.form.announceError(`Login failed: ${sanitizedError}`);
-      
+
       // Clear sensitive fields on error
       password = '';
       twoFactorCode = '';
@@ -221,15 +223,15 @@
       navigator.userAgent,
       navigator.language,
       screen.width + 'x' + screen.height,
-      new Date().getTimezoneOffset().toString()
+      new Date().getTimezoneOffset().toString(),
     ];
-    
+
     const data = components.join('|');
     const encoder = new TextEncoder();
     const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+    return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
   }
 
   function handleKeyDown(event) {
@@ -264,6 +266,21 @@
     }
     error = '';
   }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    // Create login data
+    const loginData = {
+      email: sanitizeInput(email),
+      password: password, // Don't sanitize password as it might change valid chars
+      twoFactorCode: twoFactorCode ? sanitizeInput(twoFactorCode) : '',
+      rememberMe: rememberMe,
+    };
+
+    try {
+      loading = true;
+      error = '';
 
       const result = await auth.login(loginData.email, loginData.password, {
         twoFactorCode: loginData.twoFactorCode,
@@ -308,12 +325,6 @@
       loading = false;
     }
   }
-
-  function handleKeyDown(event) {
-    if (event.key === 'Enter') {
-      handleLogin();
-    }
-  }
 </script>
 
 <svelte:head>
@@ -329,10 +340,10 @@
     <!-- Header section with improved accessibility -->
     <header>
       <div class="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-blue-100">
-        <svg 
-          class="h-8 w-8 text-blue-600" 
-          fill="none" 
-          viewBox="0 0 24 24" 
+        <svg
+          class="h-8 w-8 text-blue-600"
+          fill="none"
+          viewBox="0 0 24 24"
           stroke="currentColor"
           aria-hidden="true"
         >
@@ -350,21 +361,21 @@
 
     <!-- Main login form with enhanced security and accessibility -->
     <main id="main-content">
-      <form 
+      <form
         bind:this={formRef}
-        class="mt-8 space-y-6" 
+        class="mt-8 space-y-6"
         on:submit|preventDefault={handleLogin}
         aria-labelledby="login-heading"
         novalidate
       >
         <input type="hidden" name="csrf_token" value={csrfToken} />
-        
+
         <!-- Form heading for screen readers -->
         <h2 id="login-heading" class="sr-only">Login Form</h2>
 
         <div class="space-y-4" role="group" aria-labelledby="login-fields">
           <h3 id="login-fields" class="sr-only">Login Credentials</h3>
-          
+
           <!-- Email field with validation -->
           <div>
             <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
@@ -383,7 +394,9 @@
               on:blur={validateEmail}
               on:focus={() => handleInputFocus('email')}
               on:keydown={handleKeyDown}
-              class="relative block w-full appearance-none rounded-md border {emailErrors.length > 0 ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
+              class="relative block w-full appearance-none rounded-md border {emailErrors.length > 0
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
               placeholder="Enter your email address"
               disabled={loading}
               autocomplete="email"
@@ -416,7 +429,10 @@
               on:blur={validatePassword}
               on:focus={() => handleInputFocus('password')}
               on:keydown={handleKeyDown}
-              class="relative block w-full appearance-none rounded-md border {passwordErrors.length > 0 ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
+              class="relative block w-full appearance-none rounded-md border {passwordErrors.length >
+              0
+                ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
               placeholder="Enter your password"
               disabled={loading}
               autocomplete="current-password"
@@ -436,7 +452,12 @@
             <div class="bg-blue-50 p-4 rounded-md" role="region" aria-labelledby="2fa-heading">
               <div class="flex">
                 <div class="flex-shrink-0">
-                  <svg class="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <svg
+                    class="h-5 w-5 text-blue-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
                     <path
                       fill-rule="evenodd"
                       d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -477,12 +498,17 @@
                 on:blur={validateTwoFactor}
                 on:focus={() => handleInputFocus('twoFactor')}
                 on:keydown={handleKeyDown}
-                class="relative block w-full appearance-none rounded-md border {twoFactorErrors.length > 0 ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm text-center tracking-widest"
+                class="relative block w-full appearance-none rounded-md border {twoFactorErrors.length >
+                0
+                  ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm text-center tracking-widest"
                 placeholder="000000"
                 disabled={loading}
                 autocomplete="one-time-code"
               />
-              <div id="2fa-hint" class="sr-only">Enter the 6-digit code from your authenticator app</div>
+              <div id="2fa-hint" class="sr-only">
+                Enter the 6-digit code from your authenticator app
+              </div>
               {#if twoFactorErrors.length > 0}
                 <div id="2fa-error" class="mt-1 text-sm text-red-600" role="alert">
                   {#each twoFactorErrors as twoFactorError}
@@ -507,14 +533,12 @@
               <label for="remember-me" class="ml-2 block text-sm text-gray-900">
                 Remember me
               </label>
-              <div id="remember-me-description" class="sr-only">
-                Keep me logged in for 30 days
-              </div>
+              <div id="remember-me-description" class="sr-only">Keep me logged in for 30 days</div>
             </div>
 
             <div class="text-sm">
-              <a 
-                href="/forgot-password" 
+              <a
+                href="/forgot-password"
                 class="font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
               >
                 Forgot your password?
@@ -528,7 +552,12 @@
           <div class="rounded-md bg-red-50 p-4" role="alert" aria-live="polite">
             <div class="flex">
               <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <svg
+                  class="h-5 w-5 text-red-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
                   <path
                     fill-rule="evenodd"
                     d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -551,7 +580,12 @@
           <div class="rounded-md bg-yellow-50 p-4" role="alert" aria-live="polite">
             <div class="flex">
               <div class="flex-shrink-0">
-                <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <svg
+                  class="h-5 w-5 text-yellow-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
                   <path
                     fill-rule="evenodd"
                     d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -605,7 +639,11 @@
             {/if}
           </button>
           <div id="submit-button-description" class="sr-only">
-            {loading ? 'Please wait while we sign you in' : rateLimited ? 'Button disabled due to rate limiting' : 'Click to sign in to your account'}
+            {loading
+              ? 'Please wait while we sign you in'
+              : rateLimited
+                ? 'Button disabled due to rate limiting'
+                : 'Click to sign in to your account'}
           </div>
         </div>
 
@@ -613,8 +651,8 @@
         <div class="text-center">
           <p class="text-sm text-gray-600">
             Don't have an account?
-            <a 
-              href="/register" 
+            <a
+              href="/register"
               class="font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
             >
               Create an account

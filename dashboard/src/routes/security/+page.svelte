@@ -1,266 +1,259 @@
 <script lang="ts">
-    import { onMount, onDestroy } from "svelte";
-    import { api } from "$lib/api";
-    import { ui, isAuthenticated } from "$lib/stores";
-    import { websocket } from "$lib/websocket";
-    import { goto } from "$app/navigation";
+  import { onMount, onDestroy } from 'svelte';
+  import { api } from '$lib/api';
+  import { ui, isAuthenticated } from '$lib/stores';
+  import { websocket } from '$lib/websocket';
+  import { goto } from '$app/navigation';
 
-    interface SecurityEvent {
-        id: string;
-        type: "success" | "warning" | "error" | "info";
-        message: string;
-        timestamp: string;
-        ipAddress?: string;
-        userAgent?: string;
-        userId?: string;
+  interface SecurityEvent {
+    id: string;
+    type: 'success' | 'warning' | 'error' | 'info';
+    message: string;
+    timestamp: string;
+    ipAddress?: string;
+    userAgent?: string;
+    userId?: string;
+  }
+
+  interface SecurityMetrics {
+    totalSessions: number;
+    activeSessions: number;
+    failedLogins: number;
+    lastActivity: string;
+    securityEvents: SecurityEvent[];
+    blockedIPs: string[];
+    recentActivity: Array<{
+      action: string;
+      timestamp: string;
+      ipAddress: string;
+      userId?: string;
+    }>;
+  }
+
+  let securityMetrics: SecurityMetrics = {
+    totalSessions: 0,
+    activeSessions: 0,
+    failedLogins: 0,
+    lastActivity: '',
+    securityEvents: [],
+    blockedIPs: [],
+    recentActivity: [],
+  };
+
+  let loading = true;
+  let autoRefresh = true;
+  let refreshInterval: NodeJS.Timeout | null = null;
+  let selectedEventType = 'all';
+  let eventSearch = '';
+
+  $: filteredEvents = securityMetrics.securityEvents.filter((event) => {
+    const matchesType = selectedEventType === 'all' || event.type === selectedEventType;
+    const matchesSearch =
+      !eventSearch || event.message.toLowerCase().includes(eventSearch.toLowerCase());
+    return matchesType && matchesSearch;
+  });
+
+  onMount(async () => {
+    // Redirect if not authenticated
+    if (!$isAuthenticated) {
+      goto('/login');
+      return;
     }
 
-    interface SecurityMetrics {
-        totalSessions: number;
-        activeSessions: number;
-        failedLogins: number;
-        lastActivity: string;
-        securityEvents: SecurityEvent[];
-        blockedIPs: string[];
-        recentActivity: Array<{
-            action: string;
-            timestamp: string;
-            ipAddress: string;
-            userId?: string;
-        }>;
-    }
+    await loadSecurityMetrics();
 
-    let securityMetrics: SecurityMetrics = {
-        totalSessions: 0,
-        activeSessions: 0,
-        failedLogins: 0,
-        lastActivity: "",
-        securityEvents: [],
-        blockedIPs: [],
-        recentActivity: [],
-    };
-    
-    let loading = true;
-    let autoRefresh = true;
-    let refreshInterval: NodeJS.Timeout | null = null;
-    let selectedEventType = 'all';
-    let eventSearch = '';
-
-    $: filteredEvents = securityMetrics.securityEvents.filter(event => {
-        const matchesType = selectedEventType === 'all' || event.type === selectedEventType;
-        const matchesSearch = !eventSearch || event.message.toLowerCase().includes(eventSearch.toLowerCase());
-        return matchesType && matchesSearch;
+    // Setup WebSocket for real-time security events
+    websocket.connect();
+    websocket.subscribe('security_event', (data) => {
+      addSecurityEvent(data);
     });
 
-    onMount(async () => {
-        // Redirect if not authenticated
-        if (!$isAuthenticated) {
-            goto('/login');
-            return;
-        }
+    websocket.subscribe('session_update', (data) => {
+      updateSessionMetrics(data);
+    });
 
+    // Setup auto-refresh
+    if (autoRefresh) {
+      startAutoRefresh();
+    }
+  });
+
+  onDestroy(() => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    websocket.disconnect();
+  });
+
+  const loadSecurityMetrics = async () => {
+    loading = true;
+    try {
+      const response = await api.get('/security/metrics');
+      if (response.ok) {
+        securityMetrics = await response.json();
+      } else {
+        throw new Error('Failed to load security metrics');
+      }
+    } catch (error) {
+      console.error('Failed to load security metrics:', error);
+      ui.showError('Failed to load security metrics', (error as Error).message);
+
+      // Fallback to mock data
+      securityMetrics = {
+        totalSessions: 156,
+        activeSessions: 23,
+        failedLogins: 8,
+        lastActivity: new Date().toISOString(),
+        securityEvents: [
+          {
+            id: '1',
+            type: 'warning',
+            message: 'Multiple failed login attempts from IP 192.168.1.100',
+            timestamp: new Date(Date.now() - 300000).toISOString(),
+            ipAddress: '192.168.1.100',
+          },
+          {
+            id: '2',
+            type: 'success',
+            message: 'User admin logged in successfully',
+            timestamp: new Date(Date.now() - 600000).toISOString(),
+            userId: 'admin',
+          },
+          {
+            id: '3',
+            type: 'error',
+            message: 'Suspicious activity detected: Rapid API calls',
+            timestamp: new Date(Date.now() - 900000).toISOString(),
+            ipAddress: '10.0.0.50',
+          },
+        ],
+        blockedIPs: ['192.168.1.100', '10.0.0.50'],
+        recentActivity: [
+          {
+            action: 'Login',
+            timestamp: new Date(Date.now() - 300000).toISOString(),
+            ipAddress: '192.168.1.50',
+            userId: 'admin',
+          },
+          {
+            action: 'Service Created',
+            timestamp: new Date(Date.now() - 600000).toISOString(),
+            ipAddress: '192.168.1.50',
+            userId: 'admin',
+          },
+        ],
+      };
+    } finally {
+      loading = false;
+    }
+  };
+
+  const startAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    refreshInterval = setInterval(loadSecurityMetrics, 30000); // Refresh every 30 seconds
+  };
+
+  const stopAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
+
+  const toggleAutoRefresh = () => {
+    autoRefresh = !autoRefresh;
+    if (autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  };
+
+  const addSecurityEvent = (event: SecurityEvent) => {
+    securityMetrics.securityEvents = [event, ...securityMetrics.securityEvents].slice(0, 100); // Keep only last 100 events
+  };
+
+  const updateSessionMetrics = (data: any) => {
+    securityMetrics.activeSessions = data.activeSessions;
+    securityMetrics.totalSessions = data.totalSessions;
+  };
+
+  const clearSecurityLogs = async () => {
+    const confirmed = confirm('Are you sure you want to clear all security logs?');
+    if (!confirmed) return;
+
+    try {
+      const response = await api.post('/security/clear-logs');
+      if (response.ok) {
+        ui.showSuccess('Security logs cleared', 'All security logs have been cleared successfully');
         await loadSecurityMetrics();
-        
-        // Setup WebSocket for real-time security events
-        websocket.connect();
-        websocket.subscribe('security_event', (data) => {
-            addSecurityEvent(data);
-        });
-
-        websocket.subscribe('session_update', (data) => {
-            updateSessionMetrics(data);
-        });
-
-        // Setup auto-refresh
-        if (autoRefresh) {
-            startAutoRefresh();
-        }
-    });
-
-    onDestroy(() => {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-        }
-        websocket.disconnect();
-    });
-
-    const loadSecurityMetrics = async () => {
-        loading = true;
-        try {
-            const response = await api.get("/security/metrics");
-            if (response.ok) {
-                securityMetrics = await response.json();
-            } else {
-                throw new Error("Failed to load security metrics");
-            }
-        } catch (error) {
-            console.error("Failed to load security metrics:", error);
-            ui.showError("Failed to load security metrics", (error as Error).message);
-            
-            // Fallback to mock data
-            securityMetrics = {
-                totalSessions: 156,
-                activeSessions: 23,
-                failedLogins: 8,
-                lastActivity: new Date().toISOString(),
-                securityEvents: [
-                    {
-                        id: '1',
-                        type: 'warning',
-                        message: 'Multiple failed login attempts from IP 192.168.1.100',
-                        timestamp: new Date(Date.now() - 300000).toISOString(),
-                        ipAddress: '192.168.1.100'
-                    },
-                    {
-                        id: '2',
-                        type: 'success',
-                        message: 'User admin logged in successfully',
-                        timestamp: new Date(Date.now() - 600000).toISOString(),
-                        userId: 'admin'
-                    },
-                    {
-                        id: '3',
-                        type: 'error',
-                        message: 'Suspicious activity detected: Rapid API calls',
-                        timestamp: new Date(Date.now() - 900000).toISOString(),
-                        ipAddress: '10.0.0.50'
-                    }
-                ],
-                blockedIPs: ['192.168.1.100', '10.0.0.50'],
-                recentActivity: [
-                    {
-                        action: 'Login',
-                        timestamp: new Date(Date.now() - 300000).toISOString(),
-                        ipAddress: '192.168.1.50',
-                        userId: 'admin'
-                    },
-                    {
-                        action: 'Service Created',
-                        timestamp: new Date(Date.now() - 600000).toISOString(),
-                        ipAddress: '192.168.1.50',
-                        userId: 'admin'
-                    }
-                ]
-            };
-        } finally {
-            loading = false;
-        }
-    };
-
-    const startAutoRefresh = () => {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-        }
-        refreshInterval = setInterval(loadSecurityMetrics, 30000); // Refresh every 30 seconds
-    };
-
-    const stopAutoRefresh = () => {
-        if (refreshInterval) {
-            clearInterval(refreshInterval);
-            refreshInterval = null;
-        }
-    };
-
-    const toggleAutoRefresh = () => {
-        autoRefresh = !autoRefresh;
-        if (autoRefresh) {
-            startAutoRefresh();
-        } else {
-            stopAutoRefresh();
-        }
-    };
-
-    const addSecurityEvent = (event: SecurityEvent) => {
-        securityMetrics.securityEvents = [event, ...securityMetrics.securityEvents].slice(0, 100); // Keep only last 100 events
-    };
-
-    const updateSessionMetrics = (data: any) => {
-        securityMetrics.activeSessions = data.activeSessions;
-        securityMetrics.totalSessions = data.totalSessions;
-    };
-
-    const clearSecurityLogs = async () => {
-        const confirmed = confirm("Are you sure you want to clear all security logs?");
-        if (!confirmed) return;
-
-        try {
-            const response = await api.post("/security/clear-logs");
-            if (response.ok) {
-                ui.showSuccess("Security logs cleared", "All security logs have been cleared successfully");
-                await loadSecurityMetrics();
-            } else {
-                throw new Error("Failed to clear logs");
-            }
-        } catch (error) {
-            ui.showError("Failed to clear security logs", (error as Error).message);
-        }
-    };
-
-    const blockIP = async (ipAddress: string) => {
-        try {
-            const response = await api.post("/security/block-ip", { ipAddress });
-            if (response.ok) {
-                ui.showSuccess("IP Blocked", `IP address ${ipAddress} has been blocked`);
-                await loadSecurityMetrics();
-            } else {
-                throw new Error("Failed to block IP");
-            }
-        } catch (error) {
-            ui.showError("Failed to block IP", (error as Error).message);
-        }
-    };
-
-    const unblockIP = async (ipAddress: string) => {
-        try {
-            const response = await api.post("/security/unblock-ip", { ipAddress });
-            if (response.ok) {
-                ui.showSuccess("IP Unblocked", `IP address ${ipAddress} has been unblocked`);
-                await loadSecurityMetrics();
-            } else {
-                throw new Error("Failed to unblock IP");
-            }
-        } catch (error) {
-            ui.showError("Failed to unblock IP", (error as Error).message);
-        }
-    };
-
-    const getEventIcon = (type: string) => {
-        switch (type) {
-            case 'success':
-                return 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
-            case 'warning':
-                return 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833-.192 2.5 1.732 2.5z';
-            case 'error':
-                return 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z';
-            default:
-                return 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
-        }
-    };
-
-    const getEventColor = (type: string) => {
-        switch (type) {
-            case 'success':
-                return 'text-green-600 bg-green-100';
-            case 'warning':
-                return 'text-yellow-600 bg-yellow-100';
-            case 'error':
-                return 'text-red-600 bg-red-100';
-            default:
-                return 'text-blue-600 bg-blue-100';
-        }
-    };
-
-    const formatTimestamp = (timestamp: string) => {
-        return new Date(timestamp).toLocaleString();
-    };
-            }
-        } catch (error) {
-            toastStore.add({
-                type: "error",
-                message: "Failed to clear security logs",
-            });
-        }
+      } else {
+        throw new Error('Failed to clear logs');
+      }
+    } catch (error) {
+      ui.showError('Failed to clear security logs', (error as Error).message);
     }
+  };
+
+  const blockIP = async (ipAddress: string) => {
+    try {
+      const response = await api.post('/security/block-ip', { ipAddress });
+      if (response.ok) {
+        ui.showSuccess('IP Blocked', `IP address ${ipAddress} has been blocked`);
+        await loadSecurityMetrics();
+      } else {
+        throw new Error('Failed to block IP');
+      }
+    } catch (error) {
+      ui.showError('Failed to block IP', (error as Error).message);
+    }
+  };
+
+  const unblockIP = async (ipAddress: string) => {
+    try {
+      const response = await api.post('/security/unblock-ip', { ipAddress });
+      if (response.ok) {
+        ui.showSuccess('IP Unblocked', `IP address ${ipAddress} has been unblocked`);
+        await loadSecurityMetrics();
+      } else {
+        throw new Error('Failed to unblock IP');
+      }
+    } catch (error) {
+      ui.showError('Failed to unblock IP', (error as Error).message);
+    }
+  };
+
+  const getEventIcon = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z';
+      case 'warning':
+        return 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16c-.77.833-.192 2.5 1.732 2.5z';
+      case 'error':
+        return 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z';
+      default:
+        return 'M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z';
+    }
+  };
+
+  const getEventColor = (type: string) => {
+    switch (type) {
+      case 'success':
+        return 'text-green-600 bg-green-100';
+      case 'warning':
+        return 'text-yellow-600 bg-yellow-100';
+      case 'error':
+        return 'text-red-600 bg-red-100';
+      default:
+        return 'text-blue-600 bg-blue-100';
+    }
+  };
+
+  const formatTimestamp = (timestamp: string) => {
+    return new Date(timestamp).toLocaleString();
+  };
 </script>
 
 <svelte:head>

@@ -409,228 +409,228 @@ export function validateServiceConfig(config: any): ValidationResult {
 
 // Input sanitization utilities for security
 export const sanitizeInput = {
-  /**
-   * Sanitize HTML content to prevent XSS
-   */
-  html(input: string): string {
-    return DOMPurify.sanitize(input, {
-      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
-      ALLOWED_ATTR: []
-    });
-  },
+    /**
+     * Sanitize HTML content to prevent XSS
+     */
+    html(input: string): string {
+        return DOMPurify.sanitize(input, {
+            ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'p', 'br'],
+            ALLOWED_ATTR: []
+        });
+    },
 
-  /**
-   * Sanitize text input (remove HTML, special chars)
-   */
-  text(input: string): string {
-    return input
-      .replace(/<[^>]*>/g, '') // Remove HTML tags
-      .replace(/[<>'"&]/g, '') // Remove dangerous characters
-      .trim();
-  },
+    /**
+     * Sanitize text input (remove HTML, special chars)
+     */
+    text(input: string): string {
+        return input
+            .replace(/<[^>]*>/g, '') // Remove HTML tags
+            .replace(/[<>'"&]/g, '') // Remove dangerous characters
+            .trim();
+    },
 
-  /**
-   * Sanitize email format
-   */
-  email(input: string): string {
-    return input
-      .toLowerCase()
-      .replace(/[^\w@.-]/g, '')
-      .trim();
-  },
+    /**
+     * Sanitize email format
+     */
+    email(input: string): string {
+        return input
+            .toLowerCase()
+            .replace(/[^\w@.-]/g, '')
+            .trim();
+    },
 
-  /**
-   * Sanitize URL to prevent malicious redirects
-   */
-  url(input: string): string {
-    try {
-      const url = new URL(input);
-      // Only allow http/https protocols
-      if (!['http:', 'https:'].includes(url.protocol)) {
-        throw new Error('Invalid protocol');
-      }
-      return url.toString();
-    } catch {
-      return '';
+    /**
+     * Sanitize URL to prevent malicious redirects
+     */
+    url(input: string): string {
+        try {
+            const url = new URL(input);
+            // Only allow http/https protocols
+            if (!['http:', 'https:'].includes(url.protocol)) {
+                throw new Error('Invalid protocol');
+            }
+            return url.toString();
+        } catch {
+            return '';
+        }
+    },
+
+    /**
+     * Sanitize log messages to prevent log injection
+     */
+    logMessage(input: string): string {
+        return input
+            .replace(/[\r\n\t]/g, ' ') // Remove newlines/tabs
+            .replace(/[^\x20-\x7E]/g, '') // Remove non-printable chars
+            .substring(0, 1000); // Limit length
     }
-  },
-
-  /**
-   * Sanitize log messages to prevent log injection
-   */
-  logMessage(input: string): string {
-    return input
-      .replace(/[\r\n\t]/g, ' ') // Remove newlines/tabs
-      .replace(/[^\x20-\x7E]/g, '') // Remove non-printable chars
-      .substring(0, 1000); // Limit length
-  }
 };
 
 // Enhanced validation patterns for security
 export const securityValidators = {
-  email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  strongPassword: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-  username: /^[a-zA-Z0-9_-]{3,20}$/,
-  url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
-  ipAddress: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
-  port: /^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$/
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    strongPassword: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    username: /^[a-zA-Z0-9_-]{3,20}$/,
+    url: /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)$/,
+    ipAddress: /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/,
+    port: /^([1-9][0-9]{0,3}|[1-5][0-9]{4}|6[0-4][0-9]{3}|65[0-4][0-9]{2}|655[0-2][0-9]|6553[0-5])$/
 };
 
 // Common password list (subset for security)
 const commonPasswords = new Set([
-  'password', '123456', 'password123', 'admin', 'qwerty', 'letmein',
-  'welcome', 'monkey', '1234567890', 'abc123', 'password1', 'login'
+    'password', '123456', 'password123', 'admin', 'qwerty', 'letmein',
+    'welcome', 'monkey', '1234567890', 'abc123', 'password1', 'login'
 ]);
 
 function isCommonPassword(password: string): boolean {
-  return commonPasswords.has(password.toLowerCase());
+    return commonPasswords.has(password.toLowerCase());
 }
 
 // Enhanced security validation functions
 export const securityValidate = {
-  /**
-   * Validate email with enhanced security checks
-   */
-  email(email: string): { valid: boolean; error?: string } {
-    const sanitized = sanitizeInput.email(email);
-    
-    if (!sanitized) {
-      return { valid: false, error: 'Email is required' };
-    }
-    
-    if (!securityValidators.email.test(sanitized)) {
-      return { valid: false, error: 'Invalid email format' };
-    }
-    
-    if (sanitized.length > 254) {
-      return { valid: false, error: 'Email too long' };
-    }
-    
-    return { valid: true };
-  },
+    /**
+     * Validate email with enhanced security checks
+     */
+    email(email: string): { valid: boolean; error?: string } {
+        const sanitized = sanitizeInput.email(email);
 
-  /**
-   * Validate password with comprehensive strength checking
-   */
-  password(password: string): { valid: boolean; error?: string; strength: number } {
-    if (!password) {
-      return { valid: false, error: 'Password is required', strength: 0 };
-    }
-    
-    let strength = 0;
-    const checks = {
-      length: password.length >= 8,
-      lowercase: /[a-z]/.test(password),
-      uppercase: /[A-Z]/.test(password),
-      numbers: /\d/.test(password),
-      special: /[@$!%*?&]/.test(password),
-      noCommon: !isCommonPassword(password)
-    };
-    
-    strength = Object.values(checks).filter(Boolean).length;
-    
-    if (!checks.length) {
-      return { valid: false, error: 'Password must be at least 8 characters', strength };
-    }
-    
-    if (strength < 4) {
-      return { valid: false, error: 'Password too weak', strength };
-    }
-    
-    return { valid: true, strength };
-  },
+        if (!sanitized) {
+            return { valid: false, error: 'Email is required' };
+        }
 
-  /**
-   * Validate service configuration with security checks
-   */
-  serviceConfig(config: any): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
-    
-    if (!config.name || typeof config.name !== 'string') {
-      errors.push('Service name is required');
-    } else if (config.name.length > 50) {
-      errors.push('Service name too long');
+        if (!securityValidators.email.test(sanitized)) {
+            return { valid: false, error: 'Invalid email format' };
+        }
+
+        if (sanitized.length > 254) {
+            return { valid: false, error: 'Email too long' };
+        }
+
+        return { valid: true };
+    },
+
+    /**
+     * Validate password with comprehensive strength checking
+     */
+    password(password: string): { valid: boolean; error?: string; strength: number } {
+        if (!password) {
+            return { valid: false, error: 'Password is required', strength: 0 };
+        }
+
+        let strength = 0;
+        const checks = {
+            length: password.length >= 8,
+            lowercase: /[a-z]/.test(password),
+            uppercase: /[A-Z]/.test(password),
+            numbers: /\d/.test(password),
+            special: /[@$!%*?&]/.test(password),
+            noCommon: !isCommonPassword(password)
+        };
+
+        strength = Object.values(checks).filter(Boolean).length;
+
+        if (!checks.length) {
+            return { valid: false, error: 'Password must be at least 8 characters', strength };
+        }
+
+        if (strength < 4) {
+            return { valid: false, error: 'Password too weak', strength };
+        }
+
+        return { valid: true, strength };
+    },
+
+    /**
+     * Validate service configuration with security checks
+     */
+    serviceConfig(config: any): { valid: boolean; errors: string[] } {
+        const errors: string[] = [];
+
+        if (!config.name || typeof config.name !== 'string') {
+            errors.push('Service name is required');
+        } else if (config.name.length > 50) {
+            errors.push('Service name too long');
+        }
+
+        if (config.port && !securityValidators.port.test(config.port.toString())) {
+            errors.push('Invalid port number');
+        }
+
+        if (config.domain && !securityValidators.url.test(`https://${config.domain}`)) {
+            errors.push('Invalid domain format');
+        }
+
+        return { valid: errors.length === 0, errors };
     }
-    
-    if (config.port && !securityValidators.port.test(config.port.toString())) {
-      errors.push('Invalid port number');
-    }
-    
-    if (config.domain && !securityValidators.url.test(`https://${config.domain}`)) {
-      errors.push('Invalid domain format');
-    }
-    
-    return { valid: errors.length === 0, errors };
-  }
 };
 
 // CSRF token utilities
 export const csrf = {
-  /**
-   * Generate CSRF token
-   */
-  generateToken(): string {
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
-  },
+    /**
+     * Generate CSRF token
+     */
+    generateToken(): string {
+        const array = new Uint8Array(32);
+        crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    },
 
-  /**
-   * Store CSRF token
-   */
-  storeToken(token: string): void {
-    sessionStorage.setItem('csrf_token', token);
-  },
+    /**
+     * Store CSRF token
+     */
+    storeToken(token: string): void {
+        sessionStorage.setItem('csrf_token', token);
+    },
 
-  /**
-   * Get stored CSRF token
-   */
-  getToken(): string | null {
-    return sessionStorage.getItem('csrf_token');
-  },
+    /**
+     * Get stored CSRF token
+     */
+    getToken(): string | null {
+        return sessionStorage.getItem('csrf_token');
+    },
 
-  /**
-   * Validate CSRF token
-   */
-  validateToken(token: string): boolean {
-    const storedToken = this.getToken();
-    return storedToken === token && token.length === 64;
-  }
+    /**
+     * Validate CSRF token
+     */
+    validateToken(token: string): boolean {
+        const storedToken = this.getToken();
+        return storedToken === token && token.length === 64;
+    }
 };
 
 // Rate limiting utilities
 export const rateLimit = {
-  attempts: new Map<string, { count: number; lastAttempt: number }>(),
+    attempts: new Map<string, { count: number; lastAttempt: number }>(),
 
-  /**
-   * Check if action is rate limited
-   */
-  isLimited(key: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
-    const now = Date.now();
-    const attempt = this.attempts.get(key);
-    
-    if (!attempt) {
-      this.attempts.set(key, { count: 1, lastAttempt: now });
-      return false;
-    }
-    
-    // Reset if window expired
-    if (now - attempt.lastAttempt > windowMs) {
-      this.attempts.set(key, { count: 1, lastAttempt: now });
-      return false;
-    }
-    
-    // Increment attempt count
-    attempt.count++;
-    attempt.lastAttempt = now;
-    
-    return attempt.count > maxAttempts;
-  },
+    /**
+     * Check if action is rate limited
+     */
+    isLimited(key: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
+        const now = Date.now();
+        const attempt = this.attempts.get(key);
 
-  /**
-   * Reset rate limit for key
-   */
-  reset(key: string): void {
-    this.attempts.delete(key);
-  }
+        if (!attempt) {
+            this.attempts.set(key, { count: 1, lastAttempt: now });
+            return false;
+        }
+
+        // Reset if window expired
+        if (now - attempt.lastAttempt > windowMs) {
+            this.attempts.set(key, { count: 1, lastAttempt: now });
+            return false;
+        }
+
+        // Increment attempt count
+        attempt.count++;
+        attempt.lastAttempt = now;
+
+        return attempt.count > maxAttempts;
+    },
+
+    /**
+     * Reset rate limit for key
+     */
+    reset(key: string): void {
+        this.attempts.delete(key);
+    }
 };

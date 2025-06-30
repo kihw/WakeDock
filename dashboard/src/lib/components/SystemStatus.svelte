@@ -2,8 +2,36 @@
   import { onMount, onDestroy } from 'svelte';
   import { systemStore } from '../stores/system';
   import Icon from './Icon.svelte';
+  import { sanitizeInput } from '../utils/validation';
+  import { announceToScreenReader } from '../utils/accessibility';
 
   let updateInterval: number;
+  let previousStatus: string | null = null;
+  let isHighContrast = false;
+  let prefersReducedMotion = false;
+
+  // Detect user preferences
+  onMount(() => {
+    // Check for high contrast preference
+    isHighContrast = window.matchMedia('(prefers-contrast: high)').matches;
+    
+    // Check for reduced motion preference
+    prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    
+    // Listen for status changes and announce them
+    const unsubscribe = systemStore.subscribe((store) => {
+      const currentStatus = store.system?.status;
+      if (previousStatus && currentStatus !== previousStatus) {
+        announceToScreenReader(`System status changed to ${currentStatus}`);
+      }
+      previousStatus = currentStatus;
+    });
+
+    // Cleanup subscription
+    return () => {
+      unsubscribe();
+    };
+  });
 
   // Status color mapping
   const statusColors = {
@@ -21,29 +49,31 @@
     unknown: 'help-circle',
   };
 
-  // Format uptime
+  // Format uptime with proper sanitization
   function formatUptime(seconds: number): string {
-    if (!seconds) return '0s';
+    if (!seconds || typeof seconds !== 'number') return '0s';
 
-    const days = Math.floor(seconds / 86400);
-    const hours = Math.floor((seconds % 86400) / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
+    const sanitizedSeconds = Math.max(0, Math.floor(seconds));
+    const days = Math.floor(sanitizedSeconds / 86400);
+    const hours = Math.floor((sanitizedSeconds % 86400) / 3600);
+    const minutes = Math.floor((sanitizedSeconds % 3600) / 60);
 
     if (days > 0) {
-      return `${days}d ${hours}h`;
+      return sanitizeInput(`${days}d ${hours}h`);
     } else if (hours > 0) {
-      return `${hours}h ${minutes}m`;
+      return sanitizeInput(`${hours}h ${minutes}m`);
     } else {
-      return `${minutes}m`;
+      return sanitizeInput(`${minutes}m`);
     }
   }
 
-  // Format memory usage
+  // Format memory usage with proper sanitization
   function formatMemory(bytes: number): string {
-    if (!bytes) return '0B';
+    if (!bytes || typeof bytes !== 'number') return '0B';
 
+    const sanitizedBytes = Math.max(0, bytes);
     const units = ['B', 'KB', 'MB', 'GB'];
-    let size = bytes;
+    let size = sanitizedBytes;
     let unitIndex = 0;
 
     while (size >= 1024 && unitIndex < units.length - 1) {
@@ -68,27 +98,51 @@
   });
 </script>
 
-<div class="system-status">
+<section 
+  class="system-status" 
+  role="region" 
+  aria-labelledby="system-status-heading"
+  class:high-contrast={isHighContrast}
+  class:reduced-motion={prefersReducedMotion}
+>
+  <h2 id="system-status-heading" class="sr-only">System Status Information</h2>
+  
   <!-- Primary Status -->
-  <div class="status-primary">
+  <div class="status-primary" role="group" aria-labelledby="primary-status-label">
+    <span id="primary-status-label" class="sr-only">Primary system status</span>
     <div
       class="status-indicator"
       style="color: {statusColors[$systemStore.status] || statusColors.unknown}"
+      role="img"
+      aria-label="Status indicator: {$systemStore.status || 'Unknown'}"
     >
-      <Icon name={statusIcons[$systemStore.status] || statusIcons.unknown} size="16" />
+      <Icon 
+        name={statusIcons[$systemStore.status] || statusIcons.unknown} 
+        size="16" 
+        aria-hidden="true"
+      />
     </div>
-    <span class="status-text">
-      {$systemStore.status || 'Unknown'}
+    <span class="status-text" aria-live="polite">
+      {sanitizeInput($systemStore.status || 'Unknown')}
     </span>
   </div>
 
   <!-- Metrics -->
-  <div class="status-metrics">
+  <div class="status-metrics" role="group" aria-labelledby="metrics-heading">
+    <h3 id="metrics-heading" class="sr-only">System Resource Metrics</h3>
+    
     <!-- CPU Usage -->
-    <div class="metric">
-      <Icon name="cpu" size="14" />
-      <span class="metric-label">CPU</span>
-      <div class="metric-bar">
+    <div class="metric" role="group" aria-labelledby="cpu-metric-label">
+      <Icon name="cpu" size="14" aria-hidden="true" />
+      <span id="cpu-metric-label" class="metric-label">CPU</span>
+      <div 
+        class="metric-bar" 
+        role="progressbar" 
+        aria-valuenow={$systemStore.metrics?.cpu || 0}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="CPU usage percentage"
+      >
         <div
           class="metric-fill"
           style="width: {$systemStore.metrics?.cpu || 0}%; background-color: {($systemStore.metrics
@@ -99,14 +153,23 @@
               : 'var(--color-success)'}"
         ></div>
       </div>
-      <span class="metric-value">{($systemStore.metrics?.cpu || 0).toFixed(1)}%</span>
+      <span class="metric-value" aria-label="CPU usage value">
+        {($systemStore.metrics?.cpu || 0).toFixed(1)}%
+      </span>
     </div>
 
     <!-- Memory Usage -->
-    <div class="metric">
-      <Icon name="hard-drive" size="14" />
-      <span class="metric-label">RAM</span>
-      <div class="metric-bar">
+    <div class="metric" role="group" aria-labelledby="memory-metric-label">
+      <Icon name="hard-drive" size="14" aria-hidden="true" />
+      <span id="memory-metric-label" class="metric-label">RAM</span>
+      <div 
+        class="metric-bar" 
+        role="progressbar" 
+        aria-valuenow={$systemStore.metrics?.memory || 0}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="Memory usage percentage"
+      >
         <div
           class="metric-fill"
           style="width: {$systemStore.metrics?.memory || 0}%; background-color: {($systemStore
@@ -117,14 +180,23 @@
               : 'var(--color-success)'}"
         ></div>
       </div>
-      <span class="metric-value">{($systemStore.metrics?.memory || 0).toFixed(1)}%</span>
+      <span class="metric-value" aria-label="Memory usage value">
+        {($systemStore.metrics?.memory || 0).toFixed(1)}%
+      </span>
     </div>
 
     <!-- Disk Usage -->
-    <div class="metric">
-      <Icon name="database" size="14" />
-      <span class="metric-label">Disk</span>
-      <div class="metric-bar">
+    <div class="metric" role="group" aria-labelledby="disk-metric-label">
+      <Icon name="database" size="14" aria-hidden="true" />
+      <span id="disk-metric-label" class="metric-label">Disk</span>
+      <div 
+        class="metric-bar" 
+        role="progressbar" 
+        aria-valuenow={$systemStore.metrics?.disk || 0}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="Disk usage percentage"
+      >
         <div
           class="metric-fill"
           style="width: {$systemStore.metrics?.disk || 0}%; background-color: {($systemStore.metrics
@@ -135,36 +207,44 @@
               : 'var(--color-success)'}"
         ></div>
       </div>
-      <span class="metric-value">{($systemStore.metrics?.disk || 0).toFixed(1)}%</span>
+      <span class="metric-value" aria-label="Disk usage value">
+        {($systemStore.metrics?.disk || 0).toFixed(1)}%
+      </span>
     </div>
   </div>
 
   <!-- Additional Info -->
-  <div class="status-info">
+  <div class="status-info" role="group" aria-labelledby="additional-info-heading">
+    <h3 id="additional-info-heading" class="sr-only">Additional System Information</h3>
+    
     <!-- Running Services -->
-    <div class="info-item">
-      <Icon name="server" size="12" />
-      <span class="info-value"
-        >{$systemStore.services?.filter((s) => s.status === 'running').length || 0}</span
-      >
+    <div class="info-item" aria-label="Running services count">
+      <Icon name="server" size="12" aria-hidden="true" />
+      <span class="info-value" aria-live="polite">
+        {sanitizeInput(String($systemStore.services?.filter((s) => s.status === 'running').length || 0))}
+      </span>
       <span class="info-label">running</span>
     </div>
 
     <!-- Uptime -->
-    <div class="info-item">
-      <Icon name="clock" size="12" />
-      <span class="info-value">{formatUptime($systemStore.uptime || 0)}</span>
+    <div class="info-item" aria-label="System uptime">
+      <Icon name="clock" size="12" aria-hidden="true" />
+      <span class="info-value">
+        {formatUptime($systemStore.uptime || 0)}
+      </span>
       <span class="info-label">uptime</span>
     </div>
 
     <!-- Memory Usage -->
-    <div class="info-item">
-      <Icon name="activity" size="12" />
-      <span class="info-value">{formatMemory($systemStore.memoryUsed || 0)}</span>
+    <div class="info-item" aria-label="Memory usage">
+      <Icon name="activity" size="12" aria-hidden="true" />
+      <span class="info-value">
+        {formatMemory($systemStore.memoryUsed || 0)}
+      </span>
       <span class="info-label">used</span>
     </div>
   </div>
-</div>
+</section>
 
 <style>
   .system-status {
@@ -260,6 +340,94 @@
     font-size: 0.75rem;
   }
 
+  /* Accessibility Enhancements */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* High Contrast Support */
+  .system-status.high-contrast {
+    border-width: 2px;
+    border-color: var(--color-text);
+  }
+
+  .system-status.high-contrast .metric-bar {
+    border: 1px solid var(--color-text);
+  }
+
+  .system-status.high-contrast .metric-fill {
+    border: 1px solid transparent;
+  }
+
+  .system-status.high-contrast .status-indicator {
+    border: 1px solid var(--color-text);
+    border-radius: 50%;
+    padding: 2px;
+  }
+
+  /* Reduced Motion Support */
+  .system-status.reduced-motion .metric-fill {
+    transition: none;
+  }
+
+  .system-status.reduced-motion * {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  /* Focus Management */
+  .system-status:focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* Screen Reader Improvements */
+  [aria-live="polite"] {
+    position: relative;
+  }
+
+  /* Responsive Design */
+  @media (max-width: 768px) {
+    .system-status {
+      flex-direction: column;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+
+    .status-metrics {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .status-info {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .system-status {
+      padding: 0.75rem;
+    }
+
+    .metric-bar {
+      width: 30px;
+      height: 4px;
+    }
+
+    .info-item {
+      font-size: 0.75rem;
+    }
+  }
+</style>
   /* Responsive */
   @media (max-width: 1024px) {
     .status-metrics {

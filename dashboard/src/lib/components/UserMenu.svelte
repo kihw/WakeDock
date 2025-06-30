@@ -1,11 +1,76 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { link } from 'svelte-spa-router';
   import { authStore } from '../stores/auth';
   import { systemStore } from '../stores/system';
   import Icon from './Icon.svelte';
+  import { sanitizeInput, generateCSRFToken, checkRateLimit } from '../utils/validation';
+  import { announceToScreenReader, manageFocus, trapFocus } from '../utils/accessibility';
 
   const dispatch = createEventDispatcher();
+
+  // Security and accessibility state
+  let csrfToken = '';
+  let menuElement: HTMLDivElement;
+  let isMenuOpen = false;
+  let currentFocusIndex = -1;
+  let menuItems: HTMLElement[] = [];
+
+  // Initialize security
+  onMount(async () => {
+    csrfToken = await generateCSRFToken();
+    setupKeyboardNavigation();
+    announceToScreenReader('User menu loaded');
+  });
+
+  // Cleanup
+  onDestroy(() => {
+    if (menuElement) {
+      menuElement.removeEventListener('keydown', handleKeyDown);
+    }
+  });
+
+  // Setup keyboard navigation
+  function setupKeyboardNavigation() {
+    if (menuElement) {
+      menuElement.addEventListener('keydown', handleKeyDown);
+    }
+  }
+
+  // Handle keyboard navigation
+  function handleKeyDown(event: KeyboardEvent) {
+    const focusableItems = Array.from(
+      menuElement.querySelectorAll('a[href], button:not([disabled])')
+    ) as HTMLElement[];
+
+    switch (event.key) {
+      case 'ArrowDown':
+        event.preventDefault();
+        currentFocusIndex = (currentFocusIndex + 1) % focusableItems.length;
+        focusableItems[currentFocusIndex]?.focus();
+        break;
+      case 'ArrowUp':
+        event.preventDefault();
+        currentFocusIndex =
+          currentFocusIndex <= 0 ? focusableItems.length - 1 : currentFocusIndex - 1;
+        focusableItems[currentFocusIndex]?.focus();
+        break;
+      case 'Home':
+        event.preventDefault();
+        currentFocusIndex = 0;
+        focusableItems[0]?.focus();
+        break;
+      case 'End':
+        event.preventDefault();
+        currentFocusIndex = focusableItems.length - 1;
+        focusableItems[currentFocusIndex]?.focus();
+        break;
+      case 'Escape':
+        event.preventDefault();
+        dispatch('close');
+        break;
+    }
+  }
 
   // Menu items
   const menuItems = [
@@ -14,18 +79,21 @@
       label: 'Profile',
       href: '/profile',
       icon: 'user',
+      ariaLabel: 'View and edit your profile settings',
     },
     {
       id: 'settings',
       label: 'Settings',
       href: '/settings',
       icon: 'settings',
+      ariaLabel: 'Access application settings and preferences',
     },
     {
       id: 'help',
       label: 'Help & Support',
       href: '/help',
       icon: 'help-circle',
+      ariaLabel: 'Get help and view support documentation',
     },
     {
       type: 'divider',
@@ -33,66 +101,127 @@
     {
       id: 'logout',
       label: 'Log Out',
-      action: () => dispatch('logout'),
+      action: () => handleLogout(),
       icon: 'log-out',
       danger: true,
+      ariaLabel: 'Sign out of your account',
     },
   ];
 
-  function handleItemClick(item: any) {
+  // Enhanced item click handler with security checks
+  async function handleItemClick(item: any, event?: Event) {
+    // Rate limiting check
+    if (!checkRateLimit(`user-menu-${item.id}`, 5, 60000)) {
+      announceToScreenReader(
+        'Action blocked due to rate limiting. Please wait before trying again.'
+      );
+      return;
+    }
+
+    // Sanitize any user input if present
     if (item.action) {
-      item.action();
+      try {
+        await item.action();
+        announceToScreenReader(`${item.label} action completed`);
+      } catch (error) {
+        console.error('Menu action error:', error);
+        announceToScreenReader(`Error executing ${item.label} action`);
+      }
+    }
+  }
+
+  // Enhanced logout handler
+  async function handleLogout() {
+    try {
+      announceToScreenReader('Signing out...');
+      dispatch('logout', { csrfToken });
+      announceToScreenReader('Successfully signed out');
+    } catch (error) {
+      console.error('Logout error:', error);
+      announceToScreenReader('Error signing out. Please try again.');
     }
   }
 </script>
 
-<div class="user-menu">
+<div
+  class="user-menu"
+  bind:this={menuElement}
+  role="menu"
+  aria-label="User account menu"
+  tabindex="-1"
+>
   <!-- User Info Header -->
-  <div class="user-info">
-    <div class="user-avatar">
+  <div class="user-info" role="group" aria-labelledby="user-info-heading">
+    <h3 id="user-info-heading" class="sr-only">User Information</h3>
+    <div class="user-avatar" role="img" aria-label="User avatar">
       <Icon name="user" size="20" />
     </div>
     <div class="user-details">
-      <h4 class="user-name">{$authStore.user?.username || 'User'}</h4>
-      <p class="user-email">{$authStore.user?.email || 'user@example.com'}</p>
-      <span class="user-role">{$authStore.user?.role || 'Administrator'}</span>
+      <h4 class="user-name" aria-label="Username">
+        {sanitizeInput($authStore.user?.username || 'User')}
+      </h4>
+      <p class="user-email" aria-label="Email address">
+        {sanitizeInput($authStore.user?.email || 'user@example.com')}
+      </p>
+      <span class="user-role" aria-label="User role">
+        {sanitizeInput($authStore.user?.role || 'Administrator')}
+      </span>
     </div>
   </div>
 
   <!-- Quick Stats -->
-  <div class="quick-stats">
+  <div class="quick-stats" role="group" aria-labelledby="stats-heading">
+    <h3 id="stats-heading" class="sr-only">Quick Statistics</h3>
     <div class="stat-item">
-      <Icon name="server" size="16" />
+      <Icon name="server" size="16" aria-hidden="true" />
       <span class="stat-label">Services</span>
-      <span class="stat-value">{$systemStore.services?.length || 0}</span>
+      <span class="stat-value" aria-label="Total services">
+        {$systemStore.services?.length || 0}
+      </span>
     </div>
     <div class="stat-item">
-      <Icon name="activity" size="16" />
+      <Icon name="activity" size="16" aria-hidden="true" />
       <span class="stat-label">Active</span>
-      <span class="stat-value"
-        >{$systemStore.services?.filter((s) => s.status === 'running').length || 0}</span
-      >
+      <span class="stat-value" aria-label="Active services">
+        {$systemStore.services?.filter((s) => s.status === 'running').length || 0}
+      </span>
     </div>
   </div>
 
   <!-- Menu Items -->
-  <div class="menu-items">
-    {#each menuItems as item}
+  <nav class="menu-items" role="navigation" aria-label="User menu navigation">
+    {#each menuItems as item, index}
       {#if item.type === 'divider'}
-        <div class="menu-divider"></div>
+        <hr class="menu-divider" role="separator" aria-hidden="true" />
       {:else if item.href}
-        <a href={item.href} use:link class="menu-item" class:danger={item.danger}>
-          <Icon name={item.icon} size="16" />
+        <a
+          href={item.href}
+          use:link
+          class="menu-item"
+          class:danger={item.danger}
+          role="menuitem"
+          aria-label={item.ariaLabel || item.label}
+          tabindex="-1"
+          on:click={(e) => handleItemClick(item, e)}
+        >
+          <Icon name={item.icon} size="16" aria-hidden="true" />
           <span class="menu-label">{item.label}</span>
         </a>
       {:else}
-        <button class="menu-item" class:danger={item.danger} on:click={() => handleItemClick(item)}>
-          <Icon name={item.icon} size="16" />
+        <button
+          class="menu-item"
+          class:danger={item.danger}
+          role="menuitem"
+          aria-label={item.ariaLabel || item.label}
+          tabindex="-1"
+          on:click={(e) => handleItemClick(item, e)}
+        >
+          <Icon name={item.icon} size="16" aria-hidden="true" />
           <span class="menu-label">{item.label}</span>
         </button>
       {/if}
     {/each}
-  </div>
+  </nav>
 
   <!-- Footer -->
   <div class="menu-footer">

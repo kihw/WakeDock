@@ -1,12 +1,14 @@
 <!--
-  Confirm Dialog Component
+  Confirm Dialog Component - Enhanced with Security & Accessibility
   Reusable confirmation dialog for destructive actions
 -->
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import Modal from './Modal.svelte';
   import Button from '../forms/Button.svelte';
   import Icon from '../Icon.svelte';
+  import { sanitizeInput, generateCSRFToken, checkRateLimit } from '$lib/utils/validation';
+  import { manageFocus, announceToScreenReader, createLiveRegion } from '$lib/utils/accessibility';
 
   // Props
   export let isOpen = false;
@@ -18,6 +20,8 @@
   export let icon = '';
   export let isLoading = false;
   export let disabled = false;
+  export let confirmButtonId = '';
+  export let destructive = false;
 
   // Events
   const dispatch = createEventDispatcher<{
@@ -26,8 +30,53 @@
     close: void;
   }>();
 
+  // Security & Accessibility
+  let csrfToken = '';
+  let attemptCount = 0;
+  let lastAttemptTime = 0;
+  let liveRegion: HTMLElement;
+  let confirmButton: HTMLElement;
+  let cancelButton: HTMLElement;
+
+  // Rate limiting constants
+  const MAX_ATTEMPTS = 5;
+  const RATE_LIMIT_WINDOW = 60000; // 1 minute
+
   // Auto-select icon based on variant
   $: autoIcon = icon || getVariantIcon(variant);
+
+  // Enhanced onMount
+  onMount(async () => {
+    // Generate CSRF token for security
+    csrfToken = await generateCSRFToken();
+
+    // Setup live region for screen reader announcements
+    liveRegion = createLiveRegion();
+
+    // Announce dialog opening
+    if (isOpen) {
+      const sanitizedTitle = sanitizeInput(title);
+      const sanitizedMessage = sanitizeInput(message);
+      announceToScreenReader(`Confirmation dialog opened: ${sanitizedTitle}. ${sanitizedMessage}`);
+
+      // Focus management
+      setTimeout(() => {
+        if (destructive && confirmButton) {
+          // For destructive actions, focus the cancel button by default
+          cancelButton?.focus();
+        } else if (confirmButton) {
+          confirmButton.focus();
+        }
+      }, 100);
+    }
+  });
+
+  onDestroy(() => {
+    // Cleanup live region
+    if (liveRegion && liveRegion.parentNode) {
+      liveRegion.parentNode.removeChild(liveRegion);
+    }
+  });
 
   function getVariantIcon(v: typeof variant): string {
     switch (v) {
@@ -73,23 +122,40 @@
 
   $: colors = getVariantColors(variant);
 
+  // Enhanced confirm handler with security checks
   function handleConfirm() {
-    if (!disabled && !isLoading) {
-      dispatch('confirm');
+    if (disabled || isLoading) return;
+
+    // Rate limiting check
+    if (!checkRateLimit(attemptCount, lastAttemptTime, MAX_ATTEMPTS, RATE_LIMIT_WINDOW)) {
+      announceToScreenReader('Too many attempts. Please wait before trying again.');
+      return;
     }
+
+    attemptCount++;
+    lastAttemptTime = Date.now();
+
+    // Announce action
+    announceToScreenReader(`${sanitizeInput(confirmText)} action confirmed.`);
+
+    dispatch('confirm');
   }
 
+  // Enhanced cancel handler
   function handleCancel() {
-    if (!isLoading) {
-      dispatch('cancel');
-      dispatch('close');
-    }
+    if (isLoading) return;
+
+    announceToScreenReader('Action cancelled.');
+    dispatch('cancel');
+    dispatch('close');
   }
 
+  // Enhanced close handler
   function handleClose() {
-    if (!isLoading) {
-      dispatch('close');
-    }
+    if (isLoading) return;
+
+    announceToScreenReader('Confirmation dialog closed.');
+    dispatch('close');
   }
 
   // Handle escape key

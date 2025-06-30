@@ -14,7 +14,7 @@
 
   // Enhanced loading state management
   $: loadingStore = loadingKey ? getLoadingStore(loadingKey) : null;
-  $: loadingState = loadingStore ? $loadingStore as LoadingState : null;
+  $: loadingState = loadingStore ? ($loadingStore as LoadingState) : null;
 
   // Use loading state operation if available, fallback to text prop
   $: displayText = loadingState?.operation || text;
@@ -41,7 +41,7 @@
   }
 
   // Calculate loading duration
-  $: duration = loadingState?.startTime 
+  $: duration = loadingState?.startTime
     ? Math.floor((Date.now() - loadingState.startTime.getTime()) / 1000)
     : 0;
 </script>
@@ -51,7 +51,7 @@
     <div class="spinner" style="border-top-color: {color}">
       <div class="spinner-inner"></div>
     </div>
-    
+
     <!-- Cancel button -->
     {#if showCancelButton}
       <button
@@ -62,7 +62,12 @@
         aria-label="Cancel loading operation"
       >
         <svg class="cancel-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M6 18L18 6M6 6l12 12"
+          />
         </svg>
       </button>
     {/if}
@@ -80,10 +85,7 @@
   <!-- Progress bar -->
   {#if showProgress && typeof progress === 'number'}
     <div class="progress-container">
-      <div 
-        class="progress-bar"
-        style="width: {progress}%"
-      />
+      <div class="progress-bar" style="width: {progress}%" />
     </div>
     <div class="progress-text" style="font-size: {textSizes[size]}">
       {Math.round(progress)}%
