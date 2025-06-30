@@ -71,6 +71,11 @@ class WebSocketClient {
     private reconnectTimer: NodeJS.Timeout | null = null;
     private pingInterval: NodeJS.Timeout | null = null;
     private subscriptions = new Set<string>();
+    private messageQueue: WebSocketMessage[] = [];
+    private lastSequenceNumber = 0;
+    private heartbeatInterval = 30000; // 30 seconds
+    private connectionStartTime = 0;
+    private isReconnecting = false;
 
     // Stores
     public connectionState: Writable<ConnectionState> = writable(ConnectionState.DISCONNECTED);
@@ -79,6 +84,19 @@ class WebSocketClient {
     public logs: Writable<LogEntry[]> = writable([]);
     public notifications: Writable<NotificationMessage[]> = writable([]);
     public lastError: Writable<string | null> = writable(null);
+    public connectionStats: Writable<{
+        reconnectAttempts: number;
+        uptime: number;
+        lastPing: number;
+        messagesReceived: number;
+        messagesSent: number;
+    }> = writable({
+        reconnectAttempts: 0,
+        uptime: 0,
+        lastPing: 0,
+        messagesReceived: 0,
+        messagesSent: 0
+    });
 
     constructor() {
         // Only initialize in browser environment
@@ -95,9 +113,19 @@ class WebSocketClient {
             return;
         }
 
+        // Prevent multiple concurrent connection attempts
+        if (this.isReconnecting) {
+            return;
+        }
+
         try {
-            this.connectionState.set(ConnectionState.CONNECTING);
+            this.isReconnecting = true;
+            this.connectionState.set(
+                this.reconnectAttempts > 0 ? ConnectionState.RECONNECTING : ConnectionState.CONNECTING
+            );
+            
             debugLog('Connecting to WebSocket:', config.wsUrl);
+            this.connectionStartTime = Date.now();
 
             this.ws = new WebSocket(config.wsUrl);
             this.setupEventHandlers();
@@ -107,7 +135,51 @@ class WebSocketClient {
             this.connectionState.set(ConnectionState.ERROR);
             this.lastError.set(error instanceof Error ? error.message : 'Connection failed');
             this.scheduleReconnect();
+        } finally {
+            this.isReconnecting = false;
         }
+    }
+
+    /**
+     * Schedule reconnection with exponential backoff
+     */
+    private scheduleReconnect(): void {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('Max reconnection attempts reached');
+            this.connectionState.set(ConnectionState.ERROR);
+            this.lastError.set('Max reconnection attempts reached');
+            return;
+        }
+
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+        }
+
+        // Exponential backoff with jitter
+        const delay = Math.min(
+            this.reconnectInterval * Math.pow(2, this.reconnectAttempts) + Math.random() * 1000,
+            30000 // Max 30 seconds
+        );
+
+        this.reconnectAttempts++;
+        this.updateConnectionStats();
+
+        debugLog(`Scheduling reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
+
+        this.reconnectTimer = setTimeout(() => {
+            this.connect();
+        }, delay);
+    }
+
+    /**
+     * Update connection statistics
+     */
+    private updateConnectionStats(): void {
+        this.connectionStats.update((stats: any) => ({
+            ...stats,
+            reconnectAttempts: this.reconnectAttempts,
+            uptime: this.connectionStartTime ? Date.now() - this.connectionStartTime : 0
+        }));
     }
 
     /**
@@ -261,8 +333,8 @@ class WebSocketClient {
      * Handle service update messages
      */
     private handleServiceUpdate(data: ServiceUpdate): void {
-        this.serviceUpdates.update(updates => {
-            const existingIndex = updates.findIndex(u => u.id === data.id);
+        this.serviceUpdates.update((updates: ServiceUpdate[]) => {
+            const existingIndex = updates.findIndex((u: ServiceUpdate) => u.id === data.id);
             if (existingIndex >= 0) {
                 updates[existingIndex] = { ...updates[existingIndex], ...data };
             } else {
@@ -283,7 +355,7 @@ class WebSocketClient {
      * Handle log entry messages
      */
     private handleLogEntry(data: LogEntry): void {
-        this.logs.update(logs => {
+        this.logs.update((logs: LogEntry[]) => {
             // Keep only the last 1000 log entries
             const newLogs = [data, ...logs].slice(0, 1000);
             return newLogs;
@@ -294,29 +366,7 @@ class WebSocketClient {
      * Handle notification messages
      */
     private handleNotification(data: NotificationMessage): void {
-        this.notifications.update(notifications => [data, ...notifications]);
-    }
-
-    /**
-     * Schedule reconnection attempt
-     */
-    private scheduleReconnect(): void {
-        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.error('Max reconnection attempts reached');
-            this.connectionState.set(ConnectionState.ERROR);
-            this.lastError.set('Connection failed after maximum retry attempts');
-            return;
-        }
-
-        this.connectionState.set(ConnectionState.RECONNECTING);
-        this.reconnectAttempts++;
-
-        const delay = Math.min(this.reconnectInterval * this.reconnectAttempts, 30000);
-        debugLog(`Scheduling reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
-
-        this.reconnectTimer = setTimeout(() => {
-            this.connect();
-        }, delay);
+        this.notifications.update((notifications: NotificationMessage[]) => [data, ...notifications]);
     }
 
     /**

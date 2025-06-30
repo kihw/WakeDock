@@ -67,7 +67,7 @@ describe('Dashboard', () => {
 
   it('renders dashboard title', async () => {
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(screen.getByText('WakeDock Dashboard')).toBeInTheDocument();
     });
@@ -75,7 +75,7 @@ describe('Dashboard', () => {
 
   it('loads and displays services', async () => {
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(api.services.getAll).toHaveBeenCalled();
     });
@@ -83,7 +83,7 @@ describe('Dashboard', () => {
 
   it('loads system overview', async () => {
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(api.getSystemOverview).toHaveBeenCalled();
     });
@@ -91,7 +91,7 @@ describe('Dashboard', () => {
 
   it('displays service stats', async () => {
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(screen.getByText('Total Services')).toBeInTheDocument();
       expect(screen.getByText('Running')).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('Dashboard', () => {
 
   it('handles search functionality', async () => {
     const { component } = render(Dashboard);
-    
+
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/search services/i);
       expect(searchInput).toBeInTheDocument();
@@ -109,7 +109,7 @@ describe('Dashboard', () => {
 
   it('handles status filtering', async () => {
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(screen.getByText('All Services')).toBeInTheDocument();
     });
@@ -118,9 +118,9 @@ describe('Dashboard', () => {
   it('displays error state when API fails', async () => {
     // Mock API failure
     vi.mocked(api.services.getAll).mockRejectedValueOnce(new Error('API Error'));
-    
+
     render(Dashboard);
-    
+
     await waitFor(() => {
       expect(screen.getByText(/Unable to connect to WakeDock API/)).toBeInTheDocument();
     });

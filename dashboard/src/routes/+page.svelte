@@ -115,7 +115,7 @@
       clearInterval(refreshInterval);
     }
     // Clean up WebSocket subscriptions
-    wsUnsubscribers.forEach(unsubscribe => unsubscribe());
+    wsUnsubscribers.forEach((unsubscribe) => unsubscribe());
   });
 
   function setupWebSocketSubscriptions() {
@@ -123,19 +123,21 @@
     const serviceUnsubscribe = websocketClient.serviceUpdates.subscribe((updates) => {
       if (updates.length > 0) {
         // Update services with real-time data
-        services = services.map(service => {
-          const update = updates.find(u => u.id === service.id);
+        services = services.map((service) => {
+          const update = updates.find((u) => u.id === service.id);
           if (update) {
             return {
               ...service,
               status: update.status,
               health_status: update.health_status,
-              resource_usage: update.stats ? {
-                cpu_percent: update.stats.cpu_usage,
-                memory_usage: update.stats.memory_usage,
-                memory_percent: (update.stats.memory_usage / (1024 * 1024 * 1024)) * 100, // Assuming 1GB total
-                network_io: update.stats.network_io
-              } : service.resource_usage
+              resource_usage: update.stats
+                ? {
+                    cpu_percent: update.stats.cpu_usage,
+                    memory_usage: update.stats.memory_usage,
+                    memory_percent: (update.stats.memory_usage / (1024 * 1024 * 1024)) * 100, // Assuming 1GB total
+                    network_io: update.stats.network_io,
+                  }
+                : service.resource_usage,
             };
           }
           return service;
@@ -153,15 +155,15 @@
             cpu_usage: update.cpu_usage,
             memory_usage: update.memory_usage,
             disk_usage: update.disk_usage,
-            uptime: update.uptime
-          }
+            uptime: update.uptime,
+          },
         };
         quickStats = update.services_count;
-        stats.update(s => ({
+        stats.update((s) => ({
           ...s,
           cpu: update.cpu_usage,
           memory: update.memory_usage,
-          disk: update.disk_usage
+          disk: update.disk_usage,
         }));
       }
     });
@@ -204,12 +206,12 @@
       if (typeof window !== 'undefined' && api.isAuthenticated()) {
         systemOverview = await api.getSystemOverview();
         quickStats = systemOverview.services;
-        stats.update(s => ({
+        stats.update((s) => ({
           ...s,
           cpu: systemOverview.system.cpu_usage,
           memory: systemOverview.system.memory_usage,
           disk: systemOverview.system.disk_usage,
-          uptime: systemOverview.system.uptime
+          uptime: systemOverview.system.uptime,
         }));
       }
     } catch (error) {

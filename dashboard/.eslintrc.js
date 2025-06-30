@@ -40,13 +40,13 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-inferrable-types': 'off',
-    
+
     // General rules
     'no-console': 'warn',
     'no-debugger': 'error',
     'prefer-const': 'error',
     'no-var': 'error',
-    
+
     // Svelte specific rules
     'svelte/no-at-html-tags': 'warn',
     'svelte/no-target-blank': 'error',

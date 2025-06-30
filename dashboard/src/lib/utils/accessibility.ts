@@ -439,6 +439,304 @@ export const a11yUtils = {
     }
 };
 
+// Enhanced Focus Management for Security and Accessibility
+export class SecureFocusManager {
+  private focusStack: HTMLElement[] = [];
+  private initialFocus: HTMLElement | null = null;
+  private securityChecks = true;
+
+  /**
+   * Trap focus within a container with security validation
+   */
+  secureTrapFocus(container: HTMLElement, options: { validateOrigin?: boolean } = {}): void {
+    // Security check: validate container is part of current document
+    if (this.securityChecks && !document.contains(container)) {
+      console.warn('Focus trap attempted on element not in document');
+      return;
+    }
+
+    const focusableElements = this.getFocusableElements(container);
+    if (focusableElements.length === 0) return;
+
+    const firstElement = focusableElements[0];
+    const lastElement = focusableElements[focusableElements.length - 1];
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      // Security: validate event origin
+      if (options.validateOrigin && !e.isTrusted) {
+        return;
+      }
+
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement.focus();
+        }
+      } else {
+        // Tab
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
+        }
+      }
+    };
+
+    container.addEventListener('keydown', handleTabKey);
+    
+    // Store original focus
+    this.initialFocus = document.activeElement as HTMLElement;
+    
+    // Focus first element
+    firstElement.focus();
+    
+    // Store cleanup function
+    container.setAttribute('data-focus-trap', 'true');
+  }
+
+  /**
+   * Get all focusable elements with security filtering
+   */
+  private getFocusableElements(container: HTMLElement): HTMLElement[] {
+    const selector = [
+      'a[href]:not([tabindex="-1"])',
+      'button:not([disabled]):not([tabindex="-1"])',
+      'input:not([disabled]):not([tabindex="-1"])',
+      'select:not([disabled]):not([tabindex="-1"])',
+      'textarea:not([disabled]):not([tabindex="-1"])',
+      '[tabindex]:not([tabindex="-1"])',
+      '[contenteditable="true"]:not([tabindex="-1"])'
+    ].join(', ');
+
+    const elements = Array.from(container.querySelectorAll(selector)) as HTMLElement[];
+    
+    // Security filter: remove elements with suspicious attributes
+    return elements.filter(element => {
+      // Check for malicious onclick handlers
+      const onclickAttr = element.getAttribute('onclick');
+      if (onclickAttr && /javascript:|data:|vbscript:/i.test(onclickAttr)) {
+        console.warn('Suspicious onclick attribute detected, excluding from focus trap');
+        return false;
+      }
+      
+      // Check for suspicious href values
+      const href = element.getAttribute('href');
+      if (href && /javascript:|data:|vbscript:/i.test(href)) {
+        console.warn('Suspicious href attribute detected, excluding from focus trap');
+        return false;
+      }
+      
+      return true;
+    });
+  }
+}
+
+// Enhanced Color Contrast with Security
+export class SecureColorContrast {
+  /**
+   * Validate color values for security before processing
+   */
+  static validateColor(color: string): boolean {
+    // Check for CSS injection attempts
+    if (/<|>|javascript:|expression\(|url\(/i.test(color)) {
+      console.warn('Potentially malicious color value detected:', color);
+      return false;
+    }
+    
+    // Validate hex format
+    const hexPattern = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/;
+    return hexPattern.test(color);
+  }
+
+  /**
+   * Secure contrast ratio calculation
+   */
+  static calculateRatio(color1: string, color2: string): number {
+    if (!this.validateColor(color1) || !this.validateColor(color2)) {
+      return 0;
+    }
+
+    const rgb1 = this.hexToRgb(color1);
+    const rgb2 = this.hexToRgb(color2);
+    
+    if (!rgb1 || !rgb2) return 0;
+    
+    const l1 = this.getLuminance(rgb1);
+    const l2 = this.getLuminance(rgb2);
+    
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  /**
+   * Check WCAG compliance with enhanced validation
+   */
+  static meetsWCAG(
+    color1: string, 
+    color2: string, 
+    level: 'AA' | 'AAA' = 'AA', 
+    size: 'normal' | 'large' = 'normal'
+  ): { compliant: boolean; ratio: number; recommendation?: string } {
+    const ratio = this.calculateRatio(color1, color2);
+    
+    const requirements = {
+      'AA': { normal: 4.5, large: 3 },
+      'AAA': { normal: 7, large: 4.5 }
+    };
+    
+    const required = requirements[level][size];
+    const compliant = ratio >= required;
+    
+    let recommendation: string | undefined;
+    if (!compliant) {
+      recommendation = `Contrast ratio ${ratio.toFixed(2)} is below the required ${required}. Consider adjusting colors.`;
+    }
+    
+    return { compliant, ratio, recommendation };
+  }
+
+  private static hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : null;
+  }
+
+  private static getLuminance(rgb: { r: number; g: number; b: number }): number {
+    const { r, g, b } = rgb;
+    
+    const [rs, gs, bs] = [r, g, b].map(c => {
+      c = c / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    
+    return 0.2126 * rs + 0.7152 * gs + 0.0722 * bs;
+  }
+}
+
+// Secure Form Accessibility with Enhanced Validation
+export class SecureFormAccessibility {
+  /**
+   * Enhanced form validation with security and accessibility
+   */
+  static validateField(
+    field: HTMLInputElement, 
+    validationFn: (value: string) => { valid: boolean; message?: string },
+    options: { sanitizeInput?: boolean; maxLength?: number } = {}
+  ): boolean {
+    let value = field.value;
+    
+    // Security: sanitize input if requested
+    if (options.sanitizeInput) {
+      value = value.replace(/<[^>]*>/g, '').trim();
+      if (value !== field.value) {
+        field.value = value;
+        console.warn('Input sanitized for security');
+      }
+    }
+    
+    // Security: enforce max length
+    if (options.maxLength && value.length > options.maxLength) {
+      value = value.substring(0, options.maxLength);
+      field.value = value;
+    }
+    
+    const result = validationFn(value);
+    const errorId = `${field.id}-error`;
+    let errorElement = document.getElementById(errorId);
+    
+    if (!result.valid) {
+      // Create or update error message
+      if (!errorElement) {
+        errorElement = document.createElement('div');
+        errorElement.id = errorId;
+        errorElement.className = 'field-error';
+        errorElement.setAttribute('role', 'alert');
+        errorElement.setAttribute('aria-atomic', 'true');
+        field.parentNode?.insertBefore(errorElement, field.nextSibling);
+      }
+      
+      // Sanitize error message to prevent XSS
+      const sanitizedMessage = (result.message || 'Invalid input')
+        .replace(/<[^>]*>/g, '')
+        .substring(0, 200);
+      
+      errorElement.textContent = sanitizedMessage;
+      field.setAttribute('aria-invalid', 'true');
+      field.setAttribute('aria-describedby', errorId);
+      field.classList.add('error');
+      
+      return false;
+    } else {
+      // Remove error state
+      if (errorElement) {
+        errorElement.remove();
+      }
+      
+      field.setAttribute('aria-invalid', 'false');
+      field.removeAttribute('aria-describedby');
+      field.classList.remove('error');
+      
+      return true;
+    }
+  }
+
+  /**
+   * Enhanced form security and accessibility setup
+   */
+  static enhanceForm(form: HTMLFormElement, options: { enableSecurity?: boolean } = {}): void {
+    const fields = form.querySelectorAll('input, select, textarea');
+    
+    fields.forEach((field, index) => {
+      const htmlField = field as HTMLInputElement;
+      
+      // Security: validate field configuration
+      if (options.enableSecurity) {
+        // Remove dangerous attributes
+        const dangerousAttrs = ['onclick', 'onerror', 'onload', 'onmouseover'];
+        dangerousAttrs.forEach(attr => {
+          if (htmlField.hasAttribute(attr)) {
+            console.warn(`Removing potentially dangerous attribute: ${attr}`);
+            htmlField.removeAttribute(attr);
+          }
+        });
+      }
+      
+      // Ensure field has ID
+      if (!htmlField.id) {
+        htmlField.id = `field-${index}`;
+      }
+      
+      // Find associated label
+      const labelElement = form.querySelector(`label[for="${htmlField.id}"]`) as HTMLLabelElement;
+      if (!labelElement) {
+        console.warn(`No label found for field ${htmlField.id}`);
+      }
+      
+      // Add required indicator
+      if (htmlField.required && labelElement) {
+        const requiredSpan = document.createElement('span');
+        requiredSpan.className = 'sr-only';
+        requiredSpan.textContent = ' (required)';
+        labelElement.appendChild(requiredSpan);
+      }
+    });
+  }
+}
+
+// Global secure accessibility instance
+export const secureAccessibility = {
+  focus: new SecureFocusManager(),
+  color: SecureColorContrast,
+  form: SecureFormAccessibility
+};
+
 // Configuration par défaut selon l'environnement
 if (typeof window !== 'undefined') {
     // Ajouter les styles CSS de base pour l'accessibilité

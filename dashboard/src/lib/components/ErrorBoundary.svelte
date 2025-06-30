@@ -1,13 +1,22 @@
 <!--
-  ErrorBoundary Component
-  Global error boundary to catch and display errors gracefully
+  Enhanced ErrorBoundary Component
+  Advanced error boundary with recovery, retry, and detailed reporting
 -->
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { logger } from '../utils/logger';
   import { notifications } from '../services/notifications';
   import { monitoring } from '../services/monitoring';
+  import { 
+    getErrorBoundary, 
+    captureError, 
+    retryFromError, 
+    clearError, 
+    getUserFriendlyMessage,
+    type ErrorInfo 
+  } from '../utils/errorHandling';
   import Icon from './Icon.svelte';
+  import LoadingSpinner from './LoadingSpinner.svelte';
 
   // Props
   export let fallback: boolean = true;
@@ -15,13 +24,27 @@
   export let reportErrors: boolean = true;
   export let showRetry: boolean = true;
   export let showReport: boolean = true;
+  export let boundaryId: string = `boundary_${Math.random().toString(36).substr(2, 9)}`;
+  export let maxRetries: number = 3;
+  export let customFallback: string = '';
+  export let autoRecover: boolean = false;
+  export let autoRecoverDelay: number = 5000;
   export let onError: ((error: Error, context?: any) => void) | undefined = undefined;
 
-  // State
-  let hasError = false;
-  let error: Error | null = null;
-  let errorInfo: any = null;
-  let errorId: string | null = null;
+  const dispatch = createEventDispatcher();
+
+  // Error boundary state
+  $: boundaryStore = getErrorBoundary(boundaryId);
+  $: boundaryState = $boundaryStore;
+  $: hasError = boundaryState.hasError;
+  $: errorInfo = boundaryState.error;
+  $: canRetry = boundaryState.canRetry;
+  $: retryCount = boundaryState.retryCount;
+
+  // Recovery state
+  let isRecovering = false;
+  let autoRecoverTimer: number | null = null;
+  let showDetailedError = false;
 
   // Error handling
   function handleError(err: ErrorEvent | PromiseRejectionEvent | Error, context?: any) {
@@ -37,17 +60,113 @@
       errorObj = new Error('Unknown error occurred');
     }
 
-    hasError = true;
-    error = errorObj;
-    errorInfo = context;
-
-    // Log error
-    logger.error('Error caught by ErrorBoundary', errorObj, context);
+    // Capture error in boundary
+    captureError(boundaryId, errorObj, context);
 
     // Call onError callback if provided
     if (onError) {
       try {
         onError(errorObj, context);
+      } catch (callbackError) {
+        logger.error('Error in onError callback', callbackError);
+      }
+    }
+
+    // Dispatch error event
+    dispatch('error', { error: errorObj, context });
+
+    // Log error
+    logger.error('Error caught by ErrorBoundary', errorObj, context);
+
+    // Report to monitoring if enabled
+    if (reportErrors) {
+      monitoring.reportError(errorObj, {
+        boundary: boundaryId,
+        context,
+        retryCount,
+        userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : undefined,
+        url: typeof window !== 'undefined' ? window.location.href : undefined
+      });
+    }
+
+    // Show notification
+    notifications.show({
+      type: 'error',
+      title: 'An error occurred',
+      message: getUserFriendlyMessage(errorInfo || { error: errorObj, level: 'error', source: boundaryId, id: '', timestamp: new Date() }),
+      persistent: true,
+      actions: canRetry ? [
+        {
+          label: 'Retry',
+          action: () => handleRetry()
+        }
+      ] : []
+    });
+
+    // Auto-recover if enabled
+    if (autoRecover && !autoRecoverTimer) {
+      autoRecoverTimer = setTimeout(() => {
+        handleRetry();
+      }, autoRecoverDelay);
+    }
+  }
+
+  // Retry handler
+  function handleRetry() {
+    if (autoRecoverTimer) {
+      clearTimeout(autoRecoverTimer);
+      autoRecoverTimer = null;
+    }
+
+    isRecovering = true;
+    
+    setTimeout(() => {
+      retryFromError(boundaryId);
+      isRecovering = false;
+      dispatch('retry', { retryCount: retryCount + 1 });
+    }, 100);
+  }
+
+  // Clear error handler
+  function handleClearError() {
+    if (autoRecoverTimer) {
+      clearTimeout(autoRecoverTimer);
+      autoRecoverTimer = null;
+    }
+    
+    clearError(boundaryId);
+    showDetailedError = false;
+    dispatch('recover');
+  }
+
+  // Report error handler
+  function handleReportError() {
+    if (!errorInfo) return;
+
+    const reportData = {
+      error: {
+        name: errorInfo.error.name,
+        message: errorInfo.error.message,
+        stack: errorInfo.error.stack
+      },
+      boundary: boundaryId,
+      timestamp: errorInfo.timestamp,
+      url: errorInfo.url,
+      userAgent: errorInfo.userAgent,
+      retryCount,
+      additionalInfo: prompt('Please describe what you were doing when the error occurred (optional):')
+    };
+
+    // Send report (implement your reporting logic here)
+    logger.info('Error report', reportData);
+    
+    notifications.show({
+      type: 'success',
+      title: 'Error Report Sent',
+      message: 'Thank you for reporting this error. We will investigate and fix it.',
+      duration: 5000
+    });
+  }
       } catch (callbackError) {
         logger.error('Error in onError callback', callbackError);
       }

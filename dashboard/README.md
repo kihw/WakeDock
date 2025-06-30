@@ -1,40 +1,58 @@
 # WakeDock Dashboard
 
-A modern, responsive web dashboard for managing Docker services with WakeDock. Built with SvelteKit, TypeScript, and Tailwind CSS.
+A modern, feature-rich web dashboard for comprehensive Docker service management with WakeDock. Built with SvelteKit, TypeScript, and Tailwind CSS with real-time updates and advanced monitoring capabilities.
 
-## Features
+## 🚀 Features
 
-- 🐳 **Docker Service Management**: Start, stop, restart, and monitor Docker services
-- 👥 **User Management**: Admin interface for managing users and permissions
-- 📊 **Real-time Monitoring**: Live updates via WebSocket connections
-- 🔒 **Security Dashboard**: Monitor security events and configure settings
-- 📈 **Analytics**: Service usage statistics and system metrics
-- 🔔 **Notifications**: Real-time alerts and system notifications
-- 🌙 **Dark/Light Mode**: Automatic theme detection and manual toggle
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
+### Core Functionality
+- 🐳 **Advanced Docker Service Management**: Complete CRUD operations for services with real-time status updates
+- 👥 **User Authentication & Management**: Secure login, registration with 2FA support, and session management
+- 📊 **Real-time System Monitoring**: Live metrics, service status, and system resource usage via WebSocket
+- 🔒 **Security Dashboard**: Live security event monitoring, IP blocking, session tracking
+- 📈 **Interactive Analytics**: System metrics, service usage statistics with time range selection
+- 📋 **Live Service Logs**: Real-time log streaming with filtering and download capabilities
+- 🔔 **Smart Notifications**: Real-time alerts, system notifications, and user feedback
 
-## Tech Stack
+### Enhanced User Experience
+- ⚡ **Real-time Updates**: WebSocket integration for live data across all features
+- 🎨 **Modern UI Components**: Enhanced forms with validation, password strength indicators, interactive charts
+- 📱 **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+- 🌙 **Theme Support**: Dark/light mode with automatic detection
+- ♿ **Accessibility**: ARIA compliance and keyboard navigation support
+- 🔧 **Auto-refresh Controls**: Configurable real-time data updates
+- 📴 **PWA Support**: Offline functionality with service worker
 
-- **Framework**: SvelteKit
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: Svelte stores
-- **API Client**: Custom fetch-based client
-- **WebSocket**: Real-time updates
-- **Icons**: Heroicons
-- **Build Tool**: Vite
+### Advanced Features
+- 🏗️ **Bulk Operations**: Multi-service management capabilities
+- � **Advanced Search & Filtering**: Powerful search across services, logs, and events
+- 📊 **Interactive Charts**: Real-time system resource visualization
+- 🛡️ **Enhanced Security**: IP blocking, session management, security event tracking
+- 📋 **Form Enhancements**: Password strength validation, show/hide toggles, terms acceptance
+- 🔄 **Smart Caching**: Optimized data loading with intelligent cache management
 
-## Development Setup
+## 🛠️ Tech Stack
+
+- **Framework**: SvelteKit with TypeScript
+- **Styling**: Tailwind CSS with custom components
+- **State Management**: Enhanced Svelte stores with real-time updates
+- **API Integration**: Type-safe API client with comprehensive error handling
+- **Real-time**: WebSocket client with auto-reconnection
+- **Testing**: Vitest with comprehensive test coverage
+- **Build**: Vite with production optimization
+- **Deployment**: Docker with multi-environment support
+- **PWA**: Service worker with offline capabilities
+
+## 🏃‍♂️ Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
+- Node.js 18+ (recommended: 20.18.0)
+- npm 8+ (recommended: 10.8.2)
 - Running WakeDock API server
 
 ### Installation
 
-1. **Clone the repository** (if not already done):
+1. **Clone and navigate**:
    ```bash
    git clone <repository-url>
    cd WakeDock/dashboard
@@ -45,9 +63,11 @@ A modern, responsive web dashboard for managing Docker services with WakeDock. B
    npm install
    ```
 
-3. **Configure environment**:
+3. **Environment setup**:
    ```bash
    cp .env.example .env
+   # Edit .env with your configuration
+   ```
    # Edit .env with your configuration
    ```
 

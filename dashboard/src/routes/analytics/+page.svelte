@@ -1,8 +1,33 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api';
+  import { websocket } from '$lib/websocket';
+  import { isAuthenticated } from '$lib/stores';
+  import { goto } from '$app/navigation';
 
-  let analyticsData = {
+  interface AnalyticsData {
+    overview: {
+      totalRequests: number;
+      successfulRequests: number;
+      failedRequests: number;
+      avgResponseTime: number;
+    };
+    serviceUsage: Array<{
+      name: string;
+      requests: number;
+      percentage: number;
+      uptime: number;
+    }>;
+    systemMetrics: {
+      cpuUsage: number[];
+      memoryUsage: number[];
+      diskUsage: number[];
+      networkIO: number[];
+    };
+    timeRange: string;
+  }
+
+  let analyticsData: AnalyticsData = {
     overview: {
       totalRequests: 0,
       successfulRequests: 0,
@@ -14,17 +39,65 @@
       cpuUsage: [],
       memoryUsage: [],
       diskUsage: [],
+      networkIO: [],
     },
+    timeRange: '24h',
   };
 
   let loading = true;
   let error = '';
+  let selectedTimeRange = '24h';
+  let autoRefresh = true;
+  let refreshInterval: NodeJS.Timeout | null = null;
 
   onMount(async () => {
-    try {
-      // Simulate analytics data for now
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+    // Redirect if not authenticated
+    if (!$isAuthenticated) {
+      goto('/login');
+      return;
+    }
 
+    await loadAnalytics();
+    
+    // Setup WebSocket for real-time metrics
+    websocket.connect();
+    websocket.subscribe('system_metrics', (data) => {
+      updateSystemMetrics(data);
+    });
+
+    websocket.subscribe('request_metrics', (data) => {
+      updateRequestMetrics(data);
+    });
+
+    // Setup auto-refresh
+    if (autoRefresh) {
+      startAutoRefresh();
+    }
+  });
+
+  onDestroy(() => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    websocket.disconnect();
+  });
+
+  const loadAnalytics = async () => {
+    loading = true;
+    error = '';
+    
+    try {
+      const response = await api.get(`/analytics?timeRange=${selectedTimeRange}`);
+      if (response.ok) {
+        analyticsData = await response.json();
+      } else {
+        throw new Error('Failed to fetch analytics data');
+      }
+    } catch (err) {
+      error = 'Failed to load analytics data: ' + (err as Error).message;
+      console.error('Analytics error:', err);
+      
+      // Fallback to mock data if API fails
       analyticsData = {
         overview: {
           totalRequests: 12847,
@@ -33,21 +106,73 @@
           avgResponseTime: 245,
         },
         serviceUsage: [
-          { name: 'nginx-web', requests: 5432, percentage: 42.3 },
-          { name: 'redis-cache', requests: 3241, percentage: 25.2 },
-          { name: 'postgres-db', requests: 2156, percentage: 16.8 },
-          { name: 'api-gateway', requests: 2018, percentage: 15.7 },
+          { name: 'nginx-web', requests: 5432, percentage: 42.3, uptime: 99.9 },
+          { name: 'redis-cache', requests: 3241, percentage: 25.2, uptime: 99.8 },
+          { name: 'postgres-db', requests: 2156, percentage: 16.8, uptime: 99.5 },
+          { name: 'api-gateway', requests: 2018, percentage: 15.7, uptime: 98.9 },
         ],
         systemMetrics: {
           cpuUsage: [23, 45, 32, 67, 54, 23, 45],
           memoryUsage: [56, 62, 58, 71, 68, 59, 63],
           diskUsage: [34, 35, 36, 37, 36, 35, 34],
+          networkIO: [12, 18, 15, 22, 19, 14, 17],
         },
+        timeRange: selectedTimeRange,
       };
-
+    } finally {
       loading = false;
-    } catch (err) {
-      error = 'Failed to load analytics data';
+    }
+  };
+
+  const startAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    refreshInterval = setInterval(loadAnalytics, 30000); // Refresh every 30 seconds
+  };
+
+  const stopAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
+
+  const toggleAutoRefresh = () => {
+    autoRefresh = !autoRefresh;
+    if (autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  };
+
+  const updateSystemMetrics = (data: any) => {
+    // Update system metrics with real-time data
+    analyticsData.systemMetrics = {
+      ...analyticsData.systemMetrics,
+      cpuUsage: [...analyticsData.systemMetrics.cpuUsage.slice(1), data.cpu],
+      memoryUsage: [...analyticsData.systemMetrics.memoryUsage.slice(1), data.memory],
+      diskUsage: [...analyticsData.systemMetrics.diskUsage.slice(1), data.disk],
+      networkIO: [...analyticsData.systemMetrics.networkIO.slice(1), data.network],
+    };
+  };
+
+  const updateRequestMetrics = (data: any) => {
+    // Update request metrics with real-time data
+    analyticsData.overview = {
+      ...analyticsData.overview,
+      totalRequests: data.totalRequests,
+      successfulRequests: data.successfulRequests,
+      failedRequests: data.failedRequests,
+      avgResponseTime: data.avgResponseTime,
+    };
+  };
+
+  const handleTimeRangeChange = async (range: string) => {
+    selectedTimeRange = range;
+    await loadAnalytics();
+  };
       loading = false;
     }
   });

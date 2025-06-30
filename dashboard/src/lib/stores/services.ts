@@ -476,6 +476,11 @@ export const services = {
         });
     },
 
+    // Update service status (alias for updateFromWebSocket for convenience)
+    updateServiceStatus: (serviceId: string, status: Service['status'], healthStatus?: Service['health_status']) => {
+        services.updateFromWebSocket({ id: serviceId, status, health_status: healthStatus });
+    },
+
     // Cleanup (stop auto-refresh)
     cleanup: () => {
         services.stopAutoRefresh();

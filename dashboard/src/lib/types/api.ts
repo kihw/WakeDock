@@ -48,6 +48,7 @@ export interface LoginRequest {
     username: string;
     password: string;
     rememberMe?: boolean;
+    twoFactorCode?: string;
 }
 
 // Add type alias for backward compatibility
@@ -58,6 +59,27 @@ export interface LoginResponse {
     token: string;
     refreshToken: string;
     expiresIn: number;
+    requiresTwoFactor?: boolean;
+    twoFactorToken?: string;
+}
+
+export interface TwoFactorSetupRequest {
+    password: string;
+}
+
+export interface TwoFactorSetupResponse {
+    secret: string;
+    qrCode: string;
+    backupCodes: string[];
+}
+
+export interface TwoFactorVerifyRequest {
+    code: string;
+}
+
+export interface TwoFactorDisableRequest {
+    password: string;
+    code: string;
 }
 
 export interface RefreshTokenRequest {

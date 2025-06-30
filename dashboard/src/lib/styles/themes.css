@@ -85,7 +85,7 @@
   /* Typography */
   --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
   --font-family-mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
-  
+
   --font-size-xs: 0.75rem;
   --font-size-sm: 0.875rem;
   --font-size-base: 1rem;
@@ -177,9 +177,9 @@
 
 /* Theme transition */
 * {
-  transition: background-color var(--transition-base), 
-              border-color var(--transition-base), 
-              color var(--transition-base);
+  transition: background-color var(--transition-base),
+    border-color var(--transition-base),
+    color var(--transition-base);
 }
 
 /* Custom component styles using CSS variables */
@@ -335,7 +335,7 @@
     --color-background: #0f172a;
     --color-surface: #1e293b;
     --color-text-primary: #f8fafc;
-    --color-text-secondary: #cbd5e1;  
+    --color-text-secondary: #cbd5e1;
     --color-border: #334155;
   }
 }

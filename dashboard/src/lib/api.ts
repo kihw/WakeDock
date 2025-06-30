@@ -6,6 +6,8 @@
 import type { User, CreateUserRequest, UpdateUserRequest, LoginRequest, LoginResponse } from './types/user';
 import { config } from './config/environment.js';
 import { API_ENDPOINTS, getApiUrl } from './config/api.js';
+import { csrf, rateLimit, securityValidate } from './utils/validation.js';
+import { memoryUtils } from './utils/storage.js';
 
 export interface ApiError {
     message: string;
@@ -83,9 +85,53 @@ export interface UpdateServiceRequest extends Partial<CreateServiceRequest> {
     id: string;
 }
 
+// Security headers utility
+export const securityHeaders = {
+  /**
+   * Get default security headers for API requests
+   */
+  getDefaults(): Record<string, string> {
+    return {
+      'X-Frame-Options': 'DENY',
+      'X-Content-Type-Options': 'nosniff',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+    };
+  },
+
+  /**
+   * Validate response headers for security
+   */
+  validateResponse(headers: Headers): string[] {
+    const warnings: string[] = [];
+    
+    if (!headers.get('X-Frame-Options') && !headers.get('x-frame-options')) {
+      warnings.push('Missing X-Frame-Options header');
+    }
+    
+    if (!headers.get('X-Content-Type-Options') && !headers.get('x-content-type-options')) {
+      warnings.push('Missing X-Content-Type-Options header');
+    }
+    
+    return warnings;
+  }
+};
+
+// Enhanced request options for security
+export interface SecureRequestOptions extends RequestInit {
+  skipCSRF?: boolean;
+  skipRateLimit?: boolean;
+  timeout?: number;
+  retries?: number;
+}
+
 class ApiClient {
     private baseUrl: string;
     private token: string | null = null;
+    private maxRetries: number = 3;
+    private retryDelay: number = 1000; // Base delay in ms
+    private timeout: number = 30000; // 30 seconds
 
     constructor(baseUrl: string = '') {
         // Use configuration from environment
@@ -98,14 +144,54 @@ class ApiClient {
         }
     }
 
+    private async sleep(ms: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    private shouldRetry(error: any, attempt: number): boolean {
+        if (attempt >= this.maxRetries) return false;
+        
+        // Retry on network errors, timeouts, and 5xx server errors
+        if (error.name === 'TypeError' || error.name === 'NetworkError') return true;
+        if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') return true;
+        if (error.details?.status >= 500) return true;
+        
+        return false;
+    }
+
+    private createTimeoutController(timeoutMs: number): AbortController {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), timeoutMs);
+        return controller;
+    }
+
     private async request<T>(
         path: string,
-        options: RequestInit = {}
+        options: SecureRequestOptions = {},
+        retryAttempt: number = 0
     ): Promise<T> {
         const url = `${this.baseUrl}${path}`;
+        
+        // Rate limiting check
+        if (!options.skipRateLimit) {
+            const rateLimitKey = `api_${path}_${this.token ? 'auth' : 'anon'}`;
+            if (rateLimit.isLimited(rateLimitKey)) {
+                throw new Error('Rate limit exceeded. Please try again later.');
+            }
+        }
+
         const headers: Record<string, string> = {
             'Content-Type': 'application/json',
+            ...securityHeaders.getDefaults(),
         };
+
+        // Add CSRF token for state-changing operations
+        if (!options.skipCSRF && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || 'GET')) {
+            const csrfToken = csrf.getToken();
+            if (csrfToken) {
+                headers['X-CSRF-Token'] = csrfToken;
+            }
+        }
 
         // Merge existing headers if they exist
         if (options.headers) {
@@ -119,17 +205,58 @@ class ApiClient {
             headers.Authorization = `Bearer ${this.token}`;
         }
 
+        // Validate request origin
+        headers.Origin = window.location.origin;
+        headers.Referer = window.location.href;
+
+        // Create timeout controller
+        const timeoutController = this.createTimeoutController(this.timeout);
+        const originalSignal = options.signal;
+        
+        // Combine timeout signal with any existing signal
+        let combinedSignal = timeoutController.signal;
+        if (originalSignal) {
+            const combinedController = new AbortController();
+            const abortBoth = () => combinedController.abort();
+            
+            timeoutController.signal.addEventListener('abort', abortBoth);
+            originalSignal.addEventListener('abort', abortBoth);
+            
+            combinedSignal = combinedController.signal;
+        }
+
         try {
             const response = await fetch(url, {
                 ...options,
                 headers,
+                signal: combinedSignal,
             });
+
+            // Clear timeout since request completed
+            if (!timeoutController.signal.aborted) {
+                timeoutController.abort();
+            }
+
+            // Validate response headers for security
+            const securityWarnings = securityHeaders.validateResponse(response.headers);
+            if (securityWarnings.length > 0) {
+                console.warn('Security warnings for response:', securityWarnings);
+            }
+
+            // Validate response origin if applicable
+            const responseOrigin = response.headers.get('Access-Control-Allow-Origin');
+            if (responseOrigin && responseOrigin !== '*' && responseOrigin !== window.location.origin) {
+                console.warn('Response origin mismatch:', responseOrigin);
+            }
 
             if (!response.ok) {
                 let errorData: any = { message: 'An error occurred' };
 
                 try {
-                    errorData = await response.json();
+                    const responseText = await response.text();
+                    // Sanitize error response to prevent XSS
+                    const sanitizedText = responseText.replace(/<[^>]*>/g, '').substring(0, 1000);
+                    errorData = JSON.parse(sanitizedText);
                 } catch {
                     errorData = { message: response.statusText };
                 }
@@ -137,27 +264,59 @@ class ApiClient {
                 const error: ApiError = {
                     message: errorData.detail || errorData.message || response.statusText,
                     code: errorData.code,
-                    details: errorData,
+                    details: { ...errorData, status: response.status },
                 };
 
+                // Throw error to potentially trigger retry
                 throw error;
             }
 
             // Handle empty responses
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
-                return await response.json();
+                const responseData = await response.json();
+                
+                // Basic response validation
+                if (typeof responseData === 'object' && responseData !== null) {
+                    // Remove any potentially dangerous properties
+                    delete responseData.__proto__;
+                    delete responseData.constructor;
+                }
+                
+                return responseData;
             } else {
                 return {} as T;
             }
-        } catch (error) {
-            if (error instanceof TypeError) {
-                // Network error
-                throw {
-                    message: 'Network error. Please check your connection.',
-                    code: 'NETWORK_ERROR',
-                } as ApiError;
+        } catch (error: any) {
+            // Handle timeout specifically
+            if (error.name === 'AbortError') {
+                const timeoutError: ApiError = {
+                    message: 'Request timeout',
+                    code: 'TIMEOUT',
+                    details: { url, timeout: this.timeout }
+                };
+                error = timeoutError;
             }
+
+            // Handle network errors
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                const networkError: ApiError = {
+                    message: 'Network error - please check your connection',
+                    code: 'NETWORK_ERROR',
+                    details: { url, originalError: error.message }
+                };
+                error = networkError;
+            }
+
+            // Retry logic
+            if (this.shouldRetry(error, retryAttempt)) {
+                const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
+                console.warn(`API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`, error);
+                
+                await this.sleep(delay);
+                return this.request<T>(path, options, retryAttempt + 1);
+            }
+
             throw error;
         }
     }

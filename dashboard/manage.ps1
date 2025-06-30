@@ -8,11 +8,11 @@ param(
 
 # Colors for output
 $Colors = @{
-    Red = "Red"
-    Green = "Green"
+    Red    = "Red"
+    Green  = "Green"
     Yellow = "Yellow"
-    Blue = "Blue"
-    White = "White"
+    Blue   = "Blue"
+    White  = "White"
 }
 
 # Helper functions
@@ -210,7 +210,8 @@ function Invoke-Lint {
     
     if ($Fix) {
         npm run lint:fix
-    } else {
+    }
+    else {
         npm run lint
     }
 }
@@ -331,7 +332,8 @@ function Test-Health {
         $response = Invoke-WebRequest -Uri $url -Method Get -TimeoutSec 10
         if ($response.StatusCode -eq 200) {
             Write-Success "Application is healthy"
-        } else {
+        }
+        else {
             Write-Error "Application health check failed with status: $($response.StatusCode)"
         }
     }
@@ -350,11 +352,13 @@ function Show-Logs {
         $containers = docker ps --format "{{.Names}}"
         if ($containers -contains $containerName) {
             docker logs -f $containerName
-        } else {
+        }
+        else {
             $logFile = "logs\$Service.log"
             if (Test-Path $logFile) {
                 Get-Content $logFile -Tail 50 -Wait
-            } else {
+            }
+            else {
                 Write-Error "No logs found for service: $Service"
             }
         }

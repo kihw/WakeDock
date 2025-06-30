@@ -1,6 +1,7 @@
 <!-- Base Modal Component -->
 <script lang="ts">
-    import { createEventDispatcher, onMount } from "svelte";
+    import { createEventDispatcher, onMount, onDestroy, tick } from "svelte";
+    import { manageFocus, announceToScreenReader, trapFocus } from '$lib/utils/accessibility';
 
     export let open: boolean = false;
     export let size: "sm" | "md" | "lg" | "xl" | "full" = "md";
@@ -8,6 +9,9 @@
     export let showCloseButton: boolean = true;
     export let title: string = "";
     export let closeOnEscape: boolean = true;
+    export let ariaLabel: string = "";
+    export let ariaDescribedBy: string = "";
+    export let role: "dialog" | "alertdialog" = "dialog";
 
     const dispatch = createEventDispatcher<{
         close: void;
@@ -24,11 +28,17 @@
     };
 
     let modalElement: HTMLDivElement;
+    let previouslyFocusedElement: HTMLElement | null = null;
+    let focusTrap: { destroy: () => void } | null = null;
+
+    // Generate unique IDs for accessibility
+    const titleId = `modal-title-${Math.random().toString(36).substr(2, 9)}`;
+    const descriptionId = `modal-description-${Math.random().toString(36).substr(2, 9)}`;
 
     onMount(() => {
         // Only run in browser (not during SSR)
         if (typeof window !== "undefined" && typeof document !== "undefined") {
-            // Focus trap and escape key handling
+            // Global escape key handling
             const handleKeydown = (event: KeyboardEvent) => {
                 if (open && closeOnEscape && event.key === "Escape") {
                     handleClose();
@@ -42,6 +52,70 @@
             };
         }
     });
+
+    onDestroy(() => {
+        // Restore focus when component is destroyed
+        if (previouslyFocusedElement) {
+            manageFocus(previouslyFocusedElement);
+        }
+        
+        // Clean up focus trap
+        if (focusTrap) {
+            focusTrap.destroy();
+        }
+    });
+
+    // Watch for modal open/close changes
+    $: if (open) {
+        handleOpen();
+    } else {
+        handleCloseCleanup();
+    }
+
+    async function handleOpen() {
+        await tick();
+        
+        // Store previously focused element
+        previouslyFocusedElement = document.activeElement as HTMLElement;
+        
+        // Prevent body scroll
+        document.body.style.overflow = 'hidden';
+        
+        // Set up focus trap
+        if (modalElement) {
+            focusTrap = trapFocus(modalElement);
+            
+            // Focus the first focusable element or the modal itself
+            const firstFocusable = modalElement.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+            if (firstFocusable) {
+                manageFocus(firstFocusable as HTMLElement);
+            } else {
+                manageFocus(modalElement);
+            }
+        }
+        
+        // Announce modal opening to screen readers
+        announceToScreenReader(`${role === 'alertdialog' ? 'Alert dialog' : 'Dialog'} opened: ${title || 'Modal dialog'}`);
+        
+        dispatch("open");
+    }
+
+    function handleCloseCleanup() {
+        // Restore body scroll
+        document.body.style.overflow = '';
+        
+        // Clean up focus trap
+        if (focusTrap) {
+            focusTrap.destroy();
+            focusTrap = null;
+        }
+        
+        // Restore focus to previously focused element
+        if (previouslyFocusedElement) {
+            manageFocus(previouslyFocusedElement);
+            previouslyFocusedElement = null;
+        }
+    }
 
     const handleBackdropClick = (event: MouseEvent) => {
         if (!persistent && event.target === event.currentTarget) {

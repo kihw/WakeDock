@@ -1,9 +1,25 @@
 <script lang="ts">
+  import { getLoadingStore, cancelLoading } from '$lib/utils/loading';
+  import type { LoadingState } from '$lib/utils/loading';
+
   export let size: 'small' | 'medium' | 'large' = 'medium';
   export let color: string = 'var(--color-primary)';
   export let text: string = '';
   export let center: boolean = false;
   export let className: string = '';
+  export let loadingKey: string = '';
+  export let showProgress: boolean = false;
+  export let showCancel: boolean = false;
+  export let inline: boolean = false;
+
+  // Enhanced loading state management
+  $: loadingStore = loadingKey ? getLoadingStore(loadingKey) : null;
+  $: loadingState = loadingStore ? $loadingStore as LoadingState : null;
+
+  // Use loading state operation if available, fallback to text prop
+  $: displayText = loadingState?.operation || text;
+  $: showCancelButton = showCancel && loadingState?.canCancel;
+  $: progress = loadingState?.progress;
 
   // Size mappings
   const sizeClasses = {
@@ -17,14 +33,61 @@
     medium: '0.9rem',
     large: '1.1rem',
   };
+
+  function handleCancel() {
+    if (loadingKey && loadingState?.canCancel) {
+      cancelLoading(loadingKey);
+    }
+  }
+
+  // Calculate loading duration
+  $: duration = loadingState?.startTime 
+    ? Math.floor((Date.now() - loadingState.startTime.getTime()) / 1000)
+    : 0;
 </script>
 
-<div class="spinner-container {sizeClasses[size]} {className}" class:center>
-  <div class="spinner" style="border-top-color: {color}">
-    <div class="spinner-inner"></div>
+<div class="spinner-container {sizeClasses[size]} {className}" class:center class:inline>
+  <div class="spinner-content">
+    <div class="spinner" style="border-top-color: {color}">
+      <div class="spinner-inner"></div>
+    </div>
+    
+    <!-- Cancel button -->
+    {#if showCancelButton}
+      <button
+        type="button"
+        on:click={handleCancel}
+        class="cancel-button"
+        title="Cancel operation"
+        aria-label="Cancel loading operation"
+      >
+        <svg class="cancel-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    {/if}
   </div>
-  {#if text}
-    <p class="spinner-text" style="font-size: {textSizes[size]}">{text}</p>
+
+  {#if displayText}
+    <p class="spinner-text" style="font-size: {textSizes[size]}">
+      {displayText}
+      {#if duration > 3}
+        <span class="duration">({duration}s)</span>
+      {/if}
+    </p>
+  {/if}
+
+  <!-- Progress bar -->
+  {#if showProgress && typeof progress === 'number'}
+    <div class="progress-container">
+      <div 
+        class="progress-bar"
+        style="width: {progress}%"
+      />
+    </div>
+    <div class="progress-text" style="font-size: {textSizes[size]}">
+      {Math.round(progress)}%
+    </div>
   {/if}
 </div>
 
@@ -41,12 +104,81 @@
     min-height: 200px;
   }
 
+  .spinner-container.inline {
+    flex-direction: row;
+    min-height: auto;
+    gap: 0.75rem;
+  }
+
+  .spinner-content {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    position: relative;
+  }
+
   .spinner {
     position: relative;
     border: 2px solid var(--color-border);
     border-top: 2px solid var(--color-primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
+  }
+
+  .cancel-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    color: var(--color-text-secondary);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cancel-button:hover {
+    color: var(--color-error);
+    background-color: var(--color-error-bg);
+  }
+
+  .cancel-button:focus {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .cancel-icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .duration {
+    color: var(--color-text-secondary);
+    font-size: 0.85em;
+    margin-left: 0.25rem;
+  }
+
+  .progress-container {
+    width: 100%;
+    max-width: 200px;
+    height: 4px;
+    background-color: var(--color-border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background-color: var(--color-primary);
+    transition: width 0.3s ease;
+    border-radius: 2px;
+  }
+
+  .progress-text {
+    color: var(--color-text-secondary);
+    font-weight: 500;
+    text-align: center;
   }
 
   .spinner-inner {

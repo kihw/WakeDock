@@ -9,7 +9,11 @@
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en-US",
-  "categories": ["productivity", "utilities", "developer"],
+  "categories": [
+    "productivity",
+    "utilities",
+    "developer"
+  ],
   "icons": [
     {
       "src": "/favicon.png",

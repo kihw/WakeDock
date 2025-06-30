@@ -1,13 +1,16 @@
 <!-- Services List Page -->
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { services, serviceStats, ui, isAuthenticated } from '$lib/stores';
+  import { websocket } from '$lib/websocket';
   import type { Service } from '$lib/api';
 
   let searchTerm = '';
   let statusFilter = 'all';
   let filteredServices: Service[] = [];
+  let autoRefresh = true;
+  let refreshInterval: NodeJS.Timeout | null = null;
 
   // Subscribe to stores
   $: if ($services.services) {
@@ -27,9 +30,47 @@
       return;
     }
 
-    // Load services
+    // Load services and stats
     services.load();
+
+    // Setup WebSocket for real-time updates
+    websocket.connect();
+    websocket.subscribe('service_status', (data) => {
+      services.updateServiceStatus(data.serviceId, data.status);
+    });
+
+    // Setup auto-refresh
+    startAutoRefresh();
   });
+
+  onDestroy(() => {
+    stopAutoRefresh();
+    websocket.disconnect();
+  });
+
+  const startAutoRefresh = () => {
+    if (autoRefresh && !refreshInterval) {
+      refreshInterval = setInterval(() => {
+        services.load();
+      }, 30000); // Refresh every 30 seconds
+    }
+  };
+
+  const stopAutoRefresh = () => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  };
+
+  const toggleAutoRefresh = () => {
+    autoRefresh = !autoRefresh;
+    if (autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  };
 
   const handleServiceAction = async (serviceId: string, action: 'start' | 'stop' | 'restart') => {
     try {
@@ -97,7 +138,51 @@
       <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">Services</h1>
       <p class="mt-1 text-sm text-gray-500">Manage your Docker services and containers</p>
     </div>
-    <div class="mt-4 flex md:mt-0 md:ml-4">
+    <div class="mt-4 flex md:mt-0 md:ml-4 space-x-3">
+      <!-- Auto-refresh toggle -->
+      <button
+        type="button"
+        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        class:bg-blue-50={autoRefresh}
+        class:text-blue-700={autoRefresh}
+        on:click={toggleAutoRefresh}
+      >
+        <svg class="-ml-0.5 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        Auto-refresh
+      </button>
+
+      <!-- Refresh button -->
+      <button
+        type="button"
+        class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        on:click={() => services.load()}
+        disabled={$services.loading}
+      >
+        <svg
+          class="-ml-0.5 mr-2 h-4 w-4"
+          class:animate-spin={$services.loading}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+          />
+        </svg>
+        Refresh
+      </button>
+
+      <!-- New service button -->
       <button
         type="button"
         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"

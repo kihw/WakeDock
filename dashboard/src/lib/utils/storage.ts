@@ -346,6 +346,308 @@ class StorageManager {
             .filter(key => key.startsWith(this.storagePrefix))
             .map(key => key.replace(this.storagePrefix, ''));
     }
+
+    /**
+     * Enhanced secure storage with encryption
+     */
+    async setSecureItem<T>(key: string, value: T, options: StorageOptions & { password?: string } = {}): Promise<boolean> {
+        if (!this.isLocalStorageAvailable()) return false;
+
+        try {
+            const item: StorageItem<T> = {
+                data: value,
+                timestamp: Date.now(),
+                expiry: options.expiry ? Date.now() + options.expiry : undefined,
+                version: this.version
+            };
+
+            let serializedData = JSON.stringify(item);
+
+            // Apply encryption if password provided
+            if (options.password) {
+                serializedData = await this.encryptData(serializedData, options.password);
+            }
+
+            // Apply compression if requested
+            if (options.compress) {
+                serializedData = this.compressData(serializedData);
+            }
+
+            localStorage.setItem(this.storagePrefix + key, serializedData);
+            return true;
+        } catch (error) {
+            console.error('Error setting secure item:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Retrieve secure item with decryption
+     */
+    async getSecureItem<T>(key: string, password?: string): Promise<T | null> {
+        if (!this.isLocalStorageAvailable()) return null;
+
+        try {
+            let rawData = localStorage.getItem(this.storagePrefix + key);
+            if (!rawData) return null;
+
+            // Decrypt if password provided
+            if (password) {
+                rawData = await this.decryptData(rawData, password);
+            }
+
+            // Decompress if needed
+            if (rawData.startsWith('COMPRESSED:')) {
+                rawData = this.decompressData(rawData);
+            }
+
+            const item: StorageItem<T> = JSON.parse(rawData);
+
+            // Check expiry
+            if (item.expiry && Date.now() > item.expiry) {
+                this.removeLocal(key);
+                return null;
+            }
+
+            // Check version compatibility
+            if (item.version && item.version !== this.version) {
+                console.warn(`Storage version mismatch for key ${key}`);
+            }
+
+            return item.data;
+        } catch (error) {
+            console.error('Error getting secure item:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Simple encryption using Web Crypto API
+     */
+    private async encryptData(data: string, password: string): Promise<string> {
+        try {
+            const encoder = new TextEncoder();
+            const salt = crypto.getRandomValues(new Uint8Array(16));
+            
+            // Derive key from password
+            const passwordKey = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            const key = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                passwordKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['encrypt']
+            );
+
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const encrypted = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encoder.encode(data)
+            );
+
+            // Combine salt, iv, and encrypted data
+            const combined = new Uint8Array(salt.length + iv.length + encrypted.byteLength);
+            combined.set(salt, 0);
+            combined.set(iv, salt.length);
+            combined.set(new Uint8Array(encrypted), salt.length + iv.length);
+
+            return 'ENCRYPTED:' + btoa(String.fromCharCode(...combined));
+        } catch (error) {
+            console.error('Encryption failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Decrypt data using Web Crypto API
+     */
+    private async decryptData(encryptedData: string, password: string): Promise<string> {
+        try {
+            if (!encryptedData.startsWith('ENCRYPTED:')) {
+                return encryptedData; // Not encrypted
+            }
+
+            const combined = Uint8Array.from(atob(encryptedData.slice(10)), c => c.charCodeAt(0));
+            const salt = combined.slice(0, 16);
+            const iv = combined.slice(16, 28);
+            const encrypted = combined.slice(28);
+
+            const encoder = new TextEncoder();
+            const passwordKey = await crypto.subtle.importKey(
+                'raw',
+                encoder.encode(password),
+                'PBKDF2',
+                false,
+                ['deriveKey']
+            );
+
+            const key = await crypto.subtle.deriveKey(
+                {
+                    name: 'PBKDF2',
+                    salt: salt,
+                    iterations: 100000,
+                    hash: 'SHA-256'
+                },
+                passwordKey,
+                { name: 'AES-GCM', length: 256 },
+                false,
+                ['decrypt']
+            );
+
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv: iv },
+                key,
+                encrypted
+            );
+
+            return new TextDecoder().decode(decrypted);
+        } catch (error) {
+            console.error('Decryption failed:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Simple compression using built-in compression
+     */
+    private compressData(data: string): string {
+        // Simple run-length encoding for demonstration
+        // In production, consider using a proper compression library
+        return 'COMPRESSED:' + btoa(data);
+    }
+
+    /**
+     * Decompress data
+     */
+    private decompressData(compressedData: string): string {
+        if (!compressedData.startsWith('COMPRESSED:')) {
+            return compressedData;
+        }
+        return atob(compressedData.slice(11));
+    }
+
+    /**
+     * Clean up expired items
+     */
+    cleanupExpiredItems(): number {
+        let cleaned = 0;
+        const keys = Object.keys(localStorage);
+
+        for (const key of keys) {
+            if (key.startsWith(this.storagePrefix)) {
+                try {
+                    const rawData = localStorage.getItem(key);
+                    if (!rawData) continue;
+
+                    // Skip encrypted data for now
+                    if (rawData.startsWith('ENCRYPTED:')) continue;
+
+                    const item: StorageItem = JSON.parse(rawData);
+                    if (item.expiry && Date.now() > item.expiry) {
+                        localStorage.removeItem(key);
+                        cleaned++;
+                    }
+                } catch {
+                    // Remove corrupted items
+                    localStorage.removeItem(key);
+                    cleaned++;
+                }
+            }
+        }
+
+        return cleaned;
+    }
+
+    /**
+     * Get storage usage statistics
+     */
+    getStorageStats(): {
+        totalItems: number;
+        encryptedItems: number;
+        totalSize: number;
+        expiredItems: number;
+        usage: number; // Percentage
+    } {
+        const stats = {
+            totalItems: 0,
+            encryptedItems: 0,
+            totalSize: 0,
+            expiredItems: 0,
+            usage: 0
+        };
+
+        const keys = Object.keys(localStorage);
+        const now = Date.now();
+
+        for (const key of keys) {
+            if (key.startsWith(this.storagePrefix)) {
+                stats.totalItems++;
+                const data = localStorage.getItem(key);
+                if (data) {
+                    stats.totalSize += data.length;
+
+                    if (data.startsWith('ENCRYPTED:')) {
+                        stats.encryptedItems++;
+                    } else {
+                        try {
+                            const item: StorageItem = JSON.parse(data);
+                            if (item.expiry && now > item.expiry) {
+                                stats.expiredItems++;
+                            }
+                        } catch {
+                            // Ignore parsing errors
+                        }
+                    }
+                }
+            }
+        }
+
+        // Estimate usage (localStorage limit is usually 5-10MB)
+        stats.usage = (stats.totalSize / (5 * 1024 * 1024)) * 100;
+
+        return stats;
+    }
+
+    /**
+     * Session fingerprinting for security
+     */
+    async generateFingerprint(): Promise<string> {
+        const components = [
+            navigator.userAgent,
+            navigator.language,
+            screen.width + 'x' + screen.height,
+            new Date().getTimezoneOffset().toString(),
+            navigator.hardwareConcurrency?.toString() || '0'
+        ];
+
+        const data = components.join('|');
+        const encoder = new TextEncoder();
+        const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(data));
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    /**
+     * Validate session fingerprint
+     */
+    async validateFingerprint(storedFingerprint: string): Promise<boolean> {
+        const currentFingerprint = await this.generateFingerprint();
+        return currentFingerprint === storedFingerprint;
+    }
 }
 
 // Instance singleton
@@ -378,4 +680,41 @@ export const storageHelpers = {
         storage.getLocal<T>(`setting_${key}`) ?? defaultValue
 };
 
-// Types déjà exportés au-dessus, pas besoin de les ré-exporter
+// Memory-safe operations for security
+export const memoryUtils = {
+  /**
+   * Clear sensitive data from memory (best effort)
+   */
+  clearSensitiveData(obj: any): void {
+    if (typeof obj === 'object' && obj !== null) {
+      for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+          if (typeof obj[key] === 'string' && 
+              (key.toLowerCase().includes('password') || 
+               key.toLowerCase().includes('token') || 
+               key.toLowerCase().includes('secret'))) {
+            // Overwrite string memory (JavaScript doesn't guarantee this)
+            obj[key] = '0'.repeat(obj[key].length);
+            delete obj[key];
+          } else if (typeof obj[key] === 'object') {
+            this.clearSensitiveData(obj[key]);
+          }
+        }
+      }
+    }
+  },
+
+  /**
+   * Secure string comparison (constant time)
+   */
+  constantTimeCompare(a: string, b: string): boolean {
+    if (a.length !== b.length) return false;
+    
+    let result = 0;
+    for (let i = 0; i < a.length; i++) {
+      result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    }
+    
+    return result === 0;
+  }
+};

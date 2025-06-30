@@ -26,7 +26,7 @@ const API_CACHE_PATTERNS = [
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing service worker...');
-  
+
   event.waitUntil(
     Promise.all([
       caches.open(STATIC_CACHE_NAME).then((cache) => {
@@ -48,7 +48,7 @@ self.addEventListener('install', (event) => {
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activating service worker...');
-  
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -117,7 +117,7 @@ async function handleApiRequest(request) {
     try {
       // Try network first
       const networkResponse = await fetch(request);
-      
+
       if (networkResponse.ok) {
         // Clone and cache the response
         const cache = await caches.open(RUNTIME_CACHE_NAME);
@@ -142,28 +142,28 @@ async function handleApiRequest(request) {
 // Handle static assets with cache-first strategy
 async function handleStaticAsset(request) {
   const cachedResponse = await caches.match(request);
-  
+
   if (cachedResponse) {
     return cachedResponse;
   }
 
   try {
     const networkResponse = await fetch(request);
-    
+
     if (networkResponse.ok) {
       const cache = await caches.open(STATIC_CACHE_NAME);
       cache.put(request, networkResponse.clone());
     }
-    
+
     return networkResponse;
   } catch (error) {
     console.log('[SW] Failed to fetch static asset:', error);
-    
+
     // Return offline page for navigation requests
     if (request.mode === 'navigate') {
       return caches.match('/offline.html');
     }
-    
+
     throw error;
   }
 }
@@ -176,13 +176,13 @@ async function handleNavigation(request) {
     return networkResponse;
   } catch (error) {
     console.log('[SW] Navigation request failed, returning offline page:', error);
-    
+
     // Return cached version or offline page
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     return caches.match('/offline.html');
   }
 }
@@ -199,7 +199,7 @@ function isStaticAsset(url) {
 // Background sync for offline actions
 self.addEventListener('sync', (event) => {
   console.log('[SW] Background sync triggered:', event.tag);
-  
+
   if (event.tag === 'background-sync') {
     event.waitUntil(doBackgroundSync());
   }
@@ -207,12 +207,12 @@ self.addEventListener('sync', (event) => {
 
 async function doBackgroundSync() {
   console.log('[SW] Performing background sync...');
-  
+
   try {
     // Sync any pending actions stored in IndexedDB
     // This would include service start/stop commands that failed while offline
     const pendingActions = await getPendingActions();
-    
+
     for (const action of pendingActions) {
       try {
         await fetch(action.url, action.options);
@@ -230,10 +230,10 @@ async function doBackgroundSync() {
 // Notification handling
 self.addEventListener('push', (event) => {
   console.log('[SW] Push notification received');
-  
+
   if (event.data) {
     const data = event.data.json();
-    
+
     const options = {
       body: data.body,
       icon: '/favicon.png',
@@ -242,7 +242,7 @@ self.addEventListener('push', (event) => {
       data: data.data || {},
       actions: data.actions || []
     };
-    
+
     event.waitUntil(
       self.registration.showNotification(data.title, options)
     );
@@ -251,9 +251,9 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked:', event.notification.tag);
-  
+
   event.notification.close();
-  
+
   // Handle notification action
   if (event.action) {
     // Handle specific actions defined in the notification
@@ -281,11 +281,11 @@ async function removePendingAction(id) {
 // Message handling for communication with the main application
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
-  
+
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
+
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version });
   }
