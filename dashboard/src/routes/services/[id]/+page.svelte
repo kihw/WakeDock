@@ -17,7 +17,7 @@
   let logLines = 100;
   let autoRefresh = true;
   let refreshInterval: NodeJS.Timeout | null = null;
-  let logContainer: HTMLElement;
+  let logContainer: HTMLDivElement;
 
   // Edit form data
   let editForm: UpdateServiceRequest = {
@@ -149,7 +149,7 @@
     if (!service) return;
 
     try {
-      const updatedService = await services.update(editForm);
+      const updatedService = await services.updateService(editForm);
       service = updatedService;
       isEditing = false;
       ui.showSuccess('Service updated', 'Service configuration has been updated.');
@@ -178,7 +178,7 @@
 
     try {
       const response = await api.getServiceLogs(service.id, logLines);
-      logs = response.logs || [];
+      logs = response || [];
       showLogs = true;
 
       // Auto-scroll to bottom
@@ -645,6 +645,7 @@
 
           <div
             class="bg-black text-green-400 p-4 rounded-md h-96 overflow-y-auto font-mono text-sm"
+            bind:this={logContainer}
           >
             {#if logs.length > 0}
               {#each logs as line}

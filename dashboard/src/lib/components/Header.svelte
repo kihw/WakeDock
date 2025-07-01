@@ -141,7 +141,9 @@
 
     // Rate limiting for search
     const rateLimitResult = checkRateLimit('search', searchAttempts, 20, 60000); // 20 searches per minute
-    if (!rateLimitResult.allowed) {
+    const allowed =
+      typeof rateLimitResult === 'boolean' ? rateLimitResult : rateLimitResult.allowed;
+    if (!allowed) {
       isSearchRateLimited = true;
       announceToScreenReader('Search rate limit exceeded. Please wait before searching again.');
       return;

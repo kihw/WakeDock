@@ -43,7 +43,7 @@ describe('API Integration Tests', () => {
       });
 
       expect(response.user.username).toBe('testuser');
-      expect(response.token).toBe('mock-jwt-token');
+      expect(response.access_token).toBe('mock-jwt-token');
     });
 
     it('should fail login with invalid credentials', async () => {
@@ -279,7 +279,8 @@ describe('API Integration Tests', () => {
         username: 'newuser',
         email: 'newuser@example.com',
         password: 'password123',
-        role: 'user'
+        role: 'user' as const,
+        active: true
       };
 
       const mockCreatedUser = {

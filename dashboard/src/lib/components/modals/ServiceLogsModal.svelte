@@ -10,20 +10,10 @@
   import Input from '../forms/Input.svelte';
   import Select from '../forms/Select.svelte';
   import Icon from '../Icon.svelte';
-  import { api } from '../../config/api';
+  import { api } from '../../api';
   import { logger } from '../../utils/logger';
-  import {
-    sanitizeInput,
-    generateCSRFToken,
-    checkRateLimit,
-    validateInput
-  } from '$lib/utils/validation';
-  import {
-    manageFocus,
-    announceToScreenReader,
-    trapFocus,
-    createLiveRegion
-  } from '$lib/utils/accessibility';
+  import { sanitizeInput, generateCSRFToken, checkRateLimit } from '$lib/utils/validation';
+  import { manageFocus, announceToScreenReader, trapFocus } from '$lib/utils/accessibility';
 
   // Props
   export let isOpen = false;
@@ -45,17 +35,17 @@
   let searchTerm = '';
   let logLevel = 'all';
   let maxLines = 1000;
-  let refreshInterval: number;
+  let refreshInterval: NodeJS.Timeout | number;
   let logsContainer: HTMLElement;
   let shouldAutoScroll = true;
   let modalElement: HTMLElement;
-  
+
   // Security & Accessibility
   let csrfToken = '';
   let attemptCount = 0;
   let lastAttemptTime = 0;
   let liveRegion: HTMLElement;
-  
+
   // Rate limiting constants
   const MAX_ATTEMPTS = 10;
   const RATE_LIMIT_WINDOW = 60000; // 1 minute
@@ -81,14 +71,16 @@
   onMount(async () => {
     // Generate CSRF token
     csrfToken = await generateCSRFToken();
-    
+
     // Setup live region for screen reader announcements
-    liveRegion = createLiveRegion();
-    
+    // Using announceToScreenReader instead of createLiveRegion
+
     // Load logs when modal opens
     if (isOpen && serviceId) {
       await loadLogs();
-      announceToScreenReader(`Service logs modal opened for ${sanitizeInput(serviceName)}. ${filteredLogs ? 'Logs loaded successfully.' : 'No logs available.'}`);
+      announceToScreenReader(
+        `Service logs modal opened for ${sanitizeInput(serviceName)}. ${filteredLogs ? 'Logs loaded successfully.' : 'No logs available.'}`
+      );
     }
   });
 
@@ -97,11 +89,8 @@
     if (refreshInterval) {
       clearInterval(refreshInterval);
     }
-    
-    // Cleanup live region
-    if (liveRegion && liveRegion.parentNode) {
-      liveRegion.parentNode.removeChild(liveRegion);
-    }
+
+    // Cleanup live region - not needed since we're using announceToScreenReader
   });
 
   // Enhanced load logs with security and error handling
@@ -120,7 +109,7 @@
 
     try {
       // Validate and sanitize inputs
-      const validatedServiceId = validateInput(sanitizeInput(serviceId), 'serviceId');
+      const validatedServiceId = sanitizeInput(serviceId);
       if (!validatedServiceId) {
         throw new Error('Invalid service ID provided');
       }
@@ -128,33 +117,29 @@
       // Announce loading state
       announceToScreenReader('Loading service logs...');
 
-      const response = await api.get(`/services/${validatedServiceId}/logs`, {
-        params: {
-          lines: maxLines,
-          timestamps: true,
-          _csrf: csrfToken
-        }
-      });
+      const response = await api.getServiceLogs(validatedServiceId, maxLines);
 
-      if (response.data && Array.isArray(response.data.logs)) {
+      if (response && Array.isArray(response)) {
         // Sanitize log data
-        const sanitizedLogs = response.data.logs.map((log: string) => sanitizeInput(log));
+        const sanitizedLogs = response.map((log: string) => sanitizeInput(log));
         logs.set(sanitizedLogs);
         filterLogs();
-        
+
         // Auto-scroll to bottom if enabled
         if (shouldAutoScroll && logsContainer) {
           setTimeout(() => scrollToBottom(), 100);
         }
 
         // Announce success
-        announceToScreenReader(`Logs loaded successfully. ${sanitizedLogs.length} log entries retrieved.`);
+        announceToScreenReader(
+          `Logs loaded successfully. ${sanitizedLogs.length} log entries retrieved.`
+        );
       } else {
         throw new Error('Invalid response format');
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load logs';
-      logger.error('Failed to load service logs:', err);
+      logger.error('Failed to load service logs:', err as Error);
       error = `Failed to load logs: ${sanitizeInput(errorMessage)}`;
       announceToScreenReader(`Error loading logs: ${sanitizeInput(errorMessage)}`);
     } finally {
@@ -191,16 +176,21 @@
       }
 
       filteredLogs.set(filtered);
-      
+
       // Announce filter results
-      announceToScreenReader(`Logs filtered. Showing ${filtered.length} of ${allLogs.length} log entries.`);
+      announceToScreenReader(
+        `Logs filtered. Showing ${filtered.length} of ${allLogs.length} log entries.`
+      );
     })();
   }
 
   // Enhanced toggle auto refresh with security checks
   function toggleAutoRefresh() {
     // Rate limiting check for auto-refresh
-    if (!autoRefresh && !checkRateLimit(attemptCount, lastAttemptTime, MAX_ATTEMPTS, RATE_LIMIT_WINDOW)) {
+    if (
+      !autoRefresh &&
+      !checkRateLimit(attemptCount, lastAttemptTime, MAX_ATTEMPTS, RATE_LIMIT_WINDOW)
+    ) {
       announceToScreenReader('Cannot enable auto-refresh. Rate limit exceeded.');
       return;
     }
@@ -230,11 +220,11 @@
         announceToScreenReader('No logs available to download.');
         return;
       }
-      
+
       // Sanitize filename
       const sanitizedServiceName = sanitizeInput(serviceName).replace(/[^a-zA-Z0-9\-_]/g, '_');
       const filename = `${sanitizedServiceName}-logs-${new Date().toISOString().split('T')[0]}.txt`;
-      
+
       dispatch('download', { logs: currentLogs, filename });
       announceToScreenReader(`Downloading ${currentLogs.length} log entries as ${filename}.`);
     })();
@@ -248,11 +238,11 @@
         announceToScreenReader('No logs available to copy.');
         return;
       }
-      
+
       await navigator.clipboard.writeText(currentLogs.join('\n'));
       announceToScreenReader(`${currentLogs.length} log entries copied to clipboard.`);
     } catch (err) {
-      logger.error('Failed to copy logs to clipboard:', err);
+      logger.error('Failed to copy logs to clipboard:', err as Error);
       announceToScreenReader('Failed to copy logs to clipboard.');
     }
   }
@@ -264,7 +254,7 @@
     const { scrollTop, scrollHeight, clientHeight } = logsContainer;
     const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 5;
     shouldAutoScroll = isAtBottom;
-    
+
     // Announce scroll position for screen readers (throttled)
     if (scrollTop === 0) {
       announceToScreenReader('Scrolled to top of logs.');
@@ -349,13 +339,13 @@
   }
 </script>
 
-<Modal 
-  bind:isOpen 
-  on:close={() => dispatch('close')} 
+<Modal
+  bind:open={isOpen}
+  on:close={() => dispatch('close')}
   size="xl"
-  aria-label="Service logs viewer"
+  ariaLabel="Service logs viewer"
   role="dialog"
-  aria-describedby="logs-description"
+  ariaDescribedBy="logs-description"
 >
   <div slot="header" class="flex items-center justify-between">
     <div class="flex items-center space-x-3">
@@ -372,8 +362,7 @@
         size="sm"
         on:click={toggleAutoRefresh}
         class="flex items-center space-x-1"
-        aria-pressed={autoRefresh}
-        aria-label={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
+        ariaLabel={autoRefresh ? 'Disable auto-refresh' : 'Enable auto-refresh'}
       >
         <Icon name={autoRefresh ? 'pause' : 'play'} class="w-4 h-4" aria-hidden="true" />
         <span>{autoRefresh ? 'Pause' : 'Auto'}</span>
@@ -386,55 +375,68 @@
         on:click={loadLogs}
         disabled={isLoading}
         class="flex items-center space-x-1"
-        aria-label="Refresh logs"
+        ariaLabel="Refresh logs"
       >
-        <Icon name="refresh-cw" class="w-4 h-4 {isLoading ? 'animate-spin' : ''}" aria-hidden="true" />
+        <Icon
+          name="refresh-cw"
+          class="w-4 h-4 {isLoading ? 'animate-spin' : ''}"
+          aria-hidden="true"
+        />
         <span>Refresh</span>
       </Button>
     </div>
   </div>
 
-  <div slot="body" class="flex flex-col h-full space-y-4">
+  <div class="flex flex-col h-full space-y-4">
     <!-- Hidden description for screen readers -->
     <div id="logs-description" class="sr-only">
-      Service logs viewer for {sanitizeInput(serviceName)}. Use the controls to filter, search, and navigate through log entries.
+      Service logs viewer for {sanitizeInput(serviceName)}. Use the controls to filter, search, and
+      navigate through log entries.
     </div>
 
     <!-- Controls -->
-    <div class="flex flex-wrap items-center gap-4 p-4 bg-gray-800 rounded-lg" role="toolbar" aria-label="Log filtering and actions">
+    <div
+      class="flex flex-wrap items-center gap-4 p-4 bg-gray-800 rounded-lg"
+      role="toolbar"
+      aria-label="Log filtering and actions"
+    >
       <!-- Search -->
       <div class="flex-1 min-w-64">
-        <Input 
-          type="text" 
-          placeholder="Search logs..." 
-          bind:value={searchTerm} 
+        <Input
+          label="Search logs"
+          id="log-search"
+          type="text"
+          placeholder="Search logs..."
+          bind:value={searchTerm}
           class="w-full"
           on:input={filterLogs}
-          aria-label="Search through log entries"
-        >
-          <Icon slot="icon" name="search" class="w-4 h-4" aria-hidden="true" />
-        </Input>
+          ariaLabel="Search through log entries"
+        />
       </div>
 
       <!-- Log level filter -->
       <div class="min-w-40">
-        <Select 
-          bind:value={logLevel} 
-          options={logLevels} 
+        <Select
+          label="Log level"
+          id="log-level"
+          bind:value={logLevel}
+          options={logLevels}
           placeholder="Log Level"
           on:change={filterLogs}
-          aria-label="Filter by log level" 
+          ariaLabel="Filter by log level"
         />
       </div>
 
       <!-- Max lines -->
       <div class="min-w-32">
         <Select
+          label="Max lines"
+          id="max-lines"
           bind:value={maxLines}
           options={lineOptions}
           placeholder="Lines"
           on:change={loadLogs}
-          aria-label="Maximum number of log lines to display"
+          ariaLabel="Maximum number of log lines to display"
         />
       </div>
 
@@ -445,7 +447,7 @@
           size="sm"
           on:click={copyLogs}
           class="flex items-center space-x-1"
-          aria-label="Copy logs to clipboard"
+          ariaLabel="Copy logs to clipboard"
         >
           <Icon name="copy" class="w-4 h-4" aria-hidden="true" />
           <span>Copy</span>
@@ -456,7 +458,7 @@
           size="sm"
           on:click={downloadLogs}
           class="flex items-center space-x-1"
-          aria-label="Download logs as text file"
+          ariaLabel="Download logs as text file"
         >
           <Icon name="download" class="w-4 h-4" aria-hidden="true" />
           <span>Download</span>
@@ -467,7 +469,7 @@
           size="sm"
           on:click={clearLogs}
           class="flex items-center space-x-1"
-          aria-label="Clear all displayed logs"
+          ariaLabel="Clear all displayed logs"
         >
           <Icon name="trash-2" class="w-4 h-4" aria-hidden="true" />
           <span>Clear</span>
@@ -477,55 +479,25 @@
 
     <!-- Error display -->
     {#if error}
-      <div class="p-4 bg-red-900/20 border border-red-500 rounded-lg" role="alert" aria-live="assertive">
+      <div
+        class="p-4 bg-red-900/20 border border-red-500 rounded-lg"
+        role="alert"
+        aria-live="assertive"
+      >
         <div class="flex items-center space-x-2">
           <Icon name="alert-circle" class="w-5 h-5 text-red-400" aria-hidden="true" />
           <span class="text-red-400 font-medium">Error loading logs:</span>
         </div>
         <p class="mt-1 text-red-300 text-sm">{sanitizeInput(error)}</p>
-        <Button 
-          variant="secondary" 
-          size="sm" 
-          on:click={loadLogs} 
+        <Button
+          variant="secondary"
+          size="sm"
+          on:click={loadLogs}
           class="mt-2"
-          aria-label="Retry loading logs"
+          ariaLabel="Retry loading logs"
         >
           Retry
         </Button>
-      </div>
-    {/if}
-
-        <Button
-          variant="secondary"
-          size="sm"
-          on:click={downloadLogs}
-          class="flex items-center space-x-1"
-        >
-          <Icon name="download" class="w-4 h-4" />
-          <span>Download</span>
-        </Button>
-
-        <Button
-          variant="secondary"
-          size="sm"
-          on:click={clearLogs}
-          class="flex items-center space-x-1"
-        >
-          <Icon name="trash-2" class="w-4 h-4" />
-          <span>Clear</span>
-        </Button>
-      </div>
-    </div>
-
-    <!-- Error display -->
-    {#if error}
-      <div class="p-4 bg-red-900/20 border border-red-500 rounded-lg">
-        <div class="flex items-center space-x-2">
-          <Icon name="alert-circle" class="w-5 h-5 text-red-400" />
-          <span class="text-red-400 font-medium">Error loading logs:</span>
-        </div>
-        <p class="mt-1 text-red-300 text-sm">{error}</p>
-        <Button variant="secondary" size="sm" on:click={loadLogs} class="mt-2">Retry</Button>
       </div>
     {/if}
 
@@ -546,7 +518,7 @@
             size="sm"
             on:click={scrollToTop}
             class="flex items-center space-x-1"
-            aria-label="Scroll to top of logs"
+            ariaLabel="Scroll to top of logs"
           >
             <Icon name="arrow-up" class="w-4 h-4" aria-hidden="true" />
             <span>Top</span>
@@ -557,7 +529,7 @@
             size="sm"
             on:click={scrollToBottom}
             class="flex items-center space-x-1"
-            aria-label="Scroll to bottom of logs"
+            ariaLabel="Scroll to bottom of logs"
           >
             <Icon name="arrow-down" class="w-4 h-4" aria-hidden="true" />
             <span>Bottom</span>
@@ -613,38 +585,29 @@
         {:else}
           {#each $filteredLogs as line, index (index)}
             {@const { timestamp, level, message } = formatLogLine(line)}
-            <div 
+            <div
               class="flex items-start space-x-2 py-1 hover:bg-gray-800/50 rounded focus:bg-gray-800/50 focus:outline-none"
               role="row"
               aria-rowindex={index + 1}
               tabindex="-1"
             >
-              <span 
-                class="text-gray-500 text-xs min-w-0 flex-shrink-0" 
-                aria-label="Line number"
-              >
+              <span class="text-gray-500 text-xs min-w-0 flex-shrink-0" aria-label="Line number">
                 {index + 1}
               </span>
               {#if timestamp}
-                <span 
-                  class="text-gray-400 text-xs min-w-0 flex-shrink-0"
-                  aria-label="Timestamp"
-                >
+                <span class="text-gray-400 text-xs min-w-0 flex-shrink-0" aria-label="Timestamp">
                   {sanitizeInput(timestamp)}
                 </span>
               {/if}
               {#if level}
-                <span 
+                <span
                   class="text-xs font-medium min-w-0 flex-shrink-0 {getLogLevelColor(level)}"
                   aria-label="Log level: {level}"
                 >
                   {sanitizeInput(level)}
                 </span>
               {/if}
-              <span 
-                class="text-gray-300 min-w-0 flex-1 break-all"
-                aria-label="Log message"
-              >
+              <span class="text-gray-300 min-w-0 flex-1 break-all" aria-label="Log message">
                 {sanitizeInput(message || line)}
               </span>
             </div>
@@ -666,10 +629,10 @@
     </div>
 
     <div class="flex items-center space-x-2">
-      <Button 
-        variant="secondary" 
+      <Button
+        variant="secondary"
         on:click={() => dispatch('close')}
-        aria-label="Close service logs modal"
+        ariaLabel="Close service logs modal"
       >
         Close
       </Button>
@@ -702,7 +665,7 @@
     :global(.logs-container) {
       border: 2px solid;
     }
-    
+
     :global(.logs-container::-webkit-scrollbar-thumb) {
       background: currentColor;
     }
@@ -713,11 +676,11 @@
     :global(.logs-container) {
       scroll-behavior: auto;
     }
-    
+
     :global(.animate-pulse) {
       animation: none;
     }
-    
+
     :global(.animate-spin) {
       animation: none;
     }

@@ -82,6 +82,10 @@
   let showClearConfirm = false;
   let syncStatus = '';
 
+  // New filter date variables
+  let filterStartDate = '';
+  let filterEndDate = '';
+
   // Category and action options
   const categoryOptions = Object.values(AuditCategory).map((value) => ({
     value,
@@ -153,7 +157,7 @@
     try {
       const response = await api.get('/security/metrics');
       if (response.ok) {
-        securityMetrics = await response.json();
+        securityMetrics = response.data as SecurityMetrics;
       } else {
         throw new Error('Failed to load security metrics');
       }
@@ -457,7 +461,7 @@
   async function syncLogs() {
     try {
       syncStatus = 'Syncing logs...';
-      const endpoint = `${serverConfig.apiUrl}/api/security/audit-logs`;
+      const endpoint = `${serverConfig.api.baseUrl}/security/audit-logs`;
       const success = await auditLogger.syncWithServer(endpoint);
 
       if (success) {
@@ -614,14 +618,11 @@
       </div>
 
       {#if auditError}
-        <Alert
-          type="error"
-          title="Error"
-          message={auditError}
-          dismissible
-          bind:visible={auditError}
-          class="mb-4"
-        />
+        <div class="mb-4">
+          <Alert type="error" title="Error" dismissible on:dismiss={() => (auditError = '')}>
+            {auditError}
+          </Alert>
+        </div>
       {/if}
 
       <Card class="mb-6">
@@ -653,10 +654,9 @@
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <DateRangePicker
-              startLabel="Start Date"
-              endLabel="End Date"
-              bind:startDate
-              bind:endDate
+              label="Date Range"
+              bind:startDate={filterStartDate}
+              bind:endDate={filterEndDate}
             />
 
             <div class="md:col-span-1">
@@ -707,14 +707,9 @@
             columns={auditColumns}
             on:rowClick={(e) => viewLogDetails(e.detail)}
             sortable
-            paginated
-            striped
-            highlightOnHover
+            pagination
             pageSize={15}
-            customFormatters={{
-              timestamp: formatTimestamp,
-              status: (value) => `<span class="${getStatusColor(value)}">${value}</span>`,
-            }}
+          />
           />
         {/if}
       </div>
@@ -830,6 +825,6 @@
     cancelText="Cancel"
     on:confirm={clearLogs}
     on:cancel={() => (showClearConfirm = false)}
-    variant="danger"
+    confirmVariant="danger"
   />
 {/if}

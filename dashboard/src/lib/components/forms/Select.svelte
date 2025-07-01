@@ -20,6 +20,7 @@
   export let size: 'sm' | 'md' | 'lg' = 'md';
   export let multiple: boolean = false;
   export let autocomplete: string = '';
+  export let ariaLabel: string = '';
 
   // Class prop support
   let cssClass = '';
@@ -98,6 +99,7 @@
       {disabled}
       {multiple}
       {autocomplete}
+      aria-label={ariaLabel}
       class="block w-full {sizeClasses[
         size
       ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200

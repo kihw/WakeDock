@@ -13,8 +13,8 @@
     network: { rx: 0, tx: 0 },
   };
 
-  let services = [];
-  let alerts = [];
+  let services: any[] = [];
+  let alerts: any[] = [];
 
   onMount(() => {
     // Connect to websocket for real-time updates

@@ -89,7 +89,7 @@
     try {
       const response = await api.get(`/analytics?timeRange=${selectedTimeRange}`);
       if (response.ok) {
-        analyticsData = await response.json();
+        analyticsData = response.data as AnalyticsData;
       } else {
         throw new Error('Failed to fetch analytics data');
       }

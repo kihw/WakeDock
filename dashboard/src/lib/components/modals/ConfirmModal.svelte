@@ -77,7 +77,6 @@
   showCloseButton={!loading}
   closeOnEscape={!loading}
   on:close={handleClose}
-  bind:element={modalElement}
   role="alertdialog"
   ariaLabel={ariaLabel || `${sanitizeInput(title)} confirmation dialog`}
   ariaDescribedBy={ariaDescribedBy || 'confirm-message confirm-description'}
@@ -190,7 +189,7 @@
       variant="secondary"
       on:click={handleCancel}
       disabled={loading}
-      aria-label="Cancel action and close dialog"
+      ariaLabel="Cancel action and close dialog"
     >
       {sanitizeInput(cancelText)}
     </Button>
@@ -200,8 +199,8 @@
       on:click={handleConfirm}
       {loading}
       disabled={loading}
-      aria-label="Confirm action: {sanitizeInput(confirmText)}"
-      aria-describedby="confirm-description"
+      ariaLabel="Confirm action: {sanitizeInput(confirmText)}"
+      ariaDescribedBy="confirm-description"
     >
       {sanitizeInput(confirmText)}
     </Button>

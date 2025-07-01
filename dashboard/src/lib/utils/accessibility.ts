@@ -326,13 +326,19 @@ export function manageFocus(element: HTMLElement): void {
  * 
  * @param container - L'élément qui contient le focus
  */
-export function trapFocus(container: HTMLElement): void {
+export function trapFocus(container: HTMLElement): { destroy: () => void } | null {
     // Cette fonction est appelée directement avec un élément, non pas un événement
     // C'est donc une implémentation simplifiée par rapport à celle interne
     if (container) {
         container.setAttribute('tabindex', '-1');
         container.focus();
+        return {
+            destroy: () => {
+                // Cleanup logic if needed
+            }
+        };
     }
+    return null;
 }
 
 /**

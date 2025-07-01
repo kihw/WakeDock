@@ -3,7 +3,7 @@ import { get } from 'svelte/store';
 import { auth } from './auth';
 
 // Mock the API module completely
-vi.mock('../../api', () => ({
+vi.mock('../api', () => ({
     api: {
         auth: {
             login: vi.fn(),
@@ -15,7 +15,7 @@ vi.mock('../../api', () => ({
 }));
 
 // Import after mocking
-const { api } = await import('../../api');
+const { api } = await import('../api');
 
 describe('Auth Store', () => {
     beforeEach(() => {
@@ -34,27 +34,39 @@ describe('Auth Store', () => {
 
     it('should handle successful login', async () => {
         const mockUser = {
-            id: 1,
+            id: '1',
             username: 'testuser',
             email: 'test@example.com',
+            firstName: 'Test',
+            lastName: 'User',
             role: 'user' as const,
+            roles: ['user'],
+            permissions: ['service:read'],
             active: true,
+            isActive: true,
+            lastLogin: undefined,
+            last_login: undefined,
             created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z'
+            updated_at: '2023-01-01T00:00:00Z',
+            createdAt: '2023-01-01T00:00:00Z',
+            updatedAt: '2023-01-01T00:00:00Z'
         };
 
         const mockResponse = {
             user: mockUser,
-            token: 'test-token',
+            access_token: 'test-token',
+            token_type: 'Bearer',
+            expires_in: 3600
         };
 
         vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
+        vi.mocked(api.auth.getCurrentUser).mockResolvedValue(mockUser);
 
         await auth.login('testuser', 'password');
 
         const state = get(auth);
         expect(state.user).toEqual(mockUser);
-        expect(state.token).toBe('test-token');
+        expect(state.token).toBe('test-token'); // The store should extract access_token and store as token
         expect(state.isLoading).toBe(false);
         expect(state.error).toBeNull();
     });
@@ -78,15 +90,26 @@ describe('Auth Store', () => {
             id: 1,
             username: 'testuser',
             email: 'test@example.com',
+            firstName: 'Test',
+            lastName: 'User',
             role: 'user' as const,
+            roles: ['user'],
+            permissions: ['service:read'],
             active: true,
+            isActive: true,
+            lastLogin: undefined,
+            last_login: undefined,
             created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z'
+            updated_at: '2023-01-01T00:00:00Z',
+            createdAt: '2023-01-01T00:00:00Z',
+            updatedAt: '2023-01-01T00:00:00Z'
         };
 
         const mockResponse = {
             user: mockUser,
-            token: 'test-token',
+            access_token: 'test-token',
+            token_type: 'Bearer',
+            expires_in: 3600
         };
 
         vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
@@ -118,10 +141,19 @@ describe('Auth Store', () => {
             id: 1,
             username: 'updateduser',
             email: 'updated@example.com',
+            firstName: 'Updated',
+            lastName: 'User',
             role: 'admin' as const,
+            roles: ['admin'],
+            permissions: ['service:read', 'service:write'],
             active: true,
+            isActive: true,
+            lastLogin: undefined,
+            last_login: undefined,
             created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z'
+            updated_at: '2023-01-01T00:00:00Z',
+            createdAt: '2023-01-01T00:00:00Z',
+            updatedAt: '2023-01-01T00:00:00Z'
         };
 
         auth.updateUser(mockUser);

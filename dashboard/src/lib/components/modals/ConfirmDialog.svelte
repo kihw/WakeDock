@@ -8,7 +8,7 @@
   import Button from '../forms/Button.svelte';
   import Icon from '../Icon.svelte';
   import { sanitizeInput, generateCSRFToken, checkRateLimit } from '$lib/utils/validation';
-  import { manageFocus, announceToScreenReader, createLiveRegion } from '$lib/utils/accessibility';
+  import { manageFocus, announceToScreenReader } from '$lib/utils/accessibility';
 
   // Props
   export let isOpen = false;
@@ -34,9 +34,9 @@
   let csrfToken = '';
   let attemptCount = 0;
   let lastAttemptTime = 0;
-  let liveRegion: HTMLElement;
-  let confirmButton: HTMLElement;
-  let cancelButton: HTMLElement;
+  let liveRegion: HTMLElement | undefined;
+  let confirmButton: HTMLElement | undefined;
+  let cancelButton: HTMLElement | undefined;
 
   // Rate limiting constants
   const MAX_ATTEMPTS = 5;
@@ -49,9 +49,6 @@
   onMount(async () => {
     // Generate CSRF token for security
     csrfToken = await generateCSRFToken();
-
-    // Setup live region for screen reader announcements
-    liveRegion = createLiveRegion();
 
     // Announce dialog opening
     if (isOpen) {
@@ -171,13 +168,13 @@
 <svelte:window on:keydown={handleKeydown} />
 
 <Modal
-  bind:isOpen
+  bind:open={isOpen}
   on:close={handleClose}
   size="sm"
-  closeOnClickOutside={!isLoading}
+  persistent={isLoading}
   closeOnEscape={!isLoading}
 >
-  <div slot="body" class="px-6 py-4">
+  <div class="px-6 py-4">
     <div class="flex items-start space-x-4">
       <!-- Icon -->
       <div class="flex-shrink-0">
@@ -237,10 +234,10 @@
 <!-- Enhanced version with slots for custom content -->
 {#if $$slots.custom}
   <Modal
-    bind:isOpen
+    bind:open={isOpen}
     on:close={handleClose}
     size="md"
-    closeOnClickOutside={!isLoading}
+    persistent={isLoading}
     closeOnEscape={!isLoading}
   >
     <div slot="header" class="flex items-center space-x-3">
@@ -254,7 +251,7 @@
       </h3>
     </div>
 
-    <div slot="body">
+    <div>
       <slot name="custom" />
     </div>
 

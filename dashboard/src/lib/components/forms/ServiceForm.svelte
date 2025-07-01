@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { writable } from 'svelte/store';
+  import { writable, get } from 'svelte/store';
   import Button from './Button.svelte';
   import Input from './Input.svelte';
   import Textarea from './Textarea.svelte';
@@ -16,11 +16,7 @@
     generateCSRFToken,
     verifyCSRFToken,
   } from '../../utils/validation';
-  import {
-    manageFocus,
-    announceToScreenReader,
-    enhanceFormAccessibility,
-  } from '../../utils/accessibility';
+  import { manageFocus, announceToScreenReader } from '../../utils/accessibility';
 
   // Props
   export let mode: 'create' | 'edit' = 'create';
@@ -95,10 +91,6 @@
   // Initialize security and accessibility features
   onMount(() => {
     csrfToken = generateCSRFToken();
-
-    if (formElement) {
-      enhanceFormAccessibility(formElement);
-    }
 
     // Announce form mode to screen readers
     const modeText = mode === 'create' ? 'Create new service' : 'Edit service';
@@ -224,7 +216,7 @@
 
     const validation = validateServiceConfig(sanitizedData);
 
-    validationErrors.set(validation.errors);
+    validationErrors.set(validation.errors || {});
     isValid.set(validation.isValid);
 
     // Update form data with sanitized values
@@ -236,13 +228,13 @@
     if (validation.isValid) {
       announceToScreenReader('Form validation passed');
     } else {
-      const errorCount = Object.keys(validation.errors).length;
+      const errorCount = Object.keys(validation.errors || {}).length;
       announceToScreenReader(`Form validation failed. ${errorCount} errors found.`);
 
       // Focus first error field
-      const firstErrorField = Object.keys(validation.errors)[0];
+      const firstErrorField = Object.keys(validation.errors || {})[0];
       if (firstErrorField) {
-        const errorElement = formElement?.querySelector(
+        const errorElement = document.querySelector(
           `[name="${firstErrorField}"], [data-field="${firstErrorField}"]`
         );
         if (errorElement) {
@@ -358,8 +350,10 @@
               placeholder="Host port"
               bind:value={port.host}
               class="flex-1"
-              min="1"
-              max="65535"
+              min={1}
+              max={65535}
+              label=""
+              id="host-port-{index}"
             />
             <Icon name="arrow-right" class="w-4 h-4 text-gray-400" />
             <Input
@@ -367,10 +361,12 @@
               placeholder="Container port"
               bind:value={port.container}
               class="flex-1"
-              min="1"
-              max="65535"
+              min={1}
+              max={65535}
+              label=""
+              id="container-port-{index}"
             />
-            <Select bind:value={port.protocol} options={protocolOptions} class="w-20" />
+            <Select bind:value={port.protocol} options={protocolOptions} class="w-20" label="" />
             <Button type="button" variant="danger" size="sm" on:click={() => removePort(index)}>
               <Icon name="trash-2" class="w-4 h-4" />
             </Button>
@@ -413,6 +409,7 @@
               placeholder="Variable name"
               bind:value={env.key}
               class="flex-1"
+              label=""
             />
             <Icon name="equal" class="w-4 h-4 text-gray-400" />
             <Input
@@ -421,6 +418,7 @@
               placeholder="Value"
               bind:value={env.value}
               class="flex-1"
+              label=""
             />
             <label class="flex items-center space-x-2 text-sm text-gray-300">
               <input
@@ -477,6 +475,7 @@
               placeholder="Host path"
               bind:value={volume.host}
               class="flex-1"
+              label=""
             />
             <Icon name="arrow-right" class="w-4 h-4 text-gray-400" />
             <Input
@@ -484,8 +483,9 @@
               placeholder="Container path"
               bind:value={volume.container}
               class="flex-1"
+              label=""
             />
-            <Select bind:value={volume.mode} options={volumeModes} class="w-24" />
+            <Select bind:value={volume.mode} options={volumeModes} class="w-24" label="" />
             <Button type="button" variant="danger" size="sm" on:click={() => removeVolume(index)}>
               <Icon name="trash-2" class="w-4 h-4" />
             </Button>
@@ -508,8 +508,9 @@
         label="CPU Limit (cores)"
         bind:value={$formData.cpuLimit}
         placeholder="0 = unlimited"
-        min="0"
-        step="0.1"
+        min={0}
+        step={0.1}
+        id="cpu-limit"
       />
 
       <Input
@@ -517,10 +518,11 @@
         label="Memory Limit (MB)"
         bind:value={$formData.memoryLimit}
         placeholder="0 = unlimited"
-        min="0"
+        min={0}
+        id="memory-limit"
       />
 
-      <Input type="number" id="replicas" label="Replicas" bind:value={$formData.replicas} min="1" />
+      <Input type="number" id="replicas" label="Replicas" bind:value={$formData.replicas} min={1} />
     </div>
   </div>
 
@@ -552,14 +554,16 @@
             type="number"
             label="Interval (seconds)"
             bind:value={$formData.healthCheck.interval}
-            min="1"
+            min={1}
+            id="health-interval"
           />
 
           <Input
             type="number"
             label="Timeout (seconds)"
             bind:value={$formData.healthCheck.timeout}
-            min="1"
+            min={1}
+            id="health-timeout"
           />
 
           <Input
@@ -567,7 +571,7 @@
             id="retries"
             label="Retries"
             bind:value={$formData.healthCheck.retries}
-            min="1"
+            min={1}
           />
         </div>
       </div>
@@ -607,6 +611,7 @@
               placeholder="Label key"
               bind:value={label.key}
               class="flex-1"
+              label=""
             />
             <Icon name="equal" class="w-4 h-4 text-gray-400" />
             <Input
@@ -614,6 +619,7 @@
               placeholder="Label value"
               bind:value={label.value}
               class="flex-1"
+              label=""
             />
             <Button type="button" variant="danger" size="sm" on:click={() => removeLabel(index)}>
               <Icon name="trash-2" class="w-4 h-4" />

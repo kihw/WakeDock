@@ -132,9 +132,8 @@
               health_status: update.health_status,
               resource_usage: update.stats
                 ? {
-                    cpu_percent: update.stats.cpu_usage,
+                    cpu_usage: update.stats.cpu_usage,
                     memory_usage: update.stats.memory_usage,
-                    memory_percent: (update.stats.memory_usage / (1024 * 1024 * 1024)) * 100, // Assuming 1GB total
                     network_io: update.stats.network_io,
                   }
                 : service.resource_usage,
@@ -165,6 +164,7 @@
           caddy: {
             version: '2.6.0',
             status: 'healthy',
+            active_routes: 0,
           },
         };
         quickStats = update.services_count;
@@ -215,13 +215,15 @@
       if (typeof window !== 'undefined' && api.isAuthenticated()) {
         systemOverview = await api.getSystemOverview();
         quickStats = systemOverview.services;
-        stats.update((s) => ({
-          ...s,
-          cpu: systemOverview.system.cpu_usage,
-          memory: systemOverview.system.memory_usage,
-          disk: systemOverview.system.disk_usage,
-          uptime: systemOverview.system.uptime,
-        }));
+        if (systemOverview) {
+          stats.update((s) => ({
+            ...s,
+            cpu: systemOverview!.system.cpu_usage,
+            memory: systemOverview!.system.memory_usage,
+            disk: systemOverview!.system.disk_usage,
+            uptime: systemOverview!.system.uptime,
+          }));
+        }
       }
     } catch (error) {
       console.warn('Failed to load system overview:', error);
@@ -477,7 +479,18 @@
       <div class="services-grid">
         {#each filteredServices as service (service.id)}
           <ServiceCard
-            {service}
+            service={{
+              ...service,
+              ports: service.ports.map((p) => `${p.host}:${p.container}/${p.protocol}`),
+              resource_usage: service.resource_usage
+                ? {
+                    cpu_percent: service.resource_usage.cpu_usage || 0,
+                    memory_usage: service.resource_usage.memory_usage || 0,
+                    memory_percent:
+                      (service.resource_usage.memory_usage / (1024 * 1024 * 1024)) * 100 || 0,
+                  }
+                : undefined,
+            }}
             on:wake={() => wakeService(service.id)}
             on:sleep={() => sleepService(service.id)}
           />

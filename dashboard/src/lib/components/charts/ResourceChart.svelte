@@ -39,7 +39,7 @@
   let tooltipElement: HTMLDivElement;
   let refreshTimer: number;
   let isHovering = false;
-  let hoveredPoint: { x: number; y: number; data: any } | null = null;
+  let hoveredPoint: { x: number; y: number; data: any; index: number } | null = null;
 
   // Chart dimensions
   let chartWidth = 0;
@@ -380,7 +380,7 @@
     const xScale = createXScale();
     const yScale = createYScale();
 
-    let closestPoint = null;
+    let closestPoint: { x: number; y: number; data: any; index: number } | null = null;
     let minDistance = Infinity;
 
     processedData.forEach((point, index) => {
@@ -398,7 +398,7 @@
     isHovering = !!closestPoint;
 
     if (closestPoint && showTooltip) {
-      updateTooltip(event.clientX, event.clientY, closestPoint.data);
+      updateTooltip(event.clientX, event.clientY, (closestPoint as any).data);
     }
   }
 
@@ -490,7 +490,7 @@
 
     <div class="flex items-center space-x-2">
       <!-- Time range selector -->
-      <Select bind:value={selectedTimeRange} options={timeRanges} size="sm" class="w-32" />
+      <Select bind:value={selectedTimeRange} options={timeRanges} size="sm" class="w-32" label="" />
 
       <!-- Auto refresh toggle -->
       <Button

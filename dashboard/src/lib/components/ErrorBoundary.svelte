@@ -69,7 +69,7 @@
       try {
         onError(errorObj, context);
       } catch (callbackError) {
-        logger.error('Error in onError callback', callbackError);
+        logger.error('Error in onError callback', callbackError as Error);
       }
     }
 
@@ -91,10 +91,9 @@
     }
 
     // Show notification
-    notifications.show({
-      type: 'error',
-      title: 'An error occurred',
-      message: getUserFriendlyMessage(
+    notifications.error(
+      'An error occurred',
+      getUserFriendlyMessage(
         errorInfo || {
           error: errorObj,
           level: 'error',
@@ -102,17 +101,8 @@
           id: '',
           timestamp: new Date(),
         }
-      ),
-      persistent: true,
-      actions: canRetry
-        ? [
-            {
-              label: 'Retry',
-              action: () => handleRetry(),
-            },
-          ]
-        : [],
-    });
+      )
+    );
 
     // Auto-recover if enabled
     if (autoRecover && !autoRecoverTimer) {
@@ -174,17 +164,15 @@
       // Send report (implement your reporting logic here)
       logger.info('Error report', reportData);
 
-      notifications.show({
-        type: 'success',
-        title: 'Error Report Sent',
-        message: 'Thank you for reporting this error. We will investigate and fix it.',
-        duration: 5000,
-      });
+      notifications.success(
+        'Error Report Sent',
+        'Thank you for reporting this error. We will investigate and fix it.'
+      );
 
       // Generate an error ID for tracking
       errorId = `ERR_${Date.now().toString(36)}_${Math.random().toString(36).substr(2, 5)}`;
     } catch (callbackError) {
-      logger.error('Error in error reporting', callbackError);
+      logger.error('Error in error reporting', callbackError as Error);
     }
   }
 
@@ -266,7 +254,7 @@ Stack: ${errorInfo.error.stack || 'Non disponible'}
             <h3 class="error-title">An error occurred</h3>
 
             <p class="error-message">
-              {getUserFriendlyMessage(errorInfo)}
+              {errorInfo ? getUserFriendlyMessage(errorInfo) : 'An unexpected error occurred'}
             </p>
 
             {#if errorId}
@@ -284,7 +272,7 @@ Stack: ${errorInfo.error.stack || 'Non disponible'}
                   disabled={isRecovering}
                 >
                   {#if isRecovering}
-                    <LoadingSpinner size="sm" />
+                    <LoadingSpinner size="small" />
                     <span>Retrying...</span>
                   {:else}
                     <Icon name="refresh-cw" />

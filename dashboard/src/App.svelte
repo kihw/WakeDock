@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Router, link, push } from 'svelte-spa-router';
+  import { writable } from 'svelte/store';
+  import Router, { link, push } from 'svelte-spa-router';
   import { wrap } from 'svelte-spa-router/wrap';
 
   // Stores
@@ -35,11 +36,11 @@
     '*': NotFound,
   };
 
-  let sidebarOpen = true;
+  let sidebarOpen = writable(true);
   let loading = true;
 
   // Auth guard
-  function authGuard(detail) {
+  function authGuard(detail: any) {
     if (!$authStore.isAuthenticated && detail.location !== '/login') {
       push('/login');
       return false;
@@ -73,16 +74,16 @@
 
   // Toggle sidebar
   function toggleSidebar() {
-    sidebarOpen = !sidebarOpen;
+    sidebarOpen.update((value) => !value);
   }
 
   // Handle route changes
-  function handleRouteChange(event) {
+  function handleRouteChange(event: any) {
     const { location } = event.detail;
 
     // Close sidebar on mobile after navigation
     if (window.innerWidth < 768) {
-      sidebarOpen = false;
+      sidebarOpen.set(false);
     }
 
     // Update page title
@@ -95,7 +96,7 @@
       '/login': 'Login',
     };
 
-    const title = pageTitles[location] || 'WakeDock';
+    const title = (pageTitles as any)[location] || 'WakeDock';
     document.title = `${title} - WakeDock`;
   }
 </script>
@@ -112,12 +113,12 @@
       <!-- Authenticated Layout -->
       <div class="app-layout">
         <!-- Sidebar -->
-        <Sidebar bind:open={sidebarOpen} />
+        <Sidebar open={sidebarOpen} />
 
         <!-- Main Content Area -->
-        <div class="main-content" class:shifted={sidebarOpen}>
+        <div class="main-content" class:shifted={$sidebarOpen}>
           <!-- Top Navigation -->
-          <Navbar {toggleSidebar} />
+          <Navbar on:toggle-sidebar={toggleSidebar} />
 
           <!-- Page Content -->
           <main class="page-content">
@@ -126,7 +127,7 @@
         </div>
 
         <!-- Mobile Sidebar Overlay -->
-        {#if sidebarOpen}
+        {#if $sidebarOpen}
           <div
             class="sidebar-overlay"
             on:click={toggleSidebar}
