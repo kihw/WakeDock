@@ -5,11 +5,33 @@
 import { writable, derived } from 'svelte/store';
 import { api, type SystemOverview, type ApiError } from '../api.js';
 
+export interface SystemNotification {
+    id: string;
+    type: 'info' | 'success' | 'warning' | 'error';
+    message: string;
+    timestamp: string;
+    read: boolean;
+}
+
 interface SystemState {
     overview: SystemOverview | null;
     health: Record<string, any> | null;
+    services: any[] | null;
+    status: string | null;
+    notifications: SystemNotification[] | null;
     isLoading: boolean;
     error: string | null;
+    // Additional properties needed by components
+    system: {
+        status: string;
+    } | null;
+    metrics: {
+        cpu: number;
+        memory: number;
+        disk: number;
+    } | null;
+    uptime: number | null;
+    memoryUsed: number | null;
     lastUpdated: Date | null;
     autoRefresh: boolean;
     refreshInterval: number; // in seconds
@@ -18,11 +40,19 @@ interface SystemState {
 const initialState: SystemState = {
     overview: null,
     health: null,
+    services: null,
+    status: null,
+    notifications: [],
     isLoading: false,
     error: null,
     lastUpdated: null,
     autoRefresh: false,
     refreshInterval: 30,
+    // Initialize additional properties
+    system: null,
+    metrics: null,
+    uptime: null,
+    memoryUsed: null,
 };
 
 // Create the writable store
@@ -171,4 +201,27 @@ export const system = {
     cleanup: () => {
         stopAutoRefresh();
     },
+
+    // Load system info (alias for load)
+    loadSystemInfo: async () => {
+        await system.load();
+    },
+
+    // Update services
+    updateServices: (newServices: any[]) => {
+        update(state => ({ ...state, services: newServices }));
+    },
+
+    // Update system status
+    updateStatus: (newStatus: string) => {
+        update(state => ({ ...state, status: newStatus }));
+    },
+
+    // Update notifications
+    updateNotifications: (newNotifications: any[]) => {
+        update(state => ({ ...state, notifications: newNotifications }));
+    },
 };
+
+// Alias for compatibility
+export const systemStore = system;

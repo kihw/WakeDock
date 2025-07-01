@@ -116,9 +116,9 @@
 
     // Auto-recover if enabled
     if (autoRecover && !autoRecoverTimer) {
-      autoRecoverTimer = setTimeout(() => {
+      autoRecoverTimer = window.setTimeout(() => {
         handleRetry();
-      }, autoRecoverDelay);
+      }, autoRecoverDelay) as unknown as number;
     }
   }
 

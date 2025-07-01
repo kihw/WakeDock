@@ -436,9 +436,9 @@
   function startAutoRefresh() {
     if (refreshTimer) clearInterval(refreshTimer);
 
-    refreshTimer = setInterval(() => {
+    refreshTimer = window.setInterval(() => {
       dispatch('refresh');
-    }, refreshInterval);
+    }, refreshInterval) as unknown as number;
   }
 
   function stopAutoRefresh() {

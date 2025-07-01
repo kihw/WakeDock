@@ -21,6 +21,7 @@ interface AuthState {
     user: User | null;
     token: string | null;
     refreshToken: string | null;
+    isAuthenticated: boolean;
     isLoading: boolean;
     error: string | null;
     isRefreshing: boolean;
@@ -32,6 +33,7 @@ const initialState: AuthState = {
     user: null,
     token: null,
     refreshToken: null,
+    isAuthenticated: false,
     isLoading: false,
     error: null,
     isRefreshing: false,
@@ -43,8 +45,8 @@ const initialState: AuthState = {
 const { subscribe, set, update } = writable<AuthState>(initialState);
 
 // Token refresh timeout
-let refreshTimer: number | null = null;
-let sessionTimer: number | null = null;
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+let sessionTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Helper to decode JWT token
 function decodeToken(token: string): any {
@@ -140,6 +142,7 @@ export const auth = {
                     user,
                     token,
                     refreshToken: null, // TODO: récupérer depuis localStorage si disponible
+                    isAuthenticated: true,
                     isLoading: false,
                     error: null,
                     isRefreshing: false,
@@ -151,6 +154,7 @@ export const auth = {
                     user: null,
                     token: null,
                     refreshToken: null,
+                    isAuthenticated: false,
                     isLoading: false,
                     error: null,
                     isRefreshing: false,
@@ -166,6 +170,7 @@ export const auth = {
                 user: null,
                 token: null,
                 refreshToken: null,
+                isAuthenticated: false,
                 isLoading: false,
                 error: null,
                 isRefreshing: false,
@@ -217,6 +222,7 @@ export const auth = {
                 user,
                 token: response.access_token,
                 refreshToken: extendedResponse.refresh_token || null,
+                isAuthenticated: true,
                 isLoading: false,
                 error: null,
                 isRefreshing: false,
@@ -363,4 +369,31 @@ export const auth = {
         const fiveMinutes = 5 * 60 * 1000;
         return new Date().getTime() > (state.sessionExpiry.getTime() - fiveMinutes);
     },
+
+    // Verify token validity
+    verifyToken: async (): Promise<boolean> => {
+        try {
+            const state = get({ subscribe });
+            if (!state.token) return false;
+
+            const user = await api.auth.getCurrentUser();
+            if (user) {
+                update((currentState: AuthState) => ({
+                    ...currentState,
+                    user,
+                    isAuthenticated: true,
+                    lastActivity: new Date()
+                }));
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Token verification failed:', error);
+            await auth.logout();
+            return false;
+        }
+    },
 };
+
+// Alias for compatibility
+export const authStore = auth;

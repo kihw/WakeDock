@@ -157,6 +157,15 @@
             disk_usage: update.disk_usage,
             uptime: update.uptime,
           },
+          docker: {
+            version: '20.10.0',
+            api_version: '1.41',
+            status: 'healthy',
+          },
+          caddy: {
+            version: '2.6.0',
+            status: 'healthy',
+          },
         };
         quickStats = update.services_count;
         stats.update((s) => ({

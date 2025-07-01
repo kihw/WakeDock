@@ -57,7 +57,7 @@ declare global {
 
     // Service Worker types
     interface ServiceWorkerGlobalScope {
-        clients: any; // ServiceWorker clients
+        clients: any;
         registration: ServiceWorkerRegistration;
         skipWaiting(): Promise<void>;
     }

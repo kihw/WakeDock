@@ -16,6 +16,10 @@
   export let ariaDescribedBy: string = '';
   export let loadingText: string = 'Loading...';
   export let autoFocus: boolean = false;
+  
+  // Allow custom CSS classes
+  let cssClass = '';
+  export { cssClass as class };
 
   // Variant classes with improved focus states
   const variantClasses = {
@@ -53,6 +57,7 @@
     sizeClasses[size],
     fullWidth ? 'w-full' : '',
     loading ? 'cursor-wait' : '',
+    cssClass, // Add custom classes
   ]
     .filter(Boolean)
     .join(' ');

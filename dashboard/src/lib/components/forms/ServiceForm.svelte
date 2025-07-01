@@ -285,6 +285,7 @@
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
       <Input
+        id="service-name"
         label="Service Name"
         bind:value={$formData.name}
         placeholder="my-service"
@@ -294,6 +295,7 @@
       />
 
       <Input
+        id="docker-image"
         label="Docker Image"
         bind:value={$formData.image}
         placeholder="nginx"
@@ -302,6 +304,7 @@
       />
 
       <Input
+        id="docker-tag"
         label="Tag"
         bind:value={$formData.tag}
         placeholder="latest"
@@ -405,9 +408,15 @@
       <div class="space-y-3">
         {#each $formData.environment as env, index}
           <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
-            <Input placeholder="Variable name" bind:value={env.key} class="flex-1" />
+            <Input
+              id="env-key-{index}"
+              placeholder="Variable name"
+              bind:value={env.key}
+              class="flex-1"
+            />
             <Icon name="equal" class="w-4 h-4 text-gray-400" />
             <Input
+              id="env-value-{index}"
               type={env.isSecret ? 'password' : 'text'}
               placeholder="Value"
               bind:value={env.value}
@@ -463,9 +472,19 @@
       <div class="space-y-3">
         {#each $formData.volumes as volume, index}
           <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
-            <Input placeholder="Host path" bind:value={volume.host} class="flex-1" />
+            <Input
+              id="volume-host-{index}"
+              placeholder="Host path"
+              bind:value={volume.host}
+              class="flex-1"
+            />
             <Icon name="arrow-right" class="w-4 h-4 text-gray-400" />
-            <Input placeholder="Container path" bind:value={volume.container} class="flex-1" />
+            <Input
+              id="volume-container-{index}"
+              placeholder="Container path"
+              bind:value={volume.container}
+              class="flex-1"
+            />
             <Select bind:value={volume.mode} options={volumeModes} class="w-24" />
             <Button type="button" variant="danger" size="sm" on:click={() => removeVolume(index)}>
               <Icon name="trash-2" class="w-4 h-4" />
@@ -501,7 +520,7 @@
         min="0"
       />
 
-      <Input type="number" label="Replicas" bind:value={$formData.replicas} min="1" />
+      <Input type="number" id="replicas" label="Replicas" bind:value={$formData.replicas} min="1" />
     </div>
   </div>
 
@@ -522,6 +541,7 @@
     {#if $formData.healthCheck.enabled}
       <div class="space-y-4">
         <Input
+          id="health-check-command"
           label="Health Check Command"
           bind:value={$formData.healthCheck.command}
           placeholder="curl -f http://localhost:8080/health"
@@ -542,7 +562,13 @@
             min="1"
           />
 
-          <Input type="number" label="Retries" bind:value={$formData.healthCheck.retries} min="1" />
+          <Input
+            type="number"
+            id="retries"
+            label="Retries"
+            bind:value={$formData.healthCheck.retries}
+            min="1"
+          />
         </div>
       </div>
     {/if}
@@ -576,9 +602,19 @@
       <div class="space-y-3">
         {#each $formData.labels as label, index}
           <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
-            <Input placeholder="Label key" bind:value={label.key} class="flex-1" />
+            <Input
+              id="label-key-{index}"
+              placeholder="Label key"
+              bind:value={label.key}
+              class="flex-1"
+            />
             <Icon name="equal" class="w-4 h-4 text-gray-400" />
-            <Input placeholder="Label value" bind:value={label.value} class="flex-1" />
+            <Input
+              id="label-value-{index}"
+              placeholder="Label value"
+              bind:value={label.value}
+              class="flex-1"
+            />
             <Button type="button" variant="danger" size="sm" on:click={() => removeLabel(index)}>
               <Icon name="trash-2" class="w-4 h-4" />
             </Button>

@@ -108,10 +108,10 @@ export class RoutePreloader {
         }
 
         // Schedule preload
-        const timeout = setTimeout(() => {
+        const timeout = window.setTimeout(() => {
             preloadComponent(importFn, `route:${route}`);
             this.preloadTimeouts.delete(route);
-        }, delay);
+        }, delay) as unknown as number;
 
         this.preloadTimeouts.set(route, timeout);
     }

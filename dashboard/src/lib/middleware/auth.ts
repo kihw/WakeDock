@@ -5,6 +5,7 @@
 import { redirect } from '@sveltejs/kit';
 import { api } from '../api.js';
 import type { RequestEvent } from '@sveltejs/kit';
+/// <reference path="../../app.d.ts" />
 
 interface AuthMiddlewareOptions {
     requireAuth?: boolean;
@@ -39,8 +40,8 @@ export async function authMiddleware(
             }
 
             // Add user to locals for use in components
-            event.locals.user = user;
-            event.locals.isAuthenticated = true;
+            (event.locals as any).user = user;
+            (event.locals as any).isAuthenticated = true;
         } catch (error) {
             // Token is invalid, clear it and redirect
             await api.auth.logout();
@@ -49,12 +50,12 @@ export async function authMiddleware(
                 throw redirect(302, redirectTo);
             }
 
-            event.locals.user = null;
-            event.locals.isAuthenticated = false;
+            (event.locals as any).user = null;
+            (event.locals as any).isAuthenticated = false;
         }
     } else {
-        event.locals.user = null;
-        event.locals.isAuthenticated = false;
+        (event.locals as any).user = null;
+        (event.locals as any).isAuthenticated = false;
     }
 }
 

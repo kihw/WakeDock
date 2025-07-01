@@ -315,7 +315,12 @@
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    try {
+      const date = new Date(timestamp);
+      return date.toLocaleString();
+    } catch {
+      return timestamp;
+    }
   };
 
   // Audit Logs functions
@@ -484,16 +489,6 @@
   // Close log details
   function closeLogDetails() {
     selectedLog = null;
-  }
-
-  // Format timestamp for display
-  function formatTimestamp(timestamp: string): string {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleString();
-    } catch {
-      return timestamp;
-    }
   }
 
   // Get status color

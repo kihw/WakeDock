@@ -75,8 +75,8 @@
         aria-label="Notifications"
       >
         <Icon name="bell" size="18" />
-        {#if $systemStore.notifications?.length > 0}
-          <span class="notification-badge">{$systemStore.notifications.length}</span>
+        {#if ($systemStore.notifications || []).length > 0}
+          <span class="notification-badge">{($systemStore.notifications || []).length}</span>
         {/if}
       </button>
 
@@ -88,8 +88,8 @@
           </div>
 
           <div class="notifications-list">
-            {#if $systemStore.notifications?.length > 0}
-              {#each $systemStore.notifications as notification}
+            {#if ($systemStore.notifications || []).length > 0}
+              {#each $systemStore.notifications || [] as notification}
                 <div class="notification-item" class:unread={!notification.read}>
                   <div
                     class="notification-icon"

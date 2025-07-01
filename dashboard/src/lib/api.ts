@@ -18,6 +18,7 @@ export interface ApiError {
 export interface Service {
     id: string;
     name: string;
+    subdomain: string; // Add missing subdomain property
     image: string;
     status: 'running' | 'stopped' | 'error' | 'starting' | 'stopping';
     ports: Array<{
@@ -36,6 +37,12 @@ export interface Service {
     health_status?: 'healthy' | 'unhealthy' | 'unknown';
     restart_policy: 'no' | 'always' | 'on-failure' | 'unless-stopped';
     labels: Record<string, string>;
+    last_accessed?: string;
+    resource_usage?: {
+        cpu_usage: number;
+        memory_usage: number;
+        network_io: { rx: number; tx: number };
+    };
 }
 
 export interface SystemOverview {
@@ -457,6 +464,43 @@ class ApiClient {
             API_ENDPOINTS.SERVICES.LOGS(id, lines)
         );
         return response.logs;
+    }
+
+    // Services API object for compatibility
+    services = {
+        getAll: () => this.getServices(),
+        getById: (id: string) => this.getService(id),
+        create: (service: CreateServiceRequest) => this.createService(service),
+        update: (service: UpdateServiceRequest) => this.updateService(service),
+        delete: (id: string) => this.deleteService(id),
+        start: (id: string) => this.startService(id),
+        stop: (id: string) => this.stopService(id),
+        restart: (id: string) => this.restartService(id),
+        getLogs: (id: string, lines?: number) => this.getServiceLogs(id, lines)
+    };
+
+    // General-purpose HTTP methods
+    async get<T>(path: string): Promise<{ ok: boolean; data?: T }> {
+        try {
+            const data = await this.request<T>(path, { method: 'GET' });
+            return { ok: true, data };
+        } catch (error) {
+            console.error('GET request failed:', error);
+            return { ok: false };
+        }
+    }
+
+    async post<T>(path: string, body?: any): Promise<{ ok: boolean; data?: T }> {
+        try {
+            const data = await this.request<T>(path, {
+                method: 'POST',
+                body: body ? JSON.stringify(body) : undefined
+            });
+            return { ok: true, data };
+        } catch (error) {
+            console.error('POST request failed:', error);
+            return { ok: false };
+        }
     }
 
     // Utility methods

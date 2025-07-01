@@ -21,6 +21,10 @@
   export let multiple: boolean = false;
   export let autocomplete: string = '';
 
+  // Class prop support
+  let cssClass = '';
+  export { cssClass as class };
+
   const dispatch = createEventDispatcher<{
     change: { value: string | number | string[] };
     focus: void;
@@ -92,16 +96,16 @@
       id={selectId}
       {required}
       {disabled}
-      multiple={multiple}
+      {multiple}
       {autocomplete}
       class="block w-full {sizeClasses[
         size
       ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200
       {error
         ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}"
+        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} {cssClass}"
       class:pr-10={error && !multiple}
-      value={value}
+      {value}
       on:change={handleChange}
       on:blur={handleBlur}
       on:focus={handleFocus}

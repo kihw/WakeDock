@@ -444,6 +444,27 @@ class AuditLogger {
             details
         });
     }
+
+    /**
+     * Get audit logs for display (alias for getAllLogs)
+     */
+    getAuditLogs(): AuditLogEntry[] {
+        return this.getAllLogs();
+    }
+
+    /**
+     * Export audit logs to CSV (alias for exportToCSV)
+     */
+    exportAuditLogs(): string {
+        return this.exportToCSV();
+    }
+
+    /**
+     * Clear all audit logs
+     */
+    clearAuditLogs(): void {
+        this.clearAllLogs();
+    }
 }
 
 // Export singleton instance
@@ -453,5 +474,18 @@ export const auditLogger = new AuditLogger();
 export const securityAudit = {
     log: (category: AuditCategory, action: AuditAction, status: 'success' | 'failure', details?: Record<string, any>) => {
         auditLogger.log({ category, action, status, details });
+    },
+    dataAccess: (action: string, resource: string, details?: Record<string, any>) => {
+        auditLogger.logDataAccess(
+            action === 'read' ? AuditAction.DATA_READ :
+                action === 'create' ? AuditAction.DATA_CREATE :
+                    action === 'update' ? AuditAction.DATA_UPDATE :
+                        action === 'delete' ? AuditAction.DATA_DELETE :
+                            AuditAction.DATA_READ,
+            'security_dashboard',
+            resource,
+            'success',
+            details
+        );
     }
 };

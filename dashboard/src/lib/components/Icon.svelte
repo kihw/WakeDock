@@ -121,7 +121,9 @@
 
   // Get the path for the icon
   const getIconPath = (iconName: string): string => {
-    return icons[iconName] || icons['circle']; // fallback to circle if icon not found
+    return (
+      (icons as Record<string, string>)[iconName] || (icons as Record<string, string>)['circle']
+    ); // fallback to circle if icon not found
   };
 </script>
 
@@ -136,6 +138,7 @@
   stroke-linejoin="round"
   class="icon {className}"
   aria-hidden="true"
+  {...$$restProps}
 >
   {#each getIconPath(name).split(' M') as pathSegment, i}
     {#if i === 0}

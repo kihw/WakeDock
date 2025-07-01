@@ -835,3 +835,4 @@ if (typeof window !== 'undefined') {
 	`;
     document.head.appendChild(style);
 }
+

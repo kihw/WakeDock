@@ -14,13 +14,13 @@
   onMount(() => {
     // Check for high contrast preference
     isHighContrast = window.matchMedia('(prefers-contrast: high)').matches;
-    
+
     // Check for reduced motion preference
     prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    
+
     // Listen for status changes and announce them
     const unsubscribe = systemStore.subscribe((store) => {
-      const currentStatus = store.system?.status;
+      const currentStatus = store.system?.status || 'unknown';
       if (previousStatus && currentStatus !== previousStatus) {
         announceToScreenReader(`System status changed to ${currentStatus}`);
       }
@@ -33,21 +33,26 @@
     };
   });
 
-  // Status color mapping
-  const statusColors = {
+  // Status color mapping with string index signature
+  const statusColors: Record<string, string> = {
     healthy: 'var(--color-success)',
     warning: 'var(--color-warning)',
     error: 'var(--color-error)',
     unknown: 'var(--color-text-secondary)',
   };
 
-  // Status icons
-  const statusIcons = {
+  // Status icons with string index signature
+  const statusIcons: Record<string, string> = {
     healthy: 'check-circle',
     warning: 'alert-triangle',
     error: 'alert-circle',
     unknown: 'help-circle',
   };
+
+  // Computed values to handle null status safely
+  $: currentStatus = $systemStore.status || 'unknown';
+  $: statusColor = statusColors[currentStatus] || statusColors.unknown;
+  $: statusIcon = statusIcons[currentStatus] || statusIcons.unknown;
 
   // Format uptime with proper sanitization
   function formatUptime(seconds: number): string {
@@ -98,46 +103,42 @@
   });
 </script>
 
-<section 
-  class="system-status" 
-  role="region" 
+<section
+  class="system-status"
+  role="region"
   aria-labelledby="system-status-heading"
   class:high-contrast={isHighContrast}
   class:reduced-motion={prefersReducedMotion}
 >
   <h2 id="system-status-heading" class="sr-only">System Status Information</h2>
-  
+
   <!-- Primary Status -->
   <div class="status-primary" role="group" aria-labelledby="primary-status-label">
     <span id="primary-status-label" class="sr-only">Primary system status</span>
     <div
       class="status-indicator"
-      style="color: {statusColors[$systemStore.status] || statusColors.unknown}"
+      style="color: {statusColor}"
       role="img"
-      aria-label="Status indicator: {$systemStore.status || 'Unknown'}"
+      aria-label="Status indicator: {currentStatus}"
     >
-      <Icon 
-        name={statusIcons[$systemStore.status] || statusIcons.unknown} 
-        size="16" 
-        aria-hidden="true"
-      />
+      <Icon name={statusIcon} size="16" aria-hidden="true" />
     </div>
     <span class="status-text" aria-live="polite">
-      {sanitizeInput($systemStore.status || 'Unknown')}
+      {sanitizeInput(currentStatus)}
     </span>
   </div>
 
   <!-- Metrics -->
   <div class="status-metrics" role="group" aria-labelledby="metrics-heading">
     <h3 id="metrics-heading" class="sr-only">System Resource Metrics</h3>
-    
+
     <!-- CPU Usage -->
     <div class="metric" role="group" aria-labelledby="cpu-metric-label">
       <Icon name="cpu" size="14" aria-hidden="true" />
       <span id="cpu-metric-label" class="metric-label">CPU</span>
-      <div 
-        class="metric-bar" 
-        role="progressbar" 
+      <div
+        class="metric-bar"
+        role="progressbar"
         aria-valuenow={$systemStore.metrics?.cpu || 0}
         aria-valuemin="0"
         aria-valuemax="100"
@@ -162,9 +163,9 @@
     <div class="metric" role="group" aria-labelledby="memory-metric-label">
       <Icon name="hard-drive" size="14" aria-hidden="true" />
       <span id="memory-metric-label" class="metric-label">RAM</span>
-      <div 
-        class="metric-bar" 
-        role="progressbar" 
+      <div
+        class="metric-bar"
+        role="progressbar"
         aria-valuenow={$systemStore.metrics?.memory || 0}
         aria-valuemin="0"
         aria-valuemax="100"
@@ -189,9 +190,9 @@
     <div class="metric" role="group" aria-labelledby="disk-metric-label">
       <Icon name="database" size="14" aria-hidden="true" />
       <span id="disk-metric-label" class="metric-label">Disk</span>
-      <div 
-        class="metric-bar" 
-        role="progressbar" 
+      <div
+        class="metric-bar"
+        role="progressbar"
         aria-valuenow={$systemStore.metrics?.disk || 0}
         aria-valuemin="0"
         aria-valuemax="100"
@@ -216,12 +217,14 @@
   <!-- Additional Info -->
   <div class="status-info" role="group" aria-labelledby="additional-info-heading">
     <h3 id="additional-info-heading" class="sr-only">Additional System Information</h3>
-    
+
     <!-- Running Services -->
     <div class="info-item" aria-label="Running services count">
       <Icon name="server" size="12" aria-hidden="true" />
       <span class="info-value" aria-live="polite">
-        {sanitizeInput(String($systemStore.services?.filter((s) => s.status === 'running').length || 0))}
+        {sanitizeInput(
+          String($systemStore.services?.filter((s) => s.status === 'running').length || 0)
+        )}
       </span>
       <span class="info-label">running</span>
     </div>
@@ -390,7 +393,7 @@
   }
 
   /* Screen Reader Improvements */
-  [aria-live="polite"] {
+  [aria-live='polite'] {
     position: relative;
   }
 
@@ -427,7 +430,7 @@
       font-size: 0.75rem;
     }
   }
-</style>
+
   /* Responsive */
   @media (max-width: 1024px) {
     .status-metrics {

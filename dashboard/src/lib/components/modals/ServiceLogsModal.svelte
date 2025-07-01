@@ -161,45 +161,16 @@
       isLoading = false;
     }
   }
+
+  // Configuration options
+  const lineLimitOptions = [
+    { value: 50, label: '50 lines' },
     { value: 100, label: '100 lines' },
     { value: 500, label: '500 lines' },
     { value: 1000, label: '1000 lines' },
     { value: 5000, label: '5000 lines' },
     { value: 0, label: 'All lines' },
   ];
-
-  // Load logs
-  async function loadLogs() {
-    if (!serviceId) return;
-
-    isLoading = true;
-    error = null;
-
-    try {
-      const response = await api.getServiceLogs(serviceId, maxLines);
-
-      if (response.success && response.data) {
-        const logLines = Array.isArray(response.data)
-          ? response.data
-          : response.data.split('\n').filter((line) => line.trim());
-
-        logs.set(logLines);
-        filterLogs();
-
-        // Auto scroll to bottom if enabled
-        if (shouldAutoScroll && logsContainer) {
-          setTimeout(() => {
-            logsContainer.scrollTop = logsContainer.scrollHeight;
-          }, 50);
-        }
-      }
-    } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to load logs';
-      logger.error('Failed to load service logs:', err);
-    } finally {
-      isLoading = false;
-    }
-  }
 
   // Enhanced filter logs with sanitization
   function filterLogs() {
@@ -300,7 +271,6 @@
     } else if (isAtBottom) {
       announceToScreenReader('Scrolled to bottom of logs.');
     }
-  }
   }
 
   // Enhanced scroll functions with announcements
@@ -524,8 +494,6 @@
         </Button>
       </div>
     {/if}
-          <span>Copy</span>
-        </Button>
 
         <Button
           variant="secondary"

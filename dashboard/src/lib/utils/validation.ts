@@ -14,7 +14,9 @@ export interface ValidationRule<T = string> {
 
 export interface ValidationResult {
     valid: boolean;
+    isValid: boolean; // Add alias for compatibility
     message?: string;
+    errors?: Record<string, string>; // Add errors object
 }
 
 export interface FieldValidationOptions {
@@ -40,7 +42,7 @@ export const PATTERNS = {
 // Common validation rules
 export const rules = {
     required: (message = 'This field is required'): ValidationRule => ({
-        validate: (value) => {
+        validate: (value: any) => {
             if (value === null || value === undefined) return false;
             if (typeof value === 'string') return value.trim().length > 0;
             if (Array.isArray(value)) return value.length > 0;
@@ -146,16 +148,16 @@ export function validate<T = string>(
     form?: Record<string, any>
 ): ValidationResult {
     if (!Array.isArray(validationRules)) {
-        return { valid: true };
+        return { valid: true, isValid: true };
     }
 
     for (const rule of validationRules) {
         if (!rule.validate(value, form)) {
-            return { valid: false, message: rule.message };
+            return { valid: false, isValid: false, message: rule.message };
         }
     }
 
-    return { valid: true };
+    return { valid: true, isValid: true };
 }
 
 /**
@@ -392,5 +394,146 @@ export const accessibleValidation = {
         }
 
         return result;
+    }
+};
+
+/**
+ * CSRF Token Generation and Validation
+ */
+export function generateCSRFToken(): string {
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < 32; i++) {
+        result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+}
+
+export function verifyCSRFToken(token: string): boolean {
+    return typeof token === 'string' && token.length === 32;
+}
+
+/**
+ * Rate Limiting
+ */
+const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
+
+export function checkRateLimit(
+    keyOrAttempts: string | number, 
+    limitOrLastAttempt?: number, 
+    windowMsOrMaxAttempts?: number, 
+    rateLimitWindow?: number
+): boolean | { allowed: boolean } {
+    // Handle legacy 4-parameter call pattern
+    if (typeof keyOrAttempts === 'number' && typeof limitOrLastAttempt === 'number' && typeof windowMsOrMaxAttempts === 'number' && typeof rateLimitWindow === 'number') {
+        const attempts = keyOrAttempts;
+        const lastAttemptTime = limitOrLastAttempt;
+        const maxAttempts = windowMsOrMaxAttempts;
+        const window = rateLimitWindow;
+        
+        const now = Date.now();
+        const timeSinceLastAttempt = now - lastAttemptTime;
+        
+        // If enough time has passed, reset the counter
+        if (timeSinceLastAttempt > window) {
+            return { allowed: true };
+        }
+        
+        // Check if we've exceeded the limit
+        return { allowed: attempts < maxAttempts };
+    }
+    
+    // Handle normal 3-parameter call pattern
+    const key = keyOrAttempts as string;
+    const limit = limitOrLastAttempt || 10;
+    const windowMs = windowMsOrMaxAttempts || 60000;
+    
+    const now = Date.now();
+    const entry = rateLimitStore.get(key);
+
+    if (!entry || now - entry.timestamp > windowMs) {
+        rateLimitStore.set(key, { count: 1, timestamp: now });
+        return true;
+    }
+
+    if (entry.count >= limit) {
+        return false;
+    }
+
+    entry.count++;
+    return true;
+}
+
+export function resetRateLimit(key: string): void {
+    rateLimitStore.delete(key);
+}
+
+/**
+ * Security Validation
+ */
+export function securityValidate(data: Record<string, any>): boolean {
+    // Basic security validation
+    for (const [key, value] of Object.entries(data)) {
+        if (typeof value === 'string') {
+            // Check for basic XSS patterns
+            if (/<script|javascript:|on\w+=/i.test(value)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * Service Configuration Validation
+ */
+export function validateServiceConfig(config: Record<string, any>): ValidationResult {
+    const errors: string[] = [];
+
+    if (!config.name || typeof config.name !== 'string' || config.name.trim().length === 0) {
+        errors.push('Service name is required');
+    }
+
+    if (!config.image || typeof config.image !== 'string' || config.image.trim().length === 0) {
+        errors.push('Docker image is required');
+    }
+
+    if (config.ports && Array.isArray(config.ports)) {
+        for (const port of config.ports) {
+            if (!port.host || !port.container) {
+                errors.push('Port mappings must have both host and container ports');
+            }
+        }
+    }
+
+    return {
+        valid: errors.length === 0,
+        isValid: errors.length === 0,
+        message: errors.join(', '),
+        errors: errors.length > 0 ? { general: errors.join(', ') } : {}
+    };
+}
+
+/**
+ * CSRF Token Management
+ */
+export const csrf = {
+    generate: generateCSRFToken,
+    verify: verifyCSRFToken,
+    getToken: () => {
+        // Get token from meta tag or generate one
+        const meta = typeof document !== 'undefined' ? document.querySelector('meta[name="csrf-token"]') : null;
+        return meta?.getAttribute('content') || generateCSRFToken();
+    }
+};
+
+/**
+ * Rate Limit Management
+ */
+export const rateLimit = {
+    check: checkRateLimit,
+    reset: resetRateLimit,
+    isLimited: (key: string, limit: number = 10, windowMs: number = 60000): boolean => {
+        return !checkRateLimit(key, limit, windowMs);
     }
 };

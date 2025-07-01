@@ -71,6 +71,7 @@ class WebSocketClient {
     private reconnectTimer: NodeJS.Timeout | null = null;
     private pingInterval: NodeJS.Timeout | null = null;
     private subscriptions = new Set<string>();
+    private eventCallbacks = new Map<string, ((data: any) => void)[]>();
     private messageQueue: WebSocketMessage[] = [];
     private lastSequenceNumber = 0;
     private heartbeatInterval = 30000; // 30 seconds
@@ -206,10 +207,19 @@ class WebSocketClient {
     }
 
     /**
-     * Subscribe to specific event types
+     * Subscribe to specific event types with optional callback
      */
-    subscribe(eventType: string): void {
+    subscribe(eventType: string, callback?: (data: any) => void): void {
         this.subscriptions.add(eventType);
+        
+        // Store callback if provided
+        if (callback) {
+            if (!this.eventCallbacks.has(eventType)) {
+                this.eventCallbacks.set(eventType, []);
+            }
+            this.eventCallbacks.get(eventType)!.push(callback);
+        }
+        
         if (this.ws?.readyState === WebSocket.OPEN) {
             this.send({
                 type: 'subscribe',
@@ -303,21 +313,48 @@ class WebSocketClient {
     private handleMessage(message: WebSocketMessage): void {
         debugLog('WebSocket message received:', message);
 
+        // Call registered callbacks for this message type  
+        const callbacks = this.eventCallbacks.get(message.type);
+        if (callbacks) {
+            callbacks.forEach(callback => {
+                try {
+                    callback(message.data);
+                } catch (error) {
+                    console.error('Error in WebSocket callback:', error);
+                }
+            });
+        }
+
         switch (message.type) {
             case 'service_update':
+            case 'service_status':
                 this.handleServiceUpdate(message.data);
                 break;
 
             case 'system_update':
+            case 'system_metrics':
                 this.handleSystemUpdate(message.data);
                 break;
 
             case 'log_entry':
+            case 'service_logs':
                 this.handleLogEntry(message.data);
                 break;
 
             case 'notification':
                 this.handleNotification(message.data);
+                break;
+
+            case 'security_event':
+                // Handle security events - can be extended as needed
+                break;
+
+            case 'session_update':
+                // Handle session updates - can be extended as needed
+                break;
+
+            case 'request_metrics':
+                // Handle request metrics - can be extended as needed
                 break;
 
             case 'pong':
@@ -401,6 +438,8 @@ class WebSocketClient {
 
 // Export singleton instance
 export const wsClient = new WebSocketClient();
+export const websocketClient = wsClient;
+export const websocket = wsClient;
 
 // Export individual stores for easier access
 export const {

@@ -51,8 +51,8 @@ const authHandle: Handle = async ({ event, resolve }) => {
             await authMiddleware(event, { requireAuth: false });
         } catch (error) {
             // Ignore errors for optional auth
-            event.locals.user = null;
-            event.locals.isAuthenticated = false;
+            (event.locals as any).user = null;
+            (event.locals as any).isAuthenticated = false;
         }
     }
 
@@ -93,7 +93,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
  * Error handling hook
  */
 const errorHandle: Handle = async ({ event, resolve }) => {
-    return await errorMiddleware(event, () => resolve(event));
+    return await errorMiddleware(event, async () => await resolve(event));
 };
 
 /**
@@ -164,7 +164,7 @@ export function handleError({ error, event }: { error: any; event: RequestEvent 
         url: event.url.pathname,
         method: event.request.method,
         timestamp: new Date().toISOString(),
-        user: event.locals.user?.id || 'anonymous',
+        user: (event.locals as any).user?.id || 'anonymous',
     });
 
     // Don't expose internal error details in production

@@ -25,6 +25,10 @@
   export let ariaLabel: string = '';
   export let ariaDescribedBy: string = '';
 
+  // Allow `class` prop as well (standard HTML attribute)
+  let cssClass = '';
+  export { cssClass as class };
+
   // Input sizing classes
   const sizeClasses = {
     sm: 'px-3 py-1.5 text-sm',

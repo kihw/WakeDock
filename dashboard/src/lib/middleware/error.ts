@@ -21,11 +21,11 @@ export async function errorMiddleware(
 ): Promise<Response> {
     try {
         // Add error context to locals
-        event.locals.errorContext = {
+        (event.locals as any).errorContext = {
             request: event,
             userAgent: event.request.headers.get('user-agent') || undefined,
             timestamp: new Date().toISOString(),
-            userId: event.locals.user?.id,
+            userId: (event.locals as any).user?.id,
         };
 
         return await next();

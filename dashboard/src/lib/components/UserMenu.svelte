@@ -14,7 +14,7 @@
   let menuElement: HTMLDivElement;
   let isMenuOpen = false;
   let currentFocusIndex = -1;
-  let menuItems: HTMLElement[] = [];
+  let focusableElements: HTMLElement[] = [];
 
   // Initialize security
   onMount(async () => {
@@ -216,7 +216,9 @@
           tabindex="-1"
           on:click={(e) => handleItemClick(item, e)}
         >
-          <Icon name={item.icon} size="16" aria-hidden="true" />
+          {#if item.icon}
+            <Icon name={item.icon} size="16" aria-hidden="true" />
+          {/if}
           <span class="menu-label">{item.label}</span>
         </button>
       {/if}

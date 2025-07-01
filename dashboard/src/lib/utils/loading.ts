@@ -54,10 +54,10 @@ export function startLoading(
     // Auto-timeout for stuck operations
     let timeoutId: number | null = null;
     if (options.timeout) {
-        timeoutId = setTimeout(() => {
+        timeoutId = window.setTimeout(() => {
             console.warn(`Loading operation "${operation}" timed out after ${options.timeout}ms`);
             stopLoading(key);
-        }, options.timeout);
+        }, options.timeout) as unknown as number;
     }
 
     // Return cleanup function
@@ -189,14 +189,14 @@ export function debouncedLoading(
         }
 
         // Set new timeout
-        const timeoutId = setTimeout(() => {
+        const timeoutId = window.setTimeout(() => {
             withLoading(key, operation, asyncFn)
                 .then(resolve)
                 .catch(reject)
                 .finally(() => {
                     loadingTimeouts.delete(key);
                 });
-        }, delay);
+        }, delay) as unknown as number;
 
         loadingTimeouts.set(key, timeoutId);
     });
