@@ -4,35 +4,23 @@
 
 {
     admin :2019
+    auto_https off
+    local_certs
 }
 
-# WakeDock Dashboard  
-admin.mtool.ovh {
+# WakeDock Dashboard
+http://localhost {
     reverse_proxy dashboard:3000 {
         header_up Host {upstream_hostport}
         header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
     }
 }
 
-# WakeDock API
-api.mtool.ovh {
+# WakeDock API  
+http://localhost:8000 {
     reverse_proxy wakedock:8000 {
         header_up Host {upstream_hostport}
         header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
-    }
-}
-
-# Default landing page
-localhost {
-    reverse_proxy dashboard:3000 {
-        header_up Host {upstream_hostport}
-        header_up X-Real-IP {remote_host}
-        header_up X-Forwarded-For {remote_host}
-        header_up X-Forwarded-Proto {scheme}
     }
 }
 

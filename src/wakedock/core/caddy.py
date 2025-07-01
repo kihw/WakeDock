@@ -27,7 +27,7 @@ class CaddyManager:
         
         self.reload_endpoint = self.settings.caddy.reload_endpoint
         self.admin_port = getattr(self.settings.caddy, 'admin_port', 2019)
-        self.admin_host = getattr(self.settings.caddy, 'admin_host', 'localhost')
+        self.admin_host = getattr(self.settings.caddy, 'admin_host', 'caddy')
         
         # Initialize Jinja2 environment for templates
         template_dir = self.config_path.parent / "templates"
