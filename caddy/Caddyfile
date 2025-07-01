@@ -3,73 +3,37 @@
 # Static configuration for WakeDock itself
 
 {
-    admin localhost:2019
-    auto_https on
-    
-    # Global options
-    servers {
-        protocol {
-            experimental_http3
-        }
-    }
+    admin :2019
 }
 
-# WakeDock Dashboard
-admin. { $DOMAIN:localhost } {
+# WakeDock Dashboard  
+admin.mtool.ovh {
     reverse_proxy dashboard:3000 {
-        header_up Host { upstream_hostport }
-        header_up X-Real-IP { remote_host }
-        header_up X-Forwarded-For { remote_host }
-        header_up X-Forwarded-Proto { scheme }
-    }
-    
-    # SSL for dashboard
-    tls {
-        on_demand
-    }
-    
-    # Logging
-    log {
-        output file /var/log/caddy/dashboard.log {
-            roll_size 10mb
-            roll_keep 3
-        }
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
     }
 }
 
 # WakeDock API
-api. { $DOMAIN:localhost } {
+api.mtool.ovh {
     reverse_proxy wakedock:8000 {
-        header_up Host { upstream_hostport }
-        header_up X-Real-IP { remote_host }
-        header_up X-Forwarded-For { remote_host }
-        header_up X-Forwarded-Proto { scheme }
-    }
-    
-    # SSL for API
-    tls {
-        on_demand
-    }
-    
-    # Logging
-    log {
-        output file /var/log/caddy/api.log {
-            roll_size 10mb
-            roll_keep 3
-        }
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
     }
 }
 
 # Default landing page
-{ $DOMAIN:localhost } {
-    respond "WakeDock is running! 🐳\n\nDashboard: https://admin.{$DOMAIN}\nAPI: https://api.{$DOMAIN}\n\nManaged services will appear at their configured domains." 200
-    header Content-Type "text/plain"
-}
-
-# Catch-all for managed services (will be dynamically updated)
-*. { $DOMAIN:localhost } {
-    respond "Service not found or not running. Check WakeDock dashboard for available services." 404
-    header Content-Type "text/plain"
+localhost {
+    reverse_proxy dashboard:3000 {
+        header_up Host {upstream_hostport}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
 }
 
 # Dynamic service configurations will be appended below this line
