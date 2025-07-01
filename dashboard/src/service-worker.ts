@@ -112,7 +112,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 // Handle API requests with cache-first strategy for cacheable endpoints
 async function handleApiRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  
+
   // GET requests to certain endpoints can be cached
   if (request.method === 'GET' && (
     url.pathname.includes('/services') ||
@@ -132,7 +132,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
         .catch(() => {
           // Ignore network errors for background updates
         });
-      
+
       return cachedResponse;
     }
   }
@@ -140,13 +140,13 @@ async function handleApiRequest(request: Request): Promise<Response> {
   // Network first for all API requests
   try {
     const response = await fetch(request);
-    
+
     // Cache successful GET responses
     if (response.ok && request.method === 'GET') {
       const cache = await caches.open(API_CACHE_NAME);
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     // Fallback to cache for GET requests
@@ -156,7 +156,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
         return cachedResponse;
       }
     }
-    
+
     return new Response('Network Error', { status: 503 });
   }
 }
@@ -170,12 +170,12 @@ async function handleStaticAsset(request: Request): Promise<Response> {
 
   try {
     const response = await fetch(request);
-    
+
     if (response.ok) {
       const cache = await caches.open(STATIC_CACHE_NAME);
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     return new Response('Asset not found', { status: 404 });
@@ -193,7 +193,7 @@ async function handleNavigation(request: Request): Promise<Response> {
     if (cachedResponse) {
       return cachedResponse;
     }
-    
+
     return new Response('Offline', { status: 503 });
   }
 }
@@ -215,7 +215,7 @@ function isStaticAsset(pathname: string): boolean {
 // Background sync for offline actions (simplified)
 self.addEventListener('sync', (event: any) => {
   console.log('[SW] Background sync triggered:', event.tag);
-  
+
   if (event.tag === 'background-sync') {
     event.waitUntil(doBackgroundSync());
   }
@@ -229,7 +229,7 @@ async function doBackgroundSync(): Promise<void> {
 // Push notification handling  
 self.addEventListener('push', (event: PushEvent) => {
   console.log('[SW] Push notification received');
-  
+
   const options = {
     body: 'WakeDock notification',
     icon: '/icons/icon-192x192.png',
@@ -247,7 +247,7 @@ self.addEventListener('push', (event: PushEvent) => {
 
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
   console.log('[SW] Notification clicked:', event.notification.tag);
-  
+
   event.notification.close();
 
   event.waitUntil(
@@ -263,7 +263,7 @@ async function removePendingAction(id: string): Promise<void> {
 // Message handling for communication with the main application
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   console.log('[SW] Message received:', event.data);
-  
+
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }

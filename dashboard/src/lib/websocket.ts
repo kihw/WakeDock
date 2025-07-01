@@ -211,7 +211,7 @@ class WebSocketClient {
      */
     subscribe(eventType: string, callback?: (data: any) => void): void {
         this.subscriptions.add(eventType);
-        
+
         // Store callback if provided
         if (callback) {
             if (!this.eventCallbacks.has(eventType)) {
@@ -219,7 +219,7 @@ class WebSocketClient {
             }
             this.eventCallbacks.get(eventType)!.push(callback);
         }
-        
+
         if (this.ws?.readyState === WebSocket.OPEN) {
             this.send({
                 type: 'subscribe',

@@ -419,9 +419,9 @@ export function verifyCSRFToken(token: string): boolean {
 const rateLimitStore = new Map<string, { count: number; timestamp: number }>();
 
 export function checkRateLimit(
-    keyOrAttempts: string | number, 
-    limitOrLastAttempt?: number, 
-    windowMsOrMaxAttempts?: number, 
+    keyOrAttempts: string | number,
+    limitOrLastAttempt?: number,
+    windowMsOrMaxAttempts?: number,
     rateLimitWindow?: number
 ): boolean | { allowed: boolean } {
     // Handle legacy 4-parameter call pattern
@@ -430,24 +430,24 @@ export function checkRateLimit(
         const lastAttemptTime = limitOrLastAttempt;
         const maxAttempts = windowMsOrMaxAttempts;
         const window = rateLimitWindow;
-        
+
         const now = Date.now();
         const timeSinceLastAttempt = now - lastAttemptTime;
-        
+
         // If enough time has passed, reset the counter
         if (timeSinceLastAttempt > window) {
             return { allowed: true };
         }
-        
+
         // Check if we've exceeded the limit
         return { allowed: attempts < maxAttempts };
     }
-    
+
     // Handle normal 3-parameter call pattern
     const key = keyOrAttempts as string;
     const limit = limitOrLastAttempt || 10;
     const windowMs = windowMsOrMaxAttempts || 60000;
-    
+
     const now = Date.now();
     const entry = rateLimitStore.get(key);
 

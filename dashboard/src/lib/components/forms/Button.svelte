@@ -16,7 +16,7 @@
   export let ariaDescribedBy: string = '';
   export let loadingText: string = 'Loading...';
   export let autoFocus: boolean = false;
-  
+
   // Allow custom CSS classes
   let cssClass = '';
   export { cssClass as class };
