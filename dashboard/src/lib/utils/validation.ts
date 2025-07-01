@@ -634,3 +634,18 @@ export const rateLimit = {
         this.attempts.delete(key);
     }
 };
+
+// Export additional helper functions that are needed by components
+/**
+ * Generate a CSRF token for form protection
+ */
+export function generateCSRFToken(): string {
+    return csrf.generateToken();
+}
+
+/**
+ * Check if an action is rate limited
+ */
+export function checkRateLimit(key: string, maxAttempts = 5, windowMs = 15 * 60 * 1000): boolean {
+    return rateLimit.isLimited(key, maxAttempts, windowMs);
+}
