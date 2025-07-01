@@ -4,7 +4,7 @@
 
 {
     admin :2019
-    auto_https off
+    auto_https on
     local_certs
 }
 
