@@ -18,20 +18,20 @@ export const waitForStoreUpdate = (store: any, predicate: (value: any) => boolea
     const startTime = Date.now();
     const checkStore = () => {
       const currentValue = get(store);
-      
+
       if (predicate(currentValue)) {
         resolve();
         return;
       }
-      
+
       if (Date.now() - startTime > timeout) {
         reject(new Error(`Store did not update to expected value within ${timeout}ms`));
         return;
       }
-      
+
       setTimeout(checkStore, 50);
     };
-    
+
     checkStore();
   });
 };
@@ -65,7 +65,7 @@ export const mockApiResponse = (endpoint: string, response: any, status = 200) =
     if (url.includes(endpoint)) {
       return Promise.resolve(mockFetchResponse(status, response));
     }
-    
+
     // Default fallback for unmatched URLs
     return Promise.resolve(mockFetchResponse(404, { error: 'Not Found' }));
   });
@@ -82,7 +82,7 @@ export const mockMultipleApiResponses = (mocks: Array<{ endpoint: string, respon
         return Promise.resolve(mockFetchResponse(mock.status || 200, mock.response));
       }
     }
-    
+
     // Default fallback for unmatched URLs
     return Promise.resolve(mockFetchResponse(404, { error: 'Not Found' }));
   });
@@ -97,23 +97,23 @@ export const mockMultipleApiResponses = (mocks: Array<{ endpoint: string, respon
 export const waitForElement = (selector: string, timeout = 5000): Promise<Element> => {
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
-    
+
     const check = () => {
       const element = document.querySelector(selector);
-      
+
       if (element) {
         resolve(element);
         return;
       }
-      
+
       if (Date.now() - startTime > timeout) {
         reject(new Error(`Element ${selector} did not appear within ${timeout}ms`));
         return;
       }
-      
+
       requestAnimationFrame(check);
     };
-    
+
     check();
   });
 };
@@ -152,7 +152,7 @@ export const createMockWebSocket = () => {
       mockWs.dispatchEvent(new Event('error'));
     }
   };
-  
+
   // Override addEventListener to store listeners
   mockWs.addEventListener.mockImplementation((type: string, listener: Function) => {
     if (!mockWs.listeners[type]) {
@@ -160,7 +160,7 @@ export const createMockWebSocket = () => {
     }
     mockWs.listeners[type].push(listener);
   });
-  
+
   // Override removeEventListener
   mockWs.removeEventListener.mockImplementation((type: string, listener: Function) => {
     if (!mockWs.listeners[type]) return;
@@ -169,6 +169,6 @@ export const createMockWebSocket = () => {
       mockWs.listeners[type].splice(index, 1);
     }
   });
-  
+
   return mockWs;
 };

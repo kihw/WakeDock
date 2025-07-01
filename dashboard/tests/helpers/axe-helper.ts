@@ -32,7 +32,7 @@ export async function runA11yTest(
   options: A11yTestOptions = {}
 ): Promise<axe.AxeResults> {
   const { rules, disabledRules, context, config } = options;
-  
+
   // Configure axe
   const axeConfig: axe.RunOptions = {
     ...config
@@ -41,12 +41,12 @@ export async function runA11yTest(
   // Add rule configurations if provided
   if (rules?.length || disabledRules?.length) {
     axeConfig.rules = {};
-    
+
     rules?.forEach(rule => {
       if (!axeConfig.rules) axeConfig.rules = {};
       axeConfig.rules[rule] = { enabled: true };
     });
-    
+
     disabledRules?.forEach(rule => {
       if (!axeConfig.rules) axeConfig.rules = {};
       axeConfig.rules[rule] = { enabled: false };

@@ -195,7 +195,7 @@ class AuditLogger {
             // Get existing logs
             const existingLogsJson = localStorage.getItem(AUDIT_STORAGE_KEY);
             let logs: Array<AuditLogEntry & { id: string; timestamp: string }> = [];
-            
+
             if (existingLogsJson) {
                 logs = JSON.parse(existingLogsJson);
             }
@@ -342,12 +342,12 @@ class AuditLogger {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        
+
         const link = document.createElement('a');
         link.setAttribute('href', url);
         link.setAttribute('download', `wakedock-audit-logs-${timestamp}.csv`);
         link.style.display = 'none';
-        
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

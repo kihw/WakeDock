@@ -31,7 +31,7 @@ describe('Accessibility - Core Components', () => {
       const results = await testComponentA11y(Button, {
         label: 'Test Button'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -43,20 +43,20 @@ describe('Accessibility - Core Components', () => {
         label: 'Disabled Button',
         disabled: true
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
       expect(hasNoViolations(results)).toBe(true);
     });
-    
+
     it('should have no accessibility violations with aria attributes', async () => {
       const results = await testComponentA11y(Button, {
         label: 'Aria Button',
         ariaExpanded: 'true',
         ariaControls: 'test-panel'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -74,7 +74,7 @@ describe('Accessibility - Core Components', () => {
         value: '',
         required: true
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -90,7 +90,7 @@ describe('Accessibility - Core Components', () => {
         error: 'This field is required',
         required: true
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -108,7 +108,7 @@ describe('Accessibility - Core Components', () => {
         ],
         value: 'option1'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -124,7 +124,7 @@ describe('Accessibility - Core Components', () => {
         title: 'Information',
         message: 'This is an informational alert'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -137,7 +137,7 @@ describe('Accessibility - Core Components', () => {
         title: 'Error',
         message: 'This is an error alert'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -152,7 +152,7 @@ describe('Accessibility - Core Components', () => {
         title: 'Test Card',
         subtitle: 'Card subtitle'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -168,7 +168,7 @@ describe('Accessibility - Core Components', () => {
         title: 'Test Modal',
         ariaLabelledby: 'modal-title'
       });
-      
+
       if (!hasNoViolations(results)) {
         console.error(formatViolations(results));
       }
@@ -185,13 +185,13 @@ describe('Accessibility - WCAG 2.1 Specific Rules', () => {
     }, {
       rules: ['color-contrast']
     });
-    
+
     if (!hasNoViolations(results)) {
       console.error(formatViolations(results));
     }
     expect(hasNoViolations(results)).toBe(true);
   });
-  
+
   it('should have appropriate ARIA attributes', async () => {
     const results = await testComponentA11y(Modal, {
       open: true,
@@ -200,13 +200,13 @@ describe('Accessibility - WCAG 2.1 Specific Rules', () => {
     }, {
       rules: ['aria-roles', 'aria-valid-attr', 'aria-required-attr']
     });
-    
+
     if (!hasNoViolations(results)) {
       console.error(formatViolations(results));
     }
     expect(hasNoViolations(results)).toBe(true);
   });
-  
+
   it('should have accessible names for interactive elements', async () => {
     const results = await testComponentA11y(Button, {
       label: '',
@@ -214,7 +214,7 @@ describe('Accessibility - WCAG 2.1 Specific Rules', () => {
     }, {
       rules: ['button-name']
     });
-    
+
     // This should actually fail as we have a button without an accessible name
     if (hasNoViolations(results)) {
       console.warn('Warning: Button without label passed accessibility test, verify button-name rule is working');

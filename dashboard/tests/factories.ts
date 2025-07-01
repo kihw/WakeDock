@@ -83,7 +83,7 @@ export const createMany = (count: number, factory: (index: number) => any) => {
  * @param overrides Properties to override in all services
  */
 export const createMockServices = (count: number, overrides = {}) => {
-  return createMany(count, (index) => 
+  return createMany(count, (index) =>
     createMockService({
       id: `service-${index + 1}`,
       name: `test-service-${index + 1}`,
@@ -98,7 +98,7 @@ export const createMockServices = (count: number, overrides = {}) => {
  * @param overrides Properties to override in all logs
  */
 export const createMockAuditLogs = (count: number, overrides = {}) => {
-  return createMany(count, (index) => 
+  return createMany(count, (index) =>
     createMockAuditLog({
       id: `audit-${index + 1}`,
       timestamp: new Date(Date.now() - index * 3600000).toISOString(),
