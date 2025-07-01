@@ -103,19 +103,20 @@ class Logger {
 
         switch (entry.level) {
             case LogLevel.DEBUG:
-                console.debug(formattedMessage, entry.error);
+                console.debug(formattedMessage);
                 break;
             case LogLevel.INFO:
-                console.info(formattedMessage, entry.error);
+                console.info(formattedMessage);
                 break;
             case LogLevel.WARN:
-                console.warn(formattedMessage, entry.error);
+                console.warn(formattedMessage);
                 break;
             case LogLevel.ERROR:
             case LogLevel.FATAL:
-                console.error(formattedMessage, entry.error);
-                if (this.config.includeStackTrace && entry.error) {
-                    console.error(entry.error.stack);
+                if (entry.error && this.config.includeStackTrace) {
+                    console.error(formattedMessage, entry.error);
+                } else {
+                    console.error(formattedMessage);
                 }
                 break;
         }
@@ -147,6 +148,17 @@ class Logger {
 
         this.writeToConsole(entry);
         this.writeToStorage(entry);
+    }
+
+    /**
+     * Public log method that can be used by other loggers
+     * @param level Log level
+     * @param message Log message
+     * @param context Additional context
+     * @param error Optional error object
+     */
+    public logEntry(level: LogLevel, message: string, context?: Record<string, any>, error?: Error): void {
+        this.log(level, message, context, error);
     }
 
     /**

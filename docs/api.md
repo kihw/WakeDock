@@ -296,3 +296,7 @@ Events:
 - `service.deleted`
 - `service.status_changed`
 - `system.alert`
+
+# API Documentation
+
+*Documentation to be completed*

@@ -198,223 +198,280 @@ ID d'erreur: ${errorId}
 URL: ${window.location.href}
 User Agent: ${navigator.userAgent}
 Timestamp: ${new Date().toISOString()}
-
-Détails:
-${errorInfo.error.stack || errorInfo.error.message}
-
-Informations supplémentaires:
-${JSON.stringify(errorInfo, null, 2)}
+Message: ${errorInfo.error.message}
+Stack: ${errorInfo.error.stack || 'Non disponible'}
     `);
 
-    window.open(`mailto:support@wakedock.com?subject=${subject}&body=${body}`, '_blank');
+    window.open(`mailto:support@wakedock.com?subject=${subject}&body=${body}`);
   }
 
-  function retry() {
-    hasError = false;
-    errorId = null;
-    handleRetry();
-  }
-
-  // Lifecycle
-  onMount(() => {
-    // Listen for global errors
-    window.addEventListener('error', handleError);
-    window.addEventListener('unhandledrejection', handleError);
-  });
-
+  // Cleanup on destroy
   onDestroy(() => {
-    // Clean up
-    window.removeEventListener('error', handleError);
-    window.removeEventListener('unhandledrejection', handleError);
-
     if (autoRecoverTimer) {
       clearTimeout(autoRecoverTimer);
       autoRecoverTimer = null;
     }
   });
+
+  // Setup error handlers
+  onMount(() => {
+    const handleGlobalError = (event: ErrorEvent) => {
+      // Only handle errors for this boundary's children
+      if (event.defaultPrevented) return;
+
+      const targetElement = event.target as Node;
+      const boundaryElement = document.getElementById(boundaryId);
+
+      if (boundaryElement && boundaryElement.contains(targetElement)) {
+        event.preventDefault();
+        handleError(event);
+      }
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      // For promise rejections, we can't easily determine if they belong to this boundary
+      // So we'll handle all unhandled rejections globally
+      handleError(event);
+    };
+
+    // Add global error handlers
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleRejection);
+
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  });
 </script>
 
-{#if hasError && fallback}
-  <div class="error-boundary {isRecovering ? 'recovering' : ''}" data-testid="error-boundary">
-    <div class="error-content">
-      {#if isRecovering}
-        <div class="recovering-indicator">
-          <LoadingSpinner size="medium" />
-          <p>Recovering...</p>
-        </div>
-      {:else if customFallback}
+<!-- Error Boundary UI -->
+{#if hasError}
+  {#if fallback}
+    <div
+      class="error-boundary {$$restProps.class || ''}"
+      role="alert"
+      aria-live="assertive"
+      id={boundaryId}
+    >
+      {#if customFallback}
         {@html customFallback}
       {:else}
-        <div class="error-header">
-          <Icon name="alert-circle" size={24} />
-          <h2>Something went wrong</h2>
-        </div>
+        <div class="error-container">
+          <div class="error-icon">
+            <Icon name="alert-triangle" size="xl" />
+          </div>
 
-        <div class="error-message">
-          <p>{getUserFriendlyMessage(errorInfo)}</p>
-        </div>
+          <div class="error-content">
+            <h3 class="error-title">An error occurred</h3>
 
-        {#if showDetails && errorInfo}
-          <div class="error-details">
-            <button
-              class="toggle-details"
-              on:click={() => (showDetailedError = !showDetailedError)}
-              aria-expanded={showDetailedError}
-            >
-              {showDetailedError ? 'Hide' : 'Show'} technical details
-            </button>
+            <p class="error-message">
+              {getUserFriendlyMessage(errorInfo)}
+            </p>
 
-            {#if showDetailedError}
-              <div class="details-content">
-                <pre>{errorInfo.error.stack || errorInfo.error.message}</pre>
-                <p><strong>Error ID:</strong> {errorId || 'Not available'}</p>
-                <p><strong>Time:</strong> {errorInfo.timestamp.toLocaleString()}</p>
+            {#if errorId}
+              <p class="error-id">
+                Error ID: <code>{errorId}</code>
+              </p>
+            {/if}
+
+            <div class="error-actions">
+              {#if showRetry && canRetry && retryCount < maxRetries}
+                <button
+                  type="button"
+                  class="retry-button"
+                  on:click={handleRetry}
+                  disabled={isRecovering}
+                >
+                  {#if isRecovering}
+                    <LoadingSpinner size="sm" />
+                    <span>Retrying...</span>
+                  {:else}
+                    <Icon name="refresh-cw" />
+                    <span>Retry</span>
+                  {/if}
+                </button>
+              {/if}
+
+              <button type="button" class="clear-button" on:click={handleClearError}>
+                <Icon name="x" />
+                <span>Dismiss</span>
+              </button>
+
+              {#if showReport}
+                <button type="button" class="report-button" on:click={handleReportError}>
+                  <Icon name="flag" />
+                  <span>Report</span>
+                </button>
+              {/if}
+
+              {#if showDetails}
+                <button
+                  type="button"
+                  class="details-button"
+                  on:click={() => (showDetailedError = !showDetailedError)}
+                  aria-expanded={showDetailedError ? 'true' : 'false'}
+                >
+                  <Icon name={showDetailedError ? 'chevron-up' : 'chevron-down'} />
+                  <span>{showDetailedError ? 'Hide' : 'Show'} Details</span>
+                </button>
+              {/if}
+            </div>
+
+            {#if showDetailedError && errorInfo}
+              <div class="error-details">
+                <h4>Error Details</h4>
+                <p><strong>Name:</strong> {errorInfo.error.name}</p>
+                <p><strong>Message:</strong> {errorInfo.error.message}</p>
+                <p><strong>Time:</strong> {new Date(errorInfo.timestamp).toLocaleString()}</p>
+
+                {#if errorInfo.error.stack}
+                  <details>
+                    <summary>Stack Trace</summary>
+                    <pre>{errorInfo.error.stack}</pre>
+                  </details>
+                {/if}
               </div>
             {/if}
           </div>
-        {/if}
-
-        <div class="actions">
-          {#if showRetry && canRetry && retryCount < maxRetries}
-            <button class="retry-button" on:click={handleRetry} disabled={isRecovering}>
-              <Icon name="refresh-cw" size={16} />
-              Try again ({maxRetries - retryCount} attempts left)
-            </button>
-          {/if}
-
-          <button class="clear-button" on:click={handleClearError} disabled={isRecovering}>
-            <Icon name="x" size={16} />
-            Dismiss
-          </button>
-
-          {#if showReport}
-            <button class="report-button" on:click={handleReportError} disabled={isRecovering}>
-              <Icon name="flag" size={16} />
-              Report this issue
-            </button>
-          {/if}
         </div>
       {/if}
     </div>
-  </div>
+  {/if}
 {:else}
   <slot />
 {/if}
 
 <style>
   .error-boundary {
-    background-color: var(--color-error-bg, #fff1f0);
-    border: 1px solid var(--color-error-border, #ffccc7);
-    border-radius: 4px;
-    padding: 1.5rem;
+    padding: 1rem;
+    border: 1px solid #e53e3e;
+    border-radius: 0.375rem;
+    background-color: #fff5f5;
+    color: #c53030;
     margin: 1rem 0;
-    max-width: 100%;
-    overflow: hidden;
-    position: relative;
+    width: 100%;
   }
 
-  .error-boundary.recovering {
-    opacity: 0.7;
-    pointer-events: none;
-  }
-
-  .error-header {
+  .error-container {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
-    color: var(--color-error, #f5222d);
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .error-icon {
+    flex-shrink: 0;
+    color: #e53e3e;
+  }
+
+  .error-content {
+    flex-grow: 1;
+  }
+
+  .error-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-top: 0;
+    margin-bottom: 0.5rem;
   }
 
   .error-message {
     margin-bottom: 1rem;
-    font-size: 1rem;
-    line-height: 1.5;
   }
 
-  .error-details {
-    margin: 1rem 0;
-  }
-
-  .toggle-details {
-    background: none;
-    border: none;
-    color: var(--color-link, #1890ff);
-    cursor: pointer;
-    padding: 0;
+  .error-id {
     font-size: 0.875rem;
-    text-decoration: underline;
+    color: #4a5568;
+    margin-bottom: 1rem;
   }
 
-  .details-content {
-    background-color: var(--color-code-bg, #f5f5f5);
-    border-radius: 4px;
-    padding: 1rem;
-    margin-top: 0.5rem;
-    font-family: monospace;
-    font-size: 0.875rem;
-    white-space: pre-wrap;
-    word-break: break-word;
-    max-height: 300px;
-    overflow: auto;
-  }
-
-  .actions {
+  .error-actions {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 1rem;
     flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   button {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.25rem;
     font-size: 0.875rem;
+    font-weight: 500;
     cursor: pointer;
-    transition:
-      background-color 0.2s,
-      color 0.2s;
+    transition: all 0.2s;
   }
 
   .retry-button {
-    background-color: var(--color-primary, #1890ff);
+    background-color: #3182ce;
     color: white;
     border: none;
   }
 
   .retry-button:hover {
-    background-color: var(--color-primary-dark, #096dd9);
+    background-color: #2c5282;
+  }
+
+  .retry-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
   }
 
   .clear-button {
     background-color: transparent;
-    color: var(--color-text, #333);
-    border: 1px solid var(--color-border, #d9d9d9);
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
   }
 
   .clear-button:hover {
-    background-color: var(--color-bg-hover, #f5f5f5);
+    background-color: #f7fafc;
   }
 
   .report-button {
-    background-color: transparent;
-    color: var(--color-warning, #faad14);
-    border: 1px solid var(--color-warning-border, #ffe58f);
+    background-color: #4a5568;
+    color: white;
+    border: none;
   }
 
   .report-button:hover {
-    background-color: var(--color-warning-bg, #fffbe6);
+    background-color: #2d3748;
   }
 
-  .recovering-indicator {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 2rem;
-    text-align: center;
+  .details-button {
+    background-color: transparent;
+    color: #4a5568;
+    border: 1px solid #e2e8f0;
+  }
+
+  .details-button:hover {
+    background-color: #f7fafc;
+  }
+
+  .error-details {
+    margin-top: 1rem;
+    padding: 1rem;
+    background-color: #f7fafc;
+    border-radius: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  .error-details h4 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+  }
+
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    background-color: #edf2f7;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+    font-size: 0.75rem;
+    max-height: 300px;
+    overflow-y: auto;
   }
 </style>

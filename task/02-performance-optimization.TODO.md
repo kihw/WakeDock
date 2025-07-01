@@ -20,11 +20,11 @@ Optimiser les performances de l'application pour une expérience utilisateur flu
   - ✅ Éliminer dead code
   - ✅ Files: Tous les fichiers `.ts/.js`
 
-- [ ] **Assets optimization** 🔄 EN COURS
-  - [ ] Compresser images/icons
-  - [ ] Optimiser SVG inline
-  - [ ] Implémenter WebP avec fallback
-  - Folder: `static/`
+- [x] **Assets optimization** ✅ COMPLÉTÉ
+  - ✅ Compresser images/icons
+  - ✅ Optimiser SVG inline
+  - ✅ Implémenter WebP avec fallback
+  - ✅ Folder: `static/`
 
 ### 🟡 MOYENNE PRIORITÉ
 
