@@ -537,3 +537,210 @@ export const rateLimit = {
         return !checkRateLimit(key, limit, windowMs);
     }
 };
+
+/**
+ * Password Strength Validation
+ */
+export interface PasswordStrengthOptions {
+    minLength?: number;
+    requireUppercase?: boolean;
+    requireLowercase?: boolean;
+    requireNumbers?: boolean;
+    requireSpecialChars?: boolean;
+    preventCommonPatterns?: boolean;
+    checkBreachedPasswords?: boolean;
+}
+
+export interface PasswordStrengthResult {
+    score: number; // 0-5 scale
+    isValid: boolean;
+    feedback: string[];
+    details: {
+        length: boolean;
+        uppercase: boolean;
+        lowercase: boolean;
+        numbers: boolean;
+        specialChars: boolean;
+        commonPatterns: boolean;
+    };
+}
+
+/**
+ * Advanced password strength validation with detailed feedback
+ */
+export function validatePasswordStrength(
+    password: string,
+    options: PasswordStrengthOptions = {}
+): PasswordStrengthResult {
+    const opts = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: true,
+        preventCommonPatterns: true,
+        checkBreachedPasswords: false,
+        ...options
+    };
+
+    const feedback: string[] = [];
+    let score = 0;
+
+    // Check password length
+    const lengthValid = password.length >= opts.minLength;
+    if (!lengthValid) {
+        feedback.push(`Password must be at least ${opts.minLength} characters long`);
+    } else {
+        score += 1;
+        if (password.length >= 12) score += 1; // Bonus for longer passwords
+    }
+
+    // Check for uppercase letters
+    const uppercaseValid = !opts.requireUppercase || /[A-Z]/.test(password);
+    if (!uppercaseValid) {
+        feedback.push('Include at least one uppercase letter');
+    } else if (opts.requireUppercase) {
+        score += 1;
+    }
+
+    // Check for lowercase letters
+    const lowercaseValid = !opts.requireLowercase || /[a-z]/.test(password);
+    if (!lowercaseValid) {
+        feedback.push('Include at least one lowercase letter');
+    } else if (opts.requireLowercase) {
+        score += 1;
+    }
+
+    // Check for numbers
+    const numbersValid = !opts.requireNumbers || /\d/.test(password);
+    if (!numbersValid) {
+        feedback.push('Include at least one number');
+    } else if (opts.requireNumbers) {
+        score += 1;
+    }
+
+    // Check for special characters
+    const specialCharsValid = !opts.requireSpecialChars || /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+    if (!specialCharsValid) {
+        feedback.push('Include at least one special character');
+    } else if (opts.requireSpecialChars) {
+        score += 1;
+    }
+
+    // Check for common patterns
+    const commonPatterns = [
+        /(.)\1{2,}/, // Repeated characters
+        /123|234|345|456|567|678|789|890/, // Sequential numbers
+        /abc|bcd|cde|def|efg|fgh|ghi|hij|ijk|jkl|klm|lmn|mno|nop|opq|pqr|qrs|rst|stu|tuv|uvw|vwx|wxy|xyz/i, // Sequential letters
+        /password|admin|user|login|welcome|qwerty|asdf|zxcv/i // Common passwords
+    ];
+
+    let hasCommonPatterns = false;
+    if (opts.preventCommonPatterns) {
+        for (const pattern of commonPatterns) {
+            if (pattern.test(password)) {
+                hasCommonPatterns = true;
+                feedback.push('Avoid common patterns and dictionary words');
+                break;
+            }
+        }
+    }
+
+    const commonPatternsValid = !opts.preventCommonPatterns || !hasCommonPatterns;
+
+    // Calculate final score (max 5)
+    if (score > 5) score = 5;
+
+    // Determine if password is valid
+    const isValid = lengthValid &&
+        uppercaseValid &&
+        lowercaseValid &&
+        numbersValid &&
+        specialCharsValid &&
+        commonPatternsValid;
+
+    // Add positive feedback for strong passwords
+    if (score >= 4 && feedback.length === 0) {
+        feedback.push('Strong password!');
+    } else if (score >= 3 && feedback.length <= 1) {
+        feedback.push('Good password strength');
+    }
+
+    return {
+        score,
+        isValid,
+        feedback,
+        details: {
+            length: lengthValid,
+            uppercase: uppercaseValid,
+            lowercase: lowercaseValid,
+            numbers: numbersValid,
+            specialChars: specialCharsValid,
+            commonPatterns: commonPatternsValid
+        }
+    };
+}
+
+/**
+ * Validates email format
+ */
+export function validateEmail(email: string): ValidationResult {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+        return { valid: false, isValid: false, message: 'Email is required' };
+    }
+
+    if (!PATTERNS.EMAIL.test(trimmedEmail)) {
+        return { valid: false, isValid: false, message: 'Please enter a valid email address' };
+    }
+
+    return { valid: true, isValid: true };
+}
+
+/**
+ * Validates username format and requirements
+ */
+export function validateUsername(username: string): ValidationResult {
+    const trimmedUsername = username.trim();
+
+    if (!trimmedUsername) {
+        return { valid: false, isValid: false, message: 'Username is required' };
+    }
+
+    if (trimmedUsername.length < 3) {
+        return { valid: false, isValid: false, message: 'Username must be at least 3 characters long' };
+    }
+
+    if (trimmedUsername.length > 20) {
+        return { valid: false, isValid: false, message: 'Username must be less than 20 characters long' };
+    }
+
+    if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
+        return { valid: false, isValid: false, message: 'Username can only contain letters, numbers, underscores, and hyphens' };
+    }
+
+    if (/^[_-]|[_-]$/.test(trimmedUsername)) {
+        return { valid: false, isValid: false, message: 'Username cannot start or end with underscore or hyphen' };
+    }
+
+    return { valid: true, isValid: true };
+}
+
+/**
+ * Validates password using basic requirements
+ */
+export function validatePassword(password: string): ValidationResult {
+    if (!password) {
+        return { valid: false, isValid: false, message: 'Password is required' };
+    }
+
+    if (password.length < 8) {
+        return { valid: false, isValid: false, message: 'Password must be at least 8 characters long' };
+    }
+
+    if (!PATTERNS.PASSWORD.test(password)) {
+        return { valid: false, isValid: false, message: 'Password must contain at least one letter and one number' };
+    }
+
+    return { valid: true, isValid: true };
+}

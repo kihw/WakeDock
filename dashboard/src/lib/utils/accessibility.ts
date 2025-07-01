@@ -352,6 +352,122 @@ export function restoreFocus(previousElement: HTMLElement | null): void {
     }
 }
 
+/**
+ * Validates form accessibility requirements
+ */
+export function validateFormAccessibility(form: HTMLFormElement): {
+    isValid: boolean;
+    issues: string[];
+} {
+    const issues: string[] = [];
+
+    // Check for form labels
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach((input: Element) => {
+        const htmlInput = input as HTMLInputElement;
+        const id = htmlInput.id;
+        const label = form.querySelector(`label[for="${id}"]`);
+        const ariaLabel = htmlInput.getAttribute('aria-label');
+        const ariaLabelledBy = htmlInput.getAttribute('aria-labelledby');
+
+        if (!label && !ariaLabel && !ariaLabelledBy) {
+            issues.push(`Input "${htmlInput.name || htmlInput.type}" lacks proper labeling`);
+        }
+    });
+
+    // Check for required field indicators
+    const requiredInputs = form.querySelectorAll('input[required], select[required], textarea[required]');
+    requiredInputs.forEach((input: Element) => {
+        const htmlInput = input as HTMLInputElement;
+        const ariaRequired = htmlInput.getAttribute('aria-required');
+        if (!ariaRequired) {
+            issues.push(`Required field "${htmlInput.name || htmlInput.type}" should have aria-required="true"`);
+        }
+    });
+
+    return {
+        isValid: issues.length === 0,
+        issues
+    };
+}
+
+/**
+ * Generates accessible error messages for form fields
+ */
+export function getAccessibleErrorMessage(fieldName: string, errorMessage: string): string {
+    const fieldDisplayName = fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/([A-Z])/g, ' $1');
+    return `${fieldDisplayName} error: ${errorMessage}`;
+}
+
+/**
+ * Enhances form accessibility with ARIA attributes and keyboard navigation
+ */
+export function enhanceFormAccessibility(form: HTMLFormElement): void {
+    // Add role and aria-label to form if not present
+    if (!form.getAttribute('role')) {
+        form.setAttribute('role', 'form');
+    }
+
+    if (!form.getAttribute('aria-label') && !form.getAttribute('aria-labelledby')) {
+        form.setAttribute('aria-label', 'Registration form');
+    }
+
+    // Enhance all form inputs
+    const inputs = form.querySelectorAll('input, select, textarea');
+    inputs.forEach((input: Element, index: number) => {
+        const htmlInput = input as HTMLInputElement;
+
+        // Ensure each input has an ID
+        if (!htmlInput.id) {
+            htmlInput.id = `form-input-${index}`;
+        }
+
+        // Add aria-required for required fields
+        if (htmlInput.hasAttribute('required') && !htmlInput.getAttribute('aria-required')) {
+            htmlInput.setAttribute('aria-required', 'true');
+        }
+
+        // Add aria-invalid for validation
+        if (!htmlInput.getAttribute('aria-invalid')) {
+            htmlInput.setAttribute('aria-invalid', 'false');
+        }
+
+        // Setup error announcement container
+        const errorId = `${htmlInput.id}-error`;
+        let errorContainer = form.querySelector(`#${errorId}`);
+        if (!errorContainer) {
+            errorContainer = document.createElement('div');
+            errorContainer.id = errorId;
+            errorContainer.setAttribute('aria-live', 'polite');
+            errorContainer.setAttribute('aria-atomic', 'true');
+            errorContainer.className = 'sr-only';
+            htmlInput.parentNode?.insertBefore(errorContainer, htmlInput.nextSibling);
+        }
+
+        // Link input to error container
+        const ariaDescribedBy = htmlInput.getAttribute('aria-describedby');
+        if (!ariaDescribedBy || !ariaDescribedBy.includes(errorId)) {
+            htmlInput.setAttribute('aria-describedby',
+                ariaDescribedBy ? `${ariaDescribedBy} ${errorId}` : errorId
+            );
+        }
+    });
+
+    // Add keyboard navigation enhancements
+    form.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
+            const inputs = Array.from(form.querySelectorAll('input, select, textarea')) as HTMLElement[];
+            const currentIndex = inputs.indexOf(event.target);
+            const nextInput = inputs[currentIndex + 1];
+
+            if (nextInput && event.target.type !== 'submit') {
+                event.preventDefault();
+                nextInput.focus();
+            }
+        }
+    });
+}
+
 // Exporter l'instance pour usage avancé
 export default a11yManager;
 
