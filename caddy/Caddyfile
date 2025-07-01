@@ -8,20 +8,24 @@
     local_certs
 }
 
-# WakeDock Dashboard
-http://localhost {
-    reverse_proxy dashboard:3000 {
-        header_up Host {upstream_hostport}
-        header_up X-Real-IP {remote_host}
-    }
+# WakeDock Dashboard - HTTP
+:80 {
+    reverse_proxy wakedock-dashboard:3000
 }
 
-# WakeDock API  
-http://localhost:8000 {
-    reverse_proxy wakedock:8000 {
-        header_up Host {upstream_hostport}
-        header_up X-Real-IP {remote_host}
-    }
+# WakeDock Dashboard - HTTPS  
+:443 {
+    reverse_proxy wakedock-dashboard:3000
+}
+
+# WakeDock API - HTTP
+:8000 {
+    reverse_proxy wakedock-core:8000
+}
+
+# WakeDock API - HTTPS
+:8443 {
+    reverse_proxy wakedock-core:8000
 }
 
 # Dynamic service configurations will be appended below this line
