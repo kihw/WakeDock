@@ -16,7 +16,7 @@ export interface ValidationResult {
     valid: boolean;
     isValid: boolean; // Add alias for compatibility
     message?: string;
-    errors?: Record<string, string>; // Add errors object
+    errors?: string[]; // Change to string array for better error handling
 }
 
 export interface FieldValidationOptions {
@@ -309,7 +309,13 @@ export function validateForm(
  * Sanitizes a string for safe display
  */
 export function sanitizeInput(input: string): string {
-    return input
+    // Handle null/undefined input
+    if (input == null || input === undefined) {
+        return '';
+    }
+
+    // Convert to string and sanitize
+    return String(input)
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
@@ -510,7 +516,7 @@ export function validateServiceConfig(config: Record<string, any>): ValidationRe
         valid: errors.length === 0,
         isValid: errors.length === 0,
         message: errors.join(', '),
-        errors: errors.length > 0 ? { general: errors.join(', ') } : {}
+        errors: errors.length > 0 ? errors : []
     };
 }
 
@@ -685,13 +691,33 @@ export function validatePasswordStrength(
  * Validates email format
  */
 export function validateEmail(email: string): ValidationResult {
-    const trimmedEmail = email.trim();
+    // Handle null/undefined input
+    if (email == null || email === undefined) {
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Email is required',
+            errors: ['Email is required']
+        };
+    }
+
+    const trimmedEmail = String(email).trim();
     if (!trimmedEmail) {
-        return { valid: false, isValid: false, message: 'Email is required' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Email is required',
+            errors: ['Email is required']
+        };
     }
 
     if (!PATTERNS.EMAIL.test(trimmedEmail)) {
-        return { valid: false, isValid: false, message: 'Please enter a valid email address' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Please enter a valid email address',
+            errors: ['Please enter a valid email address']
+        };
     }
 
     return { valid: true, isValid: true };
@@ -701,26 +727,61 @@ export function validateEmail(email: string): ValidationResult {
  * Validates username format and requirements
  */
 export function validateUsername(username: string): ValidationResult {
-    const trimmedUsername = username.trim();
+    // Handle null/undefined input
+    if (username == null || username === undefined) {
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username is required',
+            errors: ['Username is required']
+        };
+    }
+
+    const trimmedUsername = String(username).trim();
 
     if (!trimmedUsername) {
-        return { valid: false, isValid: false, message: 'Username is required' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username is required',
+            errors: ['Username is required']
+        };
     }
 
     if (trimmedUsername.length < 3) {
-        return { valid: false, isValid: false, message: 'Username must be at least 3 characters long' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username must be at least 3 characters long',
+            errors: ['Username must be at least 3 characters long']
+        };
     }
 
     if (trimmedUsername.length > 20) {
-        return { valid: false, isValid: false, message: 'Username must be less than 20 characters long' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username must be less than 20 characters long',
+            errors: ['Username must be less than 20 characters long']
+        };
     }
 
     if (!/^[a-zA-Z0-9_-]+$/.test(trimmedUsername)) {
-        return { valid: false, isValid: false, message: 'Username can only contain letters, numbers, underscores, and hyphens' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username can only contain letters, numbers, underscores, and hyphens',
+            errors: ['Username can only contain letters, numbers, underscores, and hyphens']
+        };
     }
 
     if (/^[_-]|[_-]$/.test(trimmedUsername)) {
-        return { valid: false, isValid: false, message: 'Username cannot start or end with underscore or hyphen' };
+        return { 
+            valid: false, 
+            isValid: false, 
+            message: 'Username cannot start or end with underscore or hyphen',
+            errors: ['Username cannot start or end with underscore or hyphen']
+        };
     }
 
     return { valid: true, isValid: true };

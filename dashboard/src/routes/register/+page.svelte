@@ -32,6 +32,40 @@
     acceptTerms: false,
     subscribeNewsletter: false,
   };
+
+  // Defensive getter function to safely access formData properties
+  function getFormDataValue(field) {
+    try {
+      if (!formData || typeof formData !== 'object') {
+        return '';
+      }
+      return formData[field] || '';
+    } catch (error) {
+      console.warn('Error accessing form data:', error);
+      return '';
+    }
+  }
+
+  // Defensive setter function to safely update formData properties
+  function setFormDataValue(field, value) {
+    try {
+      if (!formData || typeof formData !== 'object') {
+        formData = {
+          username: '',
+          email: '',
+          password: '',
+          confirmPassword: '',
+          full_name: '',
+          acceptTerms: false,
+          subscribeNewsletter: false,
+        };
+      }
+      formData[field] = value;
+      formData = { ...formData }; // Trigger reactivity
+    } catch (error) {
+      console.warn('Error setting form data:', error);
+    }
+  }
   let loading = false;
   let errors = {};
   let passwordStrength = {
@@ -78,7 +112,41 @@
       'Registration form loaded. Fill out all required fields to create your account.'
     );
 
-    return unsubscribe;
+    // Add global error handler for autofill extension errors
+    const handleGlobalError = (event) => {
+      if (event.error && event.error.message) {
+        const errorMessage = event.error.message.toLowerCase();
+        if (errorMessage.includes('autofill') || 
+            errorMessage.includes('bootstrap-autofill') ||
+            errorMessage.includes('extension context invalidated') ||
+            errorMessage.includes('cannot read properties of null')) {
+          // Silently ignore autofill extension errors
+          event.preventDefault();
+          console.debug('Autofill extension error ignored:', event.error.message);
+          return false;
+        }
+      }
+    };
+
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', (event) => {
+      const reason = event.reason;
+      if (reason && typeof reason === 'object' && reason.message) {
+        const errorMessage = reason.message.toLowerCase();
+        if (errorMessage.includes('autofill') || 
+            errorMessage.includes('bootstrap-autofill') ||
+            errorMessage.includes('extension context invalidated')) {
+          event.preventDefault();
+          console.debug('Autofill promise rejection ignored:', reason.message);
+          return false;
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('error', handleGlobalError);
+    };
   });
 
   onDestroy(() => {
@@ -140,72 +208,142 @@
 
   // Real-time field validation with security and accessibility
   function validateField(field, value) {
-    const newErrors = { ...errors };
+    try {
+      const newErrors = { ...errors };
 
-    // Sanitize input to prevent XSS
-    const sanitizedValue = sanitizeInput(value);
+      // Guard against null/undefined values
+      if (value === null || value === undefined) {
+        return;
+      }
 
-    switch (field) {
-      case 'username':
-        const usernameValidation = validateUsername(sanitizedValue);
-        if (!usernameValidation.isValid) {
-          newErrors.username = usernameValidation.errors[0];
-        } else {
-          delete newErrors.username;
+      // Convert to string if not already
+      const stringValue = String(value);
+
+      // Guard against empty strings (but allow for clearing validation)
+      if (stringValue === '') {
+        // Clear any existing error for this field when empty
+        if (newErrors[field]) {
+          delete newErrors[field];
+          errors = newErrors;
         }
-        break;
+        return;
+      }
 
-      case 'email':
-        const emailValidation = validateEmail(sanitizedValue);
-        if (!emailValidation.isValid) {
-          newErrors.email = emailValidation.errors[0];
-        } else {
-          delete newErrors.email;
+      // Sanitize input to prevent XSS
+      let sanitizedValue;
+      try {
+        sanitizedValue = sanitizeInput(stringValue);
+      } catch (sanitizeError) {
+        console.warn('Sanitization error:', sanitizeError);
+        sanitizedValue = stringValue; // Fallback to original value
+      }
+
+      switch (field) {
+        case 'username':
+          try {
+            const usernameValidation = validateUsername(sanitizedValue);
+            if (!usernameValidation || !usernameValidation.isValid) {
+              newErrors.username = (usernameValidation && usernameValidation.errors && usernameValidation.errors[0]) || 'Invalid username';
+            } else {
+              delete newErrors.username;
+            }
+          } catch (validationError) {
+            console.warn('Username validation error:', validationError);
+            newErrors.username = 'Username validation failed';
+          }
+          break;
+
+        case 'email':
+          try {
+            const emailValidation = validateEmail(sanitizedValue);
+            if (!emailValidation || !emailValidation.isValid) {
+              newErrors.email = (emailValidation && emailValidation.message) || 'Invalid email address';
+            } else {
+              delete newErrors.email;
+            }
+          } catch (validationError) {
+            console.warn('Email validation error:', validationError);
+            newErrors.email = 'Email validation failed';
+          }
+          break;
+
+        case 'full_name':
+          try {
+            if (!sanitizedValue || sanitizedValue.trim().length < 2) {
+              newErrors.full_name = 'Full name must be at least 2 characters';
+            } else if (sanitizedValue.trim().length > 100) {
+              newErrors.full_name = 'Full name must be less than 100 characters';
+            } else {
+              delete newErrors.full_name;
+            }
+          } catch (validationError) {
+            console.warn('Full name validation error:', validationError);
+            newErrors.full_name = 'Full name validation failed';
+          }
+          break;
+
+        case 'confirmPassword':
+          try {
+            if (stringValue && formData && formData.password && stringValue !== formData.password) {
+              newErrors.confirmPassword = 'Passwords do not match';
+            } else {
+              delete newErrors.confirmPassword;
+            }
+          } catch (validationError) {
+            console.warn('Confirm password validation error:', validationError);
+            newErrors.confirmPassword = 'Password confirmation validation failed';
+          }
+          break;
+
+        case 'acceptTerms':
+          try {
+            if (!value) {
+              newErrors.acceptTerms = 'You must accept the terms and conditions';
+            } else {
+              delete newErrors.acceptTerms;
+            }
+          } catch (validationError) {
+            console.warn('Accept terms validation error:', validationError);
+            newErrors.acceptTerms = 'Terms acceptance validation failed';
+          }
+          break;
+
+        default:
+          console.warn('Unknown field for validation:', field);
+          break;
+      }
+
+      errors = newErrors;
+
+      // Announce validation errors to screen readers
+      if (newErrors[field]) {
+        try {
+          announceToScreenReader(getAccessibleErrorMessage(field, newErrors[field]));
+        } catch (announceError) {
+          console.warn('Error announcing validation result:', announceError);
         }
-        break;
-
-      case 'full_name':
-        if (!sanitizedValue || sanitizedValue.trim().length < 2) {
-          newErrors.full_name = 'Full name must be at least 2 characters';
-        } else if (sanitizedValue.trim().length > 100) {
-          newErrors.full_name = 'Full name must be less than 100 characters';
-        } else {
-          delete newErrors.full_name;
-        }
-        break;
-
-      case 'confirmPassword':
-        if (value && value !== formData.password) {
-          newErrors.confirmPassword = 'Passwords do not match';
-        } else {
-          delete newErrors.confirmPassword;
-        }
-        break;
-
-      case 'acceptTerms':
-        if (!value) {
-          newErrors.acceptTerms = 'You must accept the terms and conditions';
-        } else {
-          delete newErrors.acceptTerms;
-        }
-        break;
-    }
-
-    errors = newErrors;
-
-    // Announce validation errors to screen readers
-    if (newErrors[field]) {
-      announceToScreenReader(getAccessibleErrorMessage(field, newErrors[field]));
+      }
+    } catch (error) {
+      console.error('Validation function error:', error);
+      // Don't update errors state if there's a critical error
     }
   }
 
   // Debounced validation for performance
   let validationTimer;
   function debouncedValidation(field, value, delay = 300) {
-    clearTimeout(validationTimer);
-    validationTimer = setTimeout(() => {
-      validateField(field, value);
-    }, delay);
+    try {
+      clearTimeout(validationTimer);
+      validationTimer = setTimeout(() => {
+        try {
+          validateField(field, value);
+        } catch (err) {
+          console.warn('Debounced validation error:', err);
+        }
+      }, delay);
+    } catch (err) {
+      console.warn('Debounced validation setup error:', err);
+    }
   }
   // Comprehensive form validation with security checks
   function validateForm() {
@@ -217,10 +355,16 @@
       return false;
     }
 
+    // Guard against null/undefined formData
+    if (!formData || typeof formData !== 'object') {
+      errors.general = 'Form data is invalid. Please refresh the page and try again.';
+      return false;
+    }
+
     // Sanitize all inputs
-    formData.username = sanitizeInput(formData.username);
-    formData.email = sanitizeInput(formData.email);
-    formData.full_name = sanitizeInput(formData.full_name);
+    formData.username = sanitizeInput(formData.username || '');
+    formData.email = sanitizeInput(formData.email || '');
+    formData.full_name = sanitizeInput(formData.full_name || '');
 
     // Username validation
     const usernameResult = validateUsername(formData.username);
@@ -283,6 +427,13 @@
   }
 
   async function handleRegister() {
+    // Guard against invalid form state
+    if (!formData || typeof formData !== 'object') {
+      errors.general = 'Form data is invalid. Please refresh the page and try again.';
+      announceToScreenReader('Form error: Invalid form data.');
+      return;
+    }
+
     // Check rate limiting
     attemptCount++;
     const rateLimitResult = checkRateLimit('register', attemptCount, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
@@ -303,13 +454,13 @@
     try {
       // Use the API client for registration with CSRF protection
       const userData = {
-        username: formData.username,
-        email: formData.email,
-        password: formData.password,
-        full_name: formData.full_name,
+        username: formData.username || '',
+        email: formData.email || '',
+        password: formData.password || '',
+        full_name: formData.full_name || '',
         role: 'user', // Default role
         is_active: true,
-        subscribe_newsletter: formData.subscribeNewsletter,
+        subscribe_newsletter: Boolean(formData.subscribeNewsletter),
         _csrf: csrfToken, // Include CSRF token
       };
 
@@ -395,6 +546,11 @@
 <svelte:head>
   <title>Inscription - WakeDock</title>
   <meta name="description" content="Créez votre compte WakeDock pour gérer vos containers Docker" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
 </svelte:head>
 
 <!-- Skip link for accessibility -->
@@ -445,6 +601,9 @@
         on:submit|preventDefault={handleRegister}
         novalidate
         aria-label="Registration form"
+        data-form-type="register"
+        data-bitwarden-watching="1"
+        autocomplete="off"
       >
         <!-- CSRF Token (hidden) -->
         <input type="hidden" name="_csrf" value={csrfToken} />
@@ -528,8 +687,24 @@
                 type="text"
                 required
                 bind:value={formData.username}
-                on:input={() => debouncedValidation('username', formData.username)}
-                on:blur={() => validateField('username', formData.username)}
+                on:input={(e) => {
+                  try {
+                    if (e.target && e.target.value !== undefined) {
+                      debouncedValidation('username', e.target.value);
+                    }
+                  } catch (err) {
+                    console.warn('Input validation error:', err);
+                  }
+                }}
+                on:blur={(e) => {
+                  try {
+                    if (e.target && e.target.value !== undefined) {
+                      validateField('username', e.target.value);
+                    }
+                  } catch (err) {
+                    console.warn('Blur validation error:', err);
+                  }
+                }}
                 class="relative block w-full appearance-none rounded-md border px-3 py-2 pr-10 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none focus:ring-2 sm:text-sm
                   {errors.username
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
@@ -602,8 +777,24 @@
                 type="email"
                 required
                 bind:value={formData.email}
-                on:input={() => debouncedValidation('email', formData.email)}
-                on:blur={() => validateField('email', formData.email)}
+                on:input={(e) => {
+                  try {
+                    if (e && e.target && typeof e.target.value === 'string') {
+                      debouncedValidation('email', e.target.value);
+                    }
+                  } catch (err) {
+                    console.warn('Email input validation error:', err);
+                  }
+                }}
+                on:blur={(e) => {
+                  try {
+                    if (e && e.target && typeof e.target.value === 'string') {
+                      validateField('email', e.target.value);
+                    }
+                  } catch (err) {
+                    console.warn('Email blur validation error:', err);
+                  }
+                }}
                 class="relative block w-full appearance-none rounded-md border px-3 py-2 pr-10 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none focus:ring-2 sm:text-sm
                   {errors.email
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
@@ -1108,5 +1299,24 @@
   /* Style pour améliorer l'apparence */
   input:focus {
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+  }
+
+  /* Prevent autofill extension styling conflicts */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  /* Hide autofill extension overlays */
+  input::-webkit-contacts-auto-fill-button,
+  input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    height: 0;
+    width: 0;
+    margin: 0;
   }
 </style>
