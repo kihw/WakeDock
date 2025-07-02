@@ -4,8 +4,21 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth, isAuthenticated } from '$lib/stores/auth';
-  import { csrf, rateLimit, securityValidate, sanitizeInput, validateEmail, generateCSRFToken } from '$lib/utils/validation';
-  import { setupGlobalErrorHandling, safeEmailValidation, safeSanitizeInput, safeGenerateCSRFToken, safeCSRF } from '$lib/utils/errorHandling';
+  import {
+    csrf,
+    rateLimit,
+    securityValidate,
+    sanitizeInput,
+    validateEmail,
+    generateCSRFToken,
+  } from '$lib/utils/validation';
+  import {
+    setupGlobalErrorHandling,
+    safeEmailValidation,
+    safeSanitizeInput,
+    safeGenerateCSRFToken,
+    safeCSRF,
+  } from '$lib/utils/errorHandling';
   import { secureAccessibility } from '$lib/utils/accessibility';
   // import { toastStore } from "$lib/stores/toastStore";
 
@@ -68,7 +81,7 @@
   // Enhanced validation functions with fallbacks
   function validateEmailField() {
     const sanitizedEmail = safeSanitizeInput(email);
-    
+
     // Try the main validation function, fall back to safe validation
     let validation;
     try {
@@ -160,7 +173,7 @@
       console.debug('CSRF validation fallback used:', error.message);
       isCSRFValid = csrfToken && csrfToken.length === 32; // Basic fallback validation
     }
-    
+
     if (!isCSRFValid) {
       error = 'Security token validation failed. Please refresh the page.';
       secureAccessibility.form.announceError('Security validation failed.');
