@@ -172,3 +172,40 @@ def init_database() -> None:
     db_manager = get_db_manager()
     db_manager.initialize()
     db_manager.create_tables()
+    
+    # Seed default data
+    _seed_default_data()
+
+
+def _seed_default_data() -> None:
+    """Seed the database with default data."""
+    from .models import User, UserRole
+    from ..api.auth.password import hash_password
+    from ..config import get_settings
+    
+    settings = get_settings()
+    
+    with get_db_manager().get_session() as session:
+        # Check if admin user already exists
+        admin_user = session.query(User).filter(
+            (User.username == 'admin') | (User.email == 'admin@wakedock.com')
+        ).first()
+        
+        if not admin_user:
+            # Create default admin user
+            hashed_password = hash_password(settings.wakedock.admin_password)
+            admin_user = User(
+                username='admin',
+                email='admin@wakedock.com',
+                hashed_password=hashed_password,
+                full_name='Default Administrator',
+                role=UserRole.ADMIN,
+                is_active=True,
+                is_verified=True
+            )
+            
+            session.add(admin_user)
+            session.commit()
+            logger.info("Default admin user created successfully")
+        else:
+            logger.info("Admin user already exists, skipping creation")

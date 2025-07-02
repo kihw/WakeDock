@@ -10,7 +10,7 @@ import { config } from './environment.js';
 export const API_ENDPOINTS = {
   // Authentication
   AUTH: {
-    LOGIN: '/api/v1/auth/token',
+    LOGIN: '/api/v1/auth/login',
     LOGOUT: '/api/v1/auth/logout',
     REFRESH: '/api/v1/auth/refresh',
     ME: '/api/v1/auth/me',

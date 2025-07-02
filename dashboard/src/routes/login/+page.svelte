@@ -10,7 +10,7 @@
   // import { toastStore } from "$lib/stores/toastStore";
 
   let email = 'admin@wakedock.com'; // Pre-fill for development
-  let password = 'admin'; // Pre-fill for development
+  let password = 'admin123'; // Pre-fill for development (matches backend config)
   let twoFactorCode = '';
   let rememberMe = false;
   let loading = false;
@@ -117,10 +117,11 @@
 
   function checkRateLimit() {
     const rateLimitKey = `login_attempt_${email}`;
-    rateLimited = rateLimit.isLimited(rateLimitKey, 5, 15 * 60 * 1000); // 5 attempts per 15 minutes
+    // More generous rate limiting: 10 attempts per 5 minutes
+    rateLimited = rateLimit.isLimited(rateLimitKey, 10, 5 * 60 * 1000);
 
     if (rateLimited) {
-      error = 'Too many login attempts. Please try again in 15 minutes.';
+      error = 'Too many login attempts. Please try again in 5 minutes.';
       secureAccessibility.form.announceError('Rate limit exceeded. Too many login attempts.');
       return false;
     }
@@ -179,7 +180,10 @@
         fingerprint: await generateFingerprint(),
       };
 
-      const result = await auth.login(loginData);
+      const result = await auth.login(loginData.email, loginData.password, {
+        twoFactorCode: loginData.twoFactorCode,
+        rememberMe: loginData.rememberMe,
+      });
 
       if (result.requiresTwoFactor && !requiresTwoFactor) {
         requiresTwoFactor = true;
