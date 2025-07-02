@@ -558,8 +558,8 @@
   <meta name="robots" content="noindex, nofollow" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-  <meta http-equiv="X-Frame-Options" content="DENY" />
   <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  <!-- Note: X-Frame-Options and CSP frame-ancestors are set via HTTP headers in hooks.server.ts -->
 </svelte:head>
 
 <!-- Skip link for accessibility -->
