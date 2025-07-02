@@ -15,6 +15,7 @@
     checkRateLimit,
   } from '$lib/utils/validation';
   import { api } from '$lib/api';
+  import { uiLogger } from '$lib/utils/logger';
   import {
     manageFocus,
     announceToScreenReader,
@@ -33,39 +34,6 @@
     subscribeNewsletter: false,
   };
 
-  // Defensive getter function to safely access formData properties
-  function getFormDataValue(field) {
-    try {
-      if (!formData || typeof formData !== 'object') {
-        return '';
-      }
-      return formData[field] || '';
-    } catch (error) {
-      console.warn('Error accessing form data:', error);
-      return '';
-    }
-  }
-
-  // Defensive setter function to safely update formData properties
-  function setFormDataValue(field, value) {
-    try {
-      if (!formData || typeof formData !== 'object') {
-        formData = {
-          username: '',
-          email: '',
-          password: '',
-          confirmPassword: '',
-          full_name: '',
-          acceptTerms: false,
-          subscribeNewsletter: false,
-        };
-      }
-      formData[field] = value;
-      formData = { ...formData }; // Trigger reactivity
-    } catch (error) {
-      console.warn('Error setting form data:', error);
-    }
-  }
   let loading = false;
   let errors = {};
   let passwordStrength = {
@@ -116,10 +84,12 @@
     const handleGlobalError = (event) => {
       if (event.error && event.error.message) {
         const errorMessage = event.error.message.toLowerCase();
-        if (errorMessage.includes('autofill') || 
-            errorMessage.includes('bootstrap-autofill') ||
-            errorMessage.includes('extension context invalidated') ||
-            errorMessage.includes('cannot read properties of null')) {
+        if (
+          errorMessage.includes('autofill') ||
+          errorMessage.includes('bootstrap-autofill') ||
+          errorMessage.includes('extension context invalidated') ||
+          errorMessage.includes('cannot read properties of null')
+        ) {
           // Silently ignore autofill extension errors
           event.preventDefault();
           console.debug('Autofill extension error ignored:', event.error.message);
@@ -133,9 +103,11 @@
       const reason = event.reason;
       if (reason && typeof reason === 'object' && reason.message) {
         const errorMessage = reason.message.toLowerCase();
-        if (errorMessage.includes('autofill') || 
-            errorMessage.includes('bootstrap-autofill') ||
-            errorMessage.includes('extension context invalidated')) {
+        if (
+          errorMessage.includes('autofill') ||
+          errorMessage.includes('bootstrap-autofill') ||
+          errorMessage.includes('extension context invalidated')
+        ) {
           event.preventDefault();
           console.debug('Autofill promise rejection ignored:', reason.message);
           return false;
@@ -234,7 +206,11 @@
       try {
         sanitizedValue = sanitizeInput(stringValue);
       } catch (sanitizeError) {
-        console.warn('Sanitization error:', sanitizeError);
+        uiLogger.error('Register', sanitizeError, {
+          context: 'sanitizeInput',
+          field,
+          value: stringValue,
+        });
         sanitizedValue = stringValue; // Fallback to original value
       }
 
@@ -243,12 +219,18 @@
           try {
             const usernameValidation = validateUsername(sanitizedValue);
             if (!usernameValidation || !usernameValidation.isValid) {
-              newErrors.username = (usernameValidation && usernameValidation.errors && usernameValidation.errors[0]) || 'Invalid username';
+              newErrors.username =
+                (usernameValidation && usernameValidation.errors && usernameValidation.errors[0]) ||
+                'Invalid username';
             } else {
               delete newErrors.username;
             }
           } catch (validationError) {
-            console.warn('Username validation error:', validationError);
+            uiLogger.error('Register', validationError, {
+              context: 'usernameValidation',
+              field,
+              value: sanitizedValue,
+            });
             newErrors.username = 'Username validation failed';
           }
           break;
@@ -257,12 +239,17 @@
           try {
             const emailValidation = validateEmail(sanitizedValue);
             if (!emailValidation || !emailValidation.isValid) {
-              newErrors.email = (emailValidation && emailValidation.message) || 'Invalid email address';
+              newErrors.email =
+                (emailValidation && emailValidation.message) || 'Invalid email address';
             } else {
               delete newErrors.email;
             }
           } catch (validationError) {
-            console.warn('Email validation error:', validationError);
+            uiLogger.error('Register', validationError, {
+              context: 'emailValidation',
+              field,
+              value: sanitizedValue,
+            });
             newErrors.email = 'Email validation failed';
           }
           break;
@@ -277,7 +264,11 @@
               delete newErrors.full_name;
             }
           } catch (validationError) {
-            console.warn('Full name validation error:', validationError);
+            uiLogger.error('Register', validationError, {
+              context: 'fullNameValidation',
+              field,
+              value: sanitizedValue,
+            });
             newErrors.full_name = 'Full name validation failed';
           }
           break;
@@ -290,7 +281,11 @@
               delete newErrors.confirmPassword;
             }
           } catch (validationError) {
-            console.warn('Confirm password validation error:', validationError);
+            uiLogger.error('Register', validationError, {
+              context: 'confirmPasswordValidation',
+              field,
+              value: stringValue,
+            });
             newErrors.confirmPassword = 'Password confirmation validation failed';
           }
           break;
@@ -303,13 +298,20 @@
               delete newErrors.acceptTerms;
             }
           } catch (validationError) {
-            console.warn('Accept terms validation error:', validationError);
+            uiLogger.error('Register', validationError, {
+              context: 'acceptTermsValidation',
+              field,
+              value,
+            });
             newErrors.acceptTerms = 'Terms acceptance validation failed';
           }
           break;
 
         default:
-          console.warn('Unknown field for validation:', field);
+          uiLogger.error('Register', new Error('Unknown field for validation'), {
+            context: 'validation',
+            field,
+          });
           break;
       }
 
@@ -320,11 +322,15 @@
         try {
           announceToScreenReader(getAccessibleErrorMessage(field, newErrors[field]));
         } catch (announceError) {
-          console.warn('Error announcing validation result:', announceError);
+          uiLogger.error('Register', announceError, {
+            context: 'announceToScreenReader',
+            field,
+            error: newErrors[field],
+          });
         }
       }
     } catch (error) {
-      console.error('Validation function error:', error);
+      uiLogger.error('Register', error, { context: 'validateField', field, value });
       // Don't update errors state if there's a critical error
     }
   }
@@ -338,11 +344,11 @@
         try {
           validateField(field, value);
         } catch (err) {
-          console.warn('Debounced validation error:', err);
+          uiLogger.error('Register', err, { context: 'debouncedValidation', field, value });
         }
       }, delay);
     } catch (err) {
-      console.warn('Debounced validation setup error:', err);
+      uiLogger.error('Register', err, { context: 'debouncedValidationSetup', field, value });
     }
   }
   // Comprehensive form validation with security checks
@@ -490,7 +496,10 @@
       // Redirect to login page
       goto('/login?registered=true');
     } catch (error) {
-      console.error('Registration error:', error);
+      uiLogger.error('Register', error, {
+        context: 'registration',
+        formData: { ...formData, password: '[REDACTED]', confirmPassword: '[REDACTED]' },
+      });
 
       // Clear sensitive data on error
       formData.password = '';
@@ -693,7 +702,10 @@
                       debouncedValidation('username', e.target.value);
                     }
                   } catch (err) {
-                    console.warn('Input validation error:', err);
+                    uiLogger.error('Register', err, {
+                      context: 'usernameInput',
+                      target: e.target?.value,
+                    });
                   }
                 }}
                 on:blur={(e) => {
@@ -702,7 +714,10 @@
                       validateField('username', e.target.value);
                     }
                   } catch (err) {
-                    console.warn('Blur validation error:', err);
+                    uiLogger.error('Register', err, {
+                      context: 'usernameBlur',
+                      target: e.target?.value,
+                    });
                   }
                 }}
                 class="relative block w-full appearance-none rounded-md border px-3 py-2 pr-10 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none focus:ring-2 sm:text-sm
@@ -783,7 +798,10 @@
                       debouncedValidation('email', e.target.value);
                     }
                   } catch (err) {
-                    console.warn('Email input validation error:', err);
+                    uiLogger.error('Register', err, {
+                      context: 'emailInput',
+                      target: e.target?.value,
+                    });
                   }
                 }}
                 on:blur={(e) => {
@@ -792,7 +810,10 @@
                       validateField('email', e.target.value);
                     }
                   } catch (err) {
-                    console.warn('Email blur validation error:', err);
+                    uiLogger.error('Register', err, {
+                      context: 'emailBlur',
+                      target: e.target?.value,
+                    });
                   }
                 }}
                 class="relative block w-full appearance-none rounded-md border px-3 py-2 pr-10 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none focus:ring-2 sm:text-sm

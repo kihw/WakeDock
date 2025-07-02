@@ -94,3 +94,5 @@ tmp/
 *.tar.gz
 *.sql.bak
 backup-*
+.env.local
+coverage/

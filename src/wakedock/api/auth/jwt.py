@@ -1,5 +1,6 @@
 """JWT token management for WakeDock authentication."""
 
+import logging
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -11,6 +12,8 @@ from passlib.context import CryptContext
 from wakedock.config import get_settings
 from wakedock.database.models import UserRole
 from .models import TokenData
+
+logger = logging.getLogger(__name__)
 
 
 class JWTManager:
@@ -31,8 +34,8 @@ class JWTManager:
             # In production, this should be a proper secret
             import secrets
             secret = secrets.token_urlsafe(32)
-            print(f"⚠️  Generated JWT secret: {secret}")
-            print("⚠️  Please set JWT_SECRET_KEY environment variable in production!")
+            logger.warning("Generated JWT secret: %s", secret)
+            logger.warning("Please set JWT_SECRET_KEY environment variable in production!")
         return secret
     
     def create_access_token(

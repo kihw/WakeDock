@@ -3,521 +3,531 @@
  * Typed API client with error handling and authentication
  */
 
-import type { User, CreateUserRequest, UpdateUserRequest, LoginRequest, LoginResponse } from './types/user';
+import type {
+  User,
+  CreateUserRequest,
+  UpdateUserRequest,
+  LoginRequest,
+  LoginResponse,
+} from './types/user';
 import { config } from './config/environment.js';
 import { API_ENDPOINTS, getApiUrl } from './config/api.js';
 import { csrf, rateLimit, securityValidate } from './utils/validation.js';
 import { memoryUtils } from './utils/storage.js';
 
 export interface ApiError {
-    message: string;
-    code?: string;
-    details?: any;
+  message: string;
+  code?: string;
+  details?: any;
 }
 
 export interface Service {
-    id: string;
-    name: string;
-    subdomain: string; // Add missing subdomain property
-    image: string;
-    status: 'running' | 'stopped' | 'error' | 'starting' | 'stopping';
-    ports: Array<{
-        host: number;
-        container: number;
-        protocol: 'tcp' | 'udp';
-    }>;
-    environment: Record<string, string>;
-    volumes: Array<{
-        host: string;
-        container: string;
-        mode: 'rw' | 'ro';
-    }>;
-    created_at: string;
-    updated_at: string;
-    health_status?: 'healthy' | 'unhealthy' | 'unknown';
-    restart_policy: 'no' | 'always' | 'on-failure' | 'unless-stopped';
-    labels: Record<string, string>;
-    last_accessed?: string;
-    resource_usage?: {
-        cpu_usage: number;
-        memory_usage: number;
-        network_io: { rx: number; tx: number };
-    };
+  id: string;
+  name: string;
+  subdomain: string; // Add missing subdomain property
+  image: string;
+  status: 'running' | 'stopped' | 'error' | 'starting' | 'stopping';
+  ports: Array<{
+    host: number;
+    container: number;
+    protocol: 'tcp' | 'udp';
+  }>;
+  environment: Record<string, string>;
+  volumes: Array<{
+    host: string;
+    container: string;
+    mode: 'rw' | 'ro';
+  }>;
+  created_at: string;
+  updated_at: string;
+  health_status?: 'healthy' | 'unhealthy' | 'unknown';
+  restart_policy: 'no' | 'always' | 'on-failure' | 'unless-stopped';
+  labels: Record<string, string>;
+  last_accessed?: string;
+  resource_usage?: {
+    cpu_usage: number;
+    memory_usage: number;
+    network_io: { rx: number; tx: number };
+  };
 }
 
 export interface SystemOverview {
-    services: {
-        total: number;
-        running: number;
-        stopped: number;
-        error: number;
-    };
-    system: {
-        cpu_usage: number;
-        memory_usage: number;
-        disk_usage: number;
-        uptime: number;
-    };
-    docker: {
-        version: string;
-        api_version: string;
-        status: 'healthy' | 'unhealthy';
-    };
-    caddy: {
-        version: string;
-        status: 'healthy' | 'unhealthy';
-        active_routes: number;
-    };
+  services: {
+    total: number;
+    running: number;
+    stopped: number;
+    error: number;
+  };
+  system: {
+    cpu_usage: number;
+    memory_usage: number;
+    disk_usage: number;
+    uptime: number;
+  };
+  docker: {
+    version: string;
+    api_version: string;
+    status: 'healthy' | 'unhealthy';
+  };
+  caddy: {
+    version: string;
+    status: 'healthy' | 'unhealthy';
+    active_routes: number;
+  };
 }
 
 export interface CreateServiceRequest {
-    name: string;
-    image: string;
-    ports?: Array<{
-        host: number;
-        container: number;
-        protocol?: 'tcp' | 'udp';
-    }>;
-    environment?: Record<string, string>;
-    volumes?: Array<{
-        host: string;
-        container: string;
-        mode?: 'rw' | 'ro';
-    }>;
-    restart_policy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
-    labels?: Record<string, string>;
+  name: string;
+  image: string;
+  ports?: Array<{
+    host: number;
+    container: number;
+    protocol?: 'tcp' | 'udp';
+  }>;
+  environment?: Record<string, string>;
+  volumes?: Array<{
+    host: string;
+    container: string;
+    mode?: 'rw' | 'ro';
+  }>;
+  restart_policy?: 'no' | 'always' | 'on-failure' | 'unless-stopped';
+  labels?: Record<string, string>;
 }
 
 export interface UpdateServiceRequest extends Partial<CreateServiceRequest> {
-    id: string;
+  id: string;
 }
 
 // Security headers utility
 export const securityHeaders = {
-    /**
-     * Get default security headers for API requests
-     */
-    getDefaults(): Record<string, string> {
-        return {
-            'X-Frame-Options': 'DENY',
-            'X-Content-Type-Options': 'nosniff',
-            'X-XSS-Protection': '1; mode=block',
-            'Referrer-Policy': 'strict-origin-when-cross-origin',
-            'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
-        };
-    },
+  /**
+   * Get default security headers for API requests
+   */
+  getDefaults(): Record<string, string> {
+    return {
+      'X-Frame-Options': 'DENY',
+      'X-Content-Type-Options': 'nosniff',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    };
+  },
 
-    /**
-     * Validate response headers for security
-     */
-    validateResponse(headers: Headers): string[] {
-        const warnings: string[] = [];
+  /**
+   * Validate response headers for security
+   */
+  validateResponse(headers: Headers): string[] {
+    const warnings: string[] = [];
 
-        if (!headers.get('X-Frame-Options') && !headers.get('x-frame-options')) {
-            warnings.push('Missing X-Frame-Options header');
-        }
-
-        if (!headers.get('X-Content-Type-Options') && !headers.get('x-content-type-options')) {
-            warnings.push('Missing X-Content-Type-Options header');
-        }
-
-        return warnings;
+    if (!headers.get('X-Frame-Options') && !headers.get('x-frame-options')) {
+      warnings.push('Missing X-Frame-Options header');
     }
+
+    if (!headers.get('X-Content-Type-Options') && !headers.get('x-content-type-options')) {
+      warnings.push('Missing X-Content-Type-Options header');
+    }
+
+    return warnings;
+  },
 };
 
 // Enhanced request options for security
 export interface SecureRequestOptions extends RequestInit {
-    skipCSRF?: boolean;
-    skipRateLimit?: boolean;
-    timeout?: number;
-    retries?: number;
+  skipCSRF?: boolean;
+  skipRateLimit?: boolean;
+  timeout?: number;
+  retries?: number;
 }
 
 class ApiClient {
-    private baseUrl: string;
-    private token: string | null = null;
-    private maxRetries: number = 3;
-    private retryDelay: number = 1000; // Base delay in ms
-    private timeout: number = 30000; // 30 seconds
+  private baseUrl: string;
+  private token: string | null = null;
+  private maxRetries: number = 3;
+  private retryDelay: number = 1000; // Base delay in ms
+  private timeout: number = 30000; // 30 seconds
 
-    constructor(baseUrl: string = '') {
-        // Use configuration from environment
-        this.baseUrl = baseUrl || config.apiUrl;
-        this.baseUrl = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  constructor(baseUrl: string = '') {
+    // Use configuration from environment
+    this.baseUrl = baseUrl || config.apiUrl;
+    this.baseUrl = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash
 
-        // Try to load token from localStorage
-        if (typeof window !== 'undefined') {
-            this.token = localStorage.getItem(config.tokenKey);
-        }
+    // Try to load token from localStorage
+    if (typeof window !== 'undefined') {
+      this.token = localStorage.getItem(config.tokenKey);
+    }
+  }
+
+  private async sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private shouldRetry(error: any, attempt: number): boolean {
+    if (attempt >= this.maxRetries) return false;
+
+    // Retry on network errors, timeouts, and 5xx server errors
+    if (error.name === 'TypeError' || error.name === 'NetworkError') return true;
+    if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') return true;
+    if (error.details?.status >= 500) return true;
+
+    return false;
+  }
+
+  private createTimeoutController(timeoutMs: number): AbortController {
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), timeoutMs);
+    return controller;
+  }
+
+  private async request<T>(
+    path: string,
+    options: SecureRequestOptions = {},
+    retryAttempt: number = 0
+  ): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+
+    // Rate limiting check
+    if (!options.skipRateLimit) {
+      const rateLimitKey = `api_${path}_${this.token ? 'auth' : 'anon'}`;
+      if (rateLimit.isLimited(rateLimitKey)) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
     }
 
-    private async sleep(ms: number): Promise<void> {
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
-    private shouldRetry(error: any, attempt: number): boolean {
-        if (attempt >= this.maxRetries) return false;
-
-        // Retry on network errors, timeouts, and 5xx server errors
-        if (error.name === 'TypeError' || error.name === 'NetworkError') return true;
-        if (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT') return true;
-        if (error.details?.status >= 500) return true;
-
-        return false;
-    }
-
-    private createTimeoutController(timeoutMs: number): AbortController {
-        const controller = new AbortController();
-        setTimeout(() => controller.abort(), timeoutMs);
-        return controller;
-    }
-
-    private async request<T>(
-        path: string,
-        options: SecureRequestOptions = {},
-        retryAttempt: number = 0
-    ): Promise<T> {
-        const url = `${this.baseUrl}${path}`;
-
-        // Rate limiting check
-        if (!options.skipRateLimit) {
-            const rateLimitKey = `api_${path}_${this.token ? 'auth' : 'anon'}`;
-            if (rateLimit.isLimited(rateLimitKey)) {
-                throw new Error('Rate limit exceeded. Please try again later.');
-            }
-        }
-
-        const headers: Record<string, string> = {
-            'Content-Type': 'application/json',
-            ...securityHeaders.getDefaults(),
-        };
-
-        // Add CSRF token for state-changing operations
-        if (!options.skipCSRF && ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || 'GET')) {
-            const csrfToken = csrf.getToken();
-            if (csrfToken) {
-                headers['X-CSRF-Token'] = csrfToken;
-            }
-        }
-
-        // Merge existing headers if they exist
-        if (options.headers) {
-            const existingHeaders = new Headers(options.headers);
-            existingHeaders.forEach((value, key) => {
-                headers[key] = value;
-            });
-        }
-
-        if (this.token) {
-            headers.Authorization = `Bearer ${this.token}`;
-        }
-
-        // Validate request origin
-        headers.Origin = window.location.origin;
-        headers.Referer = window.location.href;
-
-        // Create timeout controller
-        const timeoutController = this.createTimeoutController(this.timeout);
-        const originalSignal = options.signal;
-
-        // Combine timeout signal with any existing signal
-        let combinedSignal = timeoutController.signal;
-        if (originalSignal) {
-            const combinedController = new AbortController();
-            const abortBoth = () => combinedController.abort();
-
-            timeoutController.signal.addEventListener('abort', abortBoth);
-            originalSignal.addEventListener('abort', abortBoth);
-
-            combinedSignal = combinedController.signal;
-        }
-
-        try {
-            const response = await fetch(url, {
-                ...options,
-                headers,
-                signal: combinedSignal,
-            });
-
-            // Clear timeout since request completed
-            if (!timeoutController.signal.aborted) {
-                timeoutController.abort();
-            }
-
-            // Validate response headers for security
-            const securityWarnings = securityHeaders.validateResponse(response.headers);
-            if (securityWarnings.length > 0) {
-                console.warn('Security warnings for response:', securityWarnings);
-            }
-
-            // Validate response origin if applicable
-            const responseOrigin = response.headers.get('Access-Control-Allow-Origin');
-            if (responseOrigin && responseOrigin !== '*' && responseOrigin !== window.location.origin) {
-                console.warn('Response origin mismatch:', responseOrigin);
-            }
-
-            if (!response.ok) {
-                let errorData: any = { message: 'An error occurred' };
-
-                try {
-                    const responseText = await response.text();
-                    // Sanitize error response to prevent XSS
-                    const sanitizedText = responseText.replace(/<[^>]*>/g, '').substring(0, 1000);
-                    errorData = JSON.parse(sanitizedText);
-                } catch {
-                    errorData = { message: response.statusText };
-                }
-
-                const error: ApiError = {
-                    message: errorData.detail || errorData.message || response.statusText,
-                    code: errorData.code,
-                    details: { ...errorData, status: response.status },
-                };
-
-                // Throw error to potentially trigger retry
-                throw error;
-            }
-
-            // Handle empty responses
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const responseData = await response.json();
-
-                // Basic response validation
-                if (typeof responseData === 'object' && responseData !== null) {
-                    // Remove any potentially dangerous properties
-                    delete responseData.__proto__;
-                    delete responseData.constructor;
-                }
-
-                return responseData;
-            } else {
-                return {} as T;
-            }
-        } catch (error: any) {
-            // Handle timeout specifically
-            if (error.name === 'AbortError') {
-                const timeoutError: ApiError = {
-                    message: 'Request timeout',
-                    code: 'TIMEOUT',
-                    details: { url, timeout: this.timeout }
-                };
-                error = timeoutError;
-            }
-
-            // Handle network errors
-            if (error instanceof TypeError && error.message.includes('fetch')) {
-                const networkError: ApiError = {
-                    message: 'Network error - please check your connection',
-                    code: 'NETWORK_ERROR',
-                    details: { url, originalError: error.message }
-                };
-                error = networkError;
-            }
-
-            // Retry logic
-            if (this.shouldRetry(error, retryAttempt)) {
-                const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
-                console.warn(`API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`, error);
-
-                await this.sleep(delay);
-                return this.request<T>(path, options, retryAttempt + 1);
-            }
-
-            throw error;
-        }
-    }
-
-    // User management methods
-    get users() {
-        return {
-            getAll: (): Promise<User[]> => {
-                return this.request<User[]>(API_ENDPOINTS.USERS.BASE);
-            },
-
-            getById: (id: number): Promise<User> => {
-                return this.request<User>(API_ENDPOINTS.USERS.BY_ID(id));
-            },
-
-            create: (userData: CreateUserRequest): Promise<User> => {
-                return this.request<User>(API_ENDPOINTS.USERS.CREATE, {
-                    method: 'POST',
-                    body: JSON.stringify(userData),
-                });
-            },
-
-            update: (id: number, userData: UpdateUserRequest): Promise<User> => {
-                return this.request<User>(API_ENDPOINTS.USERS.UPDATE(id), {
-                    method: 'PUT',
-                    body: JSON.stringify(userData),
-                });
-            },
-
-            delete: (id: number): Promise<void> => {
-                return this.request<void>(API_ENDPOINTS.USERS.DELETE(id), {
-                    method: 'DELETE',
-                });
-            }
-        };
-    }
-
-    // Authentication methods
-    get auth() {
-        return {
-            login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-                const formData = new FormData();
-                formData.append('username', credentials.username);
-                formData.append('password', credentials.password);
-
-                const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
-                    method: 'POST',
-                    body: formData,
-                });
-
-                this.token = response.access_token;
-
-                if (typeof window !== 'undefined') {
-                    localStorage.setItem(config.tokenKey, this.token);
-                }
-
-                return response;
-            },
-
-            logout: async (): Promise<void> => {
-                this.token = null;
-                if (typeof window !== 'undefined') {
-                    localStorage.removeItem(config.tokenKey);
-                }
-            },
-
-            getCurrentUser: (): Promise<User> => {
-                return this.request<User>(API_ENDPOINTS.AUTH.ME);
-            },
-
-            refreshToken: (): Promise<LoginResponse> => {
-                return this.request<LoginResponse>(API_ENDPOINTS.AUTH.REFRESH, {
-                    method: 'POST',
-                });
-            }
-        };
-    }
-
-    // System methods
-    async getSystemOverview(): Promise<SystemOverview> {
-        return this.request<SystemOverview>(API_ENDPOINTS.SYSTEM.OVERVIEW);
-    }
-
-    async getHealth(): Promise<Record<string, any>> {
-        return this.request<Record<string, any>>(API_ENDPOINTS.SYSTEM.HEALTH);
-    }
-
-    // Service methods
-    async getServices(): Promise<Service[]> {
-        return this.request<Service[]>(API_ENDPOINTS.SERVICES.BASE);
-    }
-
-    async getService(id: string): Promise<Service> {
-        return this.request<Service>(API_ENDPOINTS.SERVICES.BY_ID(id));
-    }
-
-    async createService(service: CreateServiceRequest): Promise<Service> {
-        return this.request<Service>(API_ENDPOINTS.SERVICES.CREATE, {
-            method: 'POST',
-            body: JSON.stringify(service),
-        });
-    }
-
-    async updateService(service: UpdateServiceRequest): Promise<Service> {
-        const { id, ...updateData } = service;
-        return this.request<Service>(API_ENDPOINTS.SERVICES.UPDATE(id), {
-            method: 'PUT',
-            body: JSON.stringify(updateData),
-        });
-    }
-
-    async deleteService(id: string): Promise<void> {
-        return this.request<void>(API_ENDPOINTS.SERVICES.DELETE(id), {
-            method: 'DELETE',
-        });
-    }
-
-    async startService(id: string): Promise<void> {
-        return this.request<void>(API_ENDPOINTS.SERVICES.START(id), {
-            method: 'POST',
-        });
-    }
-
-    async stopService(id: string): Promise<void> {
-        return this.request<void>(API_ENDPOINTS.SERVICES.STOP(id), {
-            method: 'POST',
-        });
-    }
-
-    async restartService(id: string): Promise<void> {
-        return this.request<void>(API_ENDPOINTS.SERVICES.RESTART(id), {
-            method: 'POST',
-        });
-    }
-
-    async getServiceLogs(id: string, lines: number = 100): Promise<string[]> {
-        const response = await this.request<{ logs: string[] }>(
-            API_ENDPOINTS.SERVICES.LOGS(id, lines)
-        );
-        return response.logs;
-    }
-
-    // Services API object for compatibility
-    services = {
-        getAll: () => this.getServices(),
-        getById: (id: string) => this.getService(id),
-        create: (service: CreateServiceRequest) => this.createService(service),
-        update: (service: UpdateServiceRequest) => this.updateService(service),
-        delete: (id: string) => this.deleteService(id),
-        start: (id: string) => this.startService(id),
-        stop: (id: string) => this.stopService(id),
-        restart: (id: string) => this.restartService(id),
-        getLogs: (id: string, lines?: number) => this.getServiceLogs(id, lines)
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...securityHeaders.getDefaults(),
     };
 
-    // General-purpose HTTP methods
-    async get<T>(path: string): Promise<{ ok: boolean; data?: T }> {
+    // Add CSRF token for state-changing operations
+    if (
+      !options.skipCSRF &&
+      ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || 'GET')
+    ) {
+      const csrfToken = csrf.getToken();
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+    }
+
+    // Merge existing headers if they exist
+    if (options.headers) {
+      const existingHeaders = new Headers(options.headers);
+      existingHeaders.forEach((value, key) => {
+        headers[key] = value;
+      });
+    }
+
+    if (this.token) {
+      headers.Authorization = `Bearer ${this.token}`;
+    }
+
+    // Validate request origin
+    headers.Origin = window.location.origin;
+    headers.Referer = window.location.href;
+
+    // Create timeout controller
+    const timeoutController = this.createTimeoutController(this.timeout);
+    const originalSignal = options.signal;
+
+    // Combine timeout signal with any existing signal
+    let combinedSignal = timeoutController.signal;
+    if (originalSignal) {
+      const combinedController = new AbortController();
+      const abortBoth = () => combinedController.abort();
+
+      timeoutController.signal.addEventListener('abort', abortBoth);
+      originalSignal.addEventListener('abort', abortBoth);
+
+      combinedSignal = combinedController.signal;
+    }
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers,
+        signal: combinedSignal,
+      });
+
+      // Clear timeout since request completed
+      if (!timeoutController.signal.aborted) {
+        timeoutController.abort();
+      }
+
+      // Validate response headers for security
+      const securityWarnings = securityHeaders.validateResponse(response.headers);
+      if (securityWarnings.length > 0) {
+        console.warn('Security warnings for response:', securityWarnings);
+      }
+
+      // Validate response origin if applicable
+      const responseOrigin = response.headers.get('Access-Control-Allow-Origin');
+      if (responseOrigin && responseOrigin !== '*' && responseOrigin !== window.location.origin) {
+        console.warn('Response origin mismatch:', responseOrigin);
+      }
+
+      if (!response.ok) {
+        let errorData: any = { message: 'An error occurred' };
+
         try {
-            const data = await this.request<T>(path, { method: 'GET' });
-            return { ok: true, data };
-        } catch (error) {
-            console.error('GET request failed:', error);
-            return { ok: false };
+          const responseText = await response.text();
+          // Sanitize error response to prevent XSS
+          const sanitizedText = responseText.replace(/<[^>]*>/g, '').substring(0, 1000);
+          errorData = JSON.parse(sanitizedText);
+        } catch {
+          errorData = { message: response.statusText };
         }
-    }
 
-    async post<T>(path: string, body?: any): Promise<{ ok: boolean; data?: T }> {
-        try {
-            const data = await this.request<T>(path, {
-                method: 'POST',
-                body: body ? JSON.stringify(body) : undefined
-            });
-            return { ok: true, data };
-        } catch (error) {
-            console.error('POST request failed:', error);
-            return { ok: false };
+        const error: ApiError = {
+          message: errorData.detail || errorData.message || response.statusText,
+          code: errorData.code,
+          details: { ...errorData, status: response.status },
+        };
+
+        // Throw error to potentially trigger retry
+        throw error;
+      }
+
+      // Handle empty responses
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        const responseData = await response.json();
+
+        // Basic response validation
+        if (typeof responseData === 'object' && responseData !== null) {
+          // Remove any potentially dangerous properties
+          delete responseData.__proto__;
+          delete responseData.constructor;
         }
-    }
 
-    // Utility methods
-    isAuthenticated(): boolean {
-        return this.token !== null;
-    }
+        return responseData;
+      } else {
+        return {} as T;
+      }
+    } catch (error: any) {
+      // Handle timeout specifically
+      if (error.name === 'AbortError') {
+        const timeoutError: ApiError = {
+          message: 'Request timeout',
+          code: 'TIMEOUT',
+          details: { url, timeout: this.timeout },
+        };
+        error = timeoutError;
+      }
 
-    setToken(token: string): void {
-        this.token = token;
+      // Handle network errors
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        const networkError: ApiError = {
+          message: 'Network error - please check your connection',
+          code: 'NETWORK_ERROR',
+          details: { url, originalError: error.message },
+        };
+        error = networkError;
+      }
+
+      // Retry logic
+      if (this.shouldRetry(error, retryAttempt)) {
+        const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
+        console.warn(
+          `API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`,
+          error
+        );
+
+        await this.sleep(delay);
+        return this.request<T>(path, options, retryAttempt + 1);
+      }
+
+      throw error;
+    }
+  }
+
+  // User management methods
+  get users() {
+    return {
+      getAll: (): Promise<User[]> => {
+        return this.request<User[]>(API_ENDPOINTS.USERS.BASE);
+      },
+
+      getById: (id: number): Promise<User> => {
+        return this.request<User>(API_ENDPOINTS.USERS.BY_ID(id));
+      },
+
+      create: (userData: CreateUserRequest): Promise<User> => {
+        return this.request<User>(API_ENDPOINTS.USERS.CREATE, {
+          method: 'POST',
+          body: JSON.stringify(userData),
+        });
+      },
+
+      update: (id: number, userData: UpdateUserRequest): Promise<User> => {
+        return this.request<User>(API_ENDPOINTS.USERS.UPDATE(id), {
+          method: 'PUT',
+          body: JSON.stringify(userData),
+        });
+      },
+
+      delete: (id: number): Promise<void> => {
+        return this.request<void>(API_ENDPOINTS.USERS.DELETE(id), {
+          method: 'DELETE',
+        });
+      },
+    };
+  }
+
+  // Authentication methods
+  get auth() {
+    return {
+      login: async (credentials: LoginRequest): Promise<LoginResponse> => {
+        const formData = new FormData();
+        formData.append('username', credentials.username);
+        formData.append('password', credentials.password);
+
+        const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+          method: 'POST',
+          body: formData,
+        });
+
+        this.token = response.access_token;
+
         if (typeof window !== 'undefined') {
-            localStorage.setItem('wakedock_token', token);
+          localStorage.setItem(config.tokenKey, this.token);
         }
-    }
 
-    getToken(): string | null {
-        return this.token;
+        return response;
+      },
+
+      logout: async (): Promise<void> => {
+        this.token = null;
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(config.tokenKey);
+        }
+      },
+
+      getCurrentUser: (): Promise<User> => {
+        return this.request<User>(API_ENDPOINTS.AUTH.ME);
+      },
+
+      refreshToken: (): Promise<LoginResponse> => {
+        return this.request<LoginResponse>(API_ENDPOINTS.AUTH.REFRESH, {
+          method: 'POST',
+        });
+      },
+    };
+  }
+
+  // System methods
+  async getSystemOverview(): Promise<SystemOverview> {
+    return this.request<SystemOverview>(API_ENDPOINTS.SYSTEM.OVERVIEW);
+  }
+
+  async getHealth(): Promise<Record<string, any>> {
+    return this.request<Record<string, any>>(API_ENDPOINTS.SYSTEM.HEALTH);
+  }
+
+  // Service methods
+  async getServices(): Promise<Service[]> {
+    return this.request<Service[]>(API_ENDPOINTS.SERVICES.BASE);
+  }
+
+  async getService(id: string): Promise<Service> {
+    return this.request<Service>(API_ENDPOINTS.SERVICES.BY_ID(id));
+  }
+
+  async createService(service: CreateServiceRequest): Promise<Service> {
+    return this.request<Service>(API_ENDPOINTS.SERVICES.CREATE, {
+      method: 'POST',
+      body: JSON.stringify(service),
+    });
+  }
+
+  async updateService(service: UpdateServiceRequest): Promise<Service> {
+    const { id, ...updateData } = service;
+    return this.request<Service>(API_ENDPOINTS.SERVICES.UPDATE(id), {
+      method: 'PUT',
+      body: JSON.stringify(updateData),
+    });
+  }
+
+  async deleteService(id: string): Promise<void> {
+    return this.request<void>(API_ENDPOINTS.SERVICES.DELETE(id), {
+      method: 'DELETE',
+    });
+  }
+
+  async startService(id: string): Promise<void> {
+    return this.request<void>(API_ENDPOINTS.SERVICES.START(id), {
+      method: 'POST',
+    });
+  }
+
+  async stopService(id: string): Promise<void> {
+    return this.request<void>(API_ENDPOINTS.SERVICES.STOP(id), {
+      method: 'POST',
+    });
+  }
+
+  async restartService(id: string): Promise<void> {
+    return this.request<void>(API_ENDPOINTS.SERVICES.RESTART(id), {
+      method: 'POST',
+    });
+  }
+
+  async getServiceLogs(id: string, lines: number = 100): Promise<string[]> {
+    const response = await this.request<{ logs: string[] }>(API_ENDPOINTS.SERVICES.LOGS(id, lines));
+    return response.logs;
+  }
+
+  // Services API object for compatibility
+  services = {
+    getAll: () => this.getServices(),
+    getById: (id: string) => this.getService(id),
+    create: (service: CreateServiceRequest) => this.createService(service),
+    update: (service: UpdateServiceRequest) => this.updateService(service),
+    delete: (id: string) => this.deleteService(id),
+    start: (id: string) => this.startService(id),
+    stop: (id: string) => this.stopService(id),
+    restart: (id: string) => this.restartService(id),
+    getLogs: (id: string, lines?: number) => this.getServiceLogs(id, lines),
+  };
+
+  // General-purpose HTTP methods
+  async get<T>(path: string): Promise<{ ok: boolean; data?: T }> {
+    try {
+      const data = await this.request<T>(path, { method: 'GET' });
+      return { ok: true, data };
+    } catch (error) {
+      console.error('GET request failed:', error);
+      return { ok: false };
     }
+  }
+
+  async post<T>(path: string, body?: any): Promise<{ ok: boolean; data?: T }> {
+    try {
+      const data = await this.request<T>(path, {
+        method: 'POST',
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      return { ok: true, data };
+    } catch (error) {
+      console.error('POST request failed:', error);
+      return { ok: false };
+    }
+  }
+
+  // Utility methods
+  isAuthenticated(): boolean {
+    return this.token !== null;
+  }
+
+  setToken(token: string): void {
+    this.token = token;
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('wakedock_token', token);
+    }
+  }
+
+  getToken(): string | null {
+    return this.token;
+  }
 }
 
 // Export singleton instance

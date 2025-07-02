@@ -4,161 +4,161 @@ import { auth } from './auth';
 
 // Mock the API module completely
 vi.mock('../api', () => ({
-    api: {
-        auth: {
-            login: vi.fn(),
-            logout: vi.fn(),
-            getCurrentUser: vi.fn(),
-        },
-        getToken: vi.fn(),
+  api: {
+    auth: {
+      login: vi.fn(),
+      logout: vi.fn(),
+      getCurrentUser: vi.fn(),
     },
+    getToken: vi.fn(),
+  },
 }));
 
 // Import after mocking
 const { api } = await import('../api');
 
 describe('Auth Store', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        localStorage.clear();
-    });
+  beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.clear();
+  });
 
-    it('should initialize with default state', () => {
-        const state = get(auth);
+  it('should initialize with default state', () => {
+    const state = get(auth);
 
-        expect(state.user).toBeNull();
-        expect(state.token).toBeNull();
-        expect(state.isLoading).toBe(false);
-        expect(state.error).toBeNull();
-    });
+    expect(state.user).toBeNull();
+    expect(state.token).toBeNull();
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+  });
 
-    it('should handle successful login', async () => {
-        const mockUser = {
-            id: '1',
-            username: 'testuser',
-            email: 'test@example.com',
-            firstName: 'Test',
-            lastName: 'User',
-            role: 'user' as const,
-            roles: ['user'],
-            permissions: ['service:read'],
-            active: true,
-            isActive: true,
-            lastLogin: undefined,
-            last_login: undefined,
-            created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-01-01T00:00:00Z'
-        };
+  it('should handle successful login', async () => {
+    const mockUser = {
+      id: '1',
+      username: 'testuser',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      role: 'user' as const,
+      roles: ['user'],
+      permissions: ['service:read'],
+      active: true,
+      isActive: true,
+      lastLogin: undefined,
+      last_login: undefined,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-01T00:00:00Z',
+    };
 
-        const mockResponse = {
-            user: mockUser,
-            access_token: 'test-token',
-            token_type: 'Bearer',
-            expires_in: 3600
-        };
+    const mockResponse = {
+      user: mockUser,
+      access_token: 'test-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    };
 
-        vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
-        vi.mocked(api.auth.getCurrentUser).mockResolvedValue(mockUser);
+    vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
+    vi.mocked(api.auth.getCurrentUser).mockResolvedValue(mockUser);
 
-        await auth.login('testuser', 'password');
+    await auth.login('testuser', 'password');
 
-        const state = get(auth);
-        expect(state.user).toEqual(mockUser);
-        expect(state.token).toBe('test-token'); // The store should extract access_token and store as token
-        expect(state.isLoading).toBe(false);
-        expect(state.error).toBeNull();
-    });
+    const state = get(auth);
+    expect(state.user).toEqual(mockUser);
+    expect(state.token).toBe('test-token'); // The store should extract access_token and store as token
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+  });
 
-    it('should handle login error', async () => {
-        const error = new Error('Invalid credentials');
-        vi.mocked(api.auth.login).mockRejectedValue(error);
+  it('should handle login error', async () => {
+    const error = new Error('Invalid credentials');
+    vi.mocked(api.auth.login).mockRejectedValue(error);
 
-        await expect(auth.login('wrong', 'wrong')).rejects.toThrow('Invalid credentials');
+    await expect(auth.login('wrong', 'wrong')).rejects.toThrow('Invalid credentials');
 
-        const state = get(auth);
-        expect(state.user).toBeNull();
-        expect(state.token).toBeNull();
-        expect(state.isLoading).toBe(false);
-        expect(state.error).toBe('Invalid credentials');
-    });
+    const state = get(auth);
+    expect(state.user).toBeNull();
+    expect(state.token).toBeNull();
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBe('Invalid credentials');
+  });
 
-    it('should handle logout', async () => {
-        // First login to set some state
-        const mockUser = {
-            id: 1,
-            username: 'testuser',
-            email: 'test@example.com',
-            firstName: 'Test',
-            lastName: 'User',
-            role: 'user' as const,
-            roles: ['user'],
-            permissions: ['service:read'],
-            active: true,
-            isActive: true,
-            lastLogin: undefined,
-            last_login: undefined,
-            created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-01-01T00:00:00Z'
-        };
+  it('should handle logout', async () => {
+    // First login to set some state
+    const mockUser = {
+      id: 1,
+      username: 'testuser',
+      email: 'test@example.com',
+      firstName: 'Test',
+      lastName: 'User',
+      role: 'user' as const,
+      roles: ['user'],
+      permissions: ['service:read'],
+      active: true,
+      isActive: true,
+      lastLogin: undefined,
+      last_login: undefined,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-01T00:00:00Z',
+    };
 
-        const mockResponse = {
-            user: mockUser,
-            access_token: 'test-token',
-            token_type: 'Bearer',
-            expires_in: 3600
-        };
+    const mockResponse = {
+      user: mockUser,
+      access_token: 'test-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    };
 
-        vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
-        await auth.login('testuser', 'password');
+    vi.mocked(api.auth.login).mockResolvedValue(mockResponse);
+    await auth.login('testuser', 'password');
 
-        // Mock logout
-        vi.mocked(api.auth.logout).mockResolvedValue(undefined);
+    // Mock logout
+    vi.mocked(api.auth.logout).mockResolvedValue(undefined);
 
-        await auth.logout();
+    await auth.logout();
 
-        const state = get(auth);
-        expect(state.user).toBeNull();
-        expect(state.token).toBeNull();
-        expect(state.isLoading).toBe(false);
-        expect(state.error).toBeNull();
-    });
+    const state = get(auth);
+    expect(state.user).toBeNull();
+    expect(state.token).toBeNull();
+    expect(state.isLoading).toBe(false);
+    expect(state.error).toBeNull();
+  });
 
-    it('should clear errors', () => {
-        // Set an error first
-        const state = get(auth);
-        auth.clearError();
+  it('should clear errors', () => {
+    // Set an error first
+    const state = get(auth);
+    auth.clearError();
 
-        const newState = get(auth);
-        expect(newState.error).toBeNull();
-    });
+    const newState = get(auth);
+    expect(newState.error).toBeNull();
+  });
 
-    it('should update user info', () => {
-        const mockUser = {
-            id: 1,
-            username: 'updateduser',
-            email: 'updated@example.com',
-            firstName: 'Updated',
-            lastName: 'User',
-            role: 'admin' as const,
-            roles: ['admin'],
-            permissions: ['service:read', 'service:write'],
-            active: true,
-            isActive: true,
-            lastLogin: undefined,
-            last_login: undefined,
-            created_at: '2023-01-01T00:00:00Z',
-            updated_at: '2023-01-01T00:00:00Z',
-            createdAt: '2023-01-01T00:00:00Z',
-            updatedAt: '2023-01-01T00:00:00Z'
-        };
+  it('should update user info', () => {
+    const mockUser = {
+      id: 1,
+      username: 'updateduser',
+      email: 'updated@example.com',
+      firstName: 'Updated',
+      lastName: 'User',
+      role: 'admin' as const,
+      roles: ['admin'],
+      permissions: ['service:read', 'service:write'],
+      active: true,
+      isActive: true,
+      lastLogin: undefined,
+      last_login: undefined,
+      created_at: '2023-01-01T00:00:00Z',
+      updated_at: '2023-01-01T00:00:00Z',
+      createdAt: '2023-01-01T00:00:00Z',
+      updatedAt: '2023-01-01T00:00:00Z',
+    };
 
-        auth.updateUser(mockUser);
+    auth.updateUser(mockUser);
 
-        const state = get(auth);
-        expect(state.user).toEqual(mockUser);
-    });
+    const state = get(auth);
+    expect(state.user).toEqual(mockUser);
+  });
 });

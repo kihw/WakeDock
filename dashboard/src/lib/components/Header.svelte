@@ -155,9 +155,34 @@
     // Perform search logic here
     if (query.length > 2) {
       announceToScreenReader(`Searching for "${query}"`);
-      // TODO: Implement actual search functionality
+      // Implement basic search functionality - could search through navigation items, recent actions, etc.
+      searchResults = performSearch(query);
+    } else {
+      searchResults = [];
     }
   }
+
+  // Basic search implementation for Header
+  function performSearch(query: string) {
+    const lowerQuery = query.toLowerCase();
+    const searchableItems = [
+      { title: 'Dashboard', url: '/', type: 'navigation' },
+      { title: 'Containers', url: '/containers', type: 'navigation' },
+      { title: 'Images', url: '/images', type: 'navigation' },
+      { title: 'Networks', url: '/networks', type: 'navigation' },
+      { title: 'Volumes', url: '/volumes', type: 'navigation' },
+      { title: 'Settings', url: '/settings', type: 'navigation' },
+      { title: 'Security', url: '/security', type: 'navigation' },
+      { title: 'Monitoring', url: '/monitoring', type: 'navigation' },
+      { title: 'Logs', url: '/logs', type: 'navigation' }
+    ];
+
+    return searchableItems.filter(item =>
+      item.title.toLowerCase().includes(lowerQuery)
+    );
+  }
+
+  let searchResults = [];
 
   // Enhanced notification handling with accessibility
   function toggleNotifications(e: MouseEvent) {
@@ -297,8 +322,35 @@
 
     announceToScreenReader('Logging out...');
 
-    // TODO: Call actual logout API
-    // window.location.href = '/login';
+    // Call logout API and handle response
+    handleLogoutAPI();
+  }
+
+  async function handleLogoutAPI() {
+    try {
+      // Call the logout endpoint
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        // Successful logout - redirect to login
+        window.location.href = '/login';
+      } else {
+        // Handle logout error
+        announceToScreenReader('Logout failed. Please try again.');
+      }
+    } catch (error) {
+      // Network error or other issue
+      announceToScreenReader('Logout failed due to network error.');
+      // Force redirect anyway for security
+      window.location.href = '/login';
+    }
   }
 </script>
 

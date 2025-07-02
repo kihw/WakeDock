@@ -30,13 +30,15 @@ async def main():
         log_path.touch(exist_ok=True)
     except PermissionError:
         # Fallback to stdout only if log file can't be created
-        print(f"Warning: Cannot create log file at {log_path}, logging to stdout only")
         handlers = [logging.StreamHandler()]
+        # Log the warning after logging is configured
+        fallback_warning = f"Warning: Cannot create log file at {log_path}, logging to stdout only"
     else:
         handlers = [
             logging.FileHandler(settings.logging.file),
             logging.StreamHandler()
         ]
+        fallback_warning = None
     
     # Setup logging after directories are created
     logging.basicConfig(
@@ -46,6 +48,11 @@ async def main():
     )
     
     logger = logging.getLogger(__name__)
+    
+    # Log the fallback warning if needed
+    if fallback_warning:
+        logger.warning(fallback_warning)
+        
     logger.info("Starting WakeDock...")
     
     # Initialize database

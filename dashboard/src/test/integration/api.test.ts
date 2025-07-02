@@ -1,19 +1,19 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
-import { api } from '$lib/api.js';
+import { api } from '../../lib/api';
 
 // Mock WebSocket for integration tests
 vi.mock('$lib/websocket.js', () => ({
   websocketClient: {
     serviceUpdates: {
-      subscribe: vi.fn(() => vi.fn())
+      subscribe: vi.fn(() => vi.fn()),
     },
     systemUpdates: {
-      subscribe: vi.fn(() => vi.fn())
+      subscribe: vi.fn(() => vi.fn()),
     },
     logs: {
-      subscribe: vi.fn(() => vi.fn())
-    }
-  }
+      subscribe: vi.fn(() => vi.fn()),
+    },
+  },
 }));
 
 describe('API Integration Tests', () => {
@@ -33,13 +33,13 @@ describe('API Integration Tests', () => {
         ok: true,
         json: async () => ({
           user: { id: '1', username: 'testuser', email: 'test@example.com' },
-          token: 'mock-jwt-token'
-        })
+          token: 'mock-jwt-token',
+        }),
       });
 
       const response = await api.auth.login({
         username: 'testuser',
-        password: 'password123'
+        password: 'password123',
       });
 
       expect(response.user.username).toBe('testuser');
@@ -52,14 +52,16 @@ describe('API Integration Tests', () => {
         ok: false,
         status: 401,
         json: async () => ({
-          message: 'Invalid credentials'
-        })
+          message: 'Invalid credentials',
+        }),
       });
 
-      await expect(api.auth.login({
-        username: 'testuser',
-        password: 'wrongpassword'
-      })).rejects.toThrow();
+      await expect(
+        api.auth.login({
+          username: 'testuser',
+          password: 'wrongpassword',
+        })
+      ).rejects.toThrow();
     });
 
     it('should get current user when authenticated', async () => {
@@ -70,8 +72,8 @@ describe('API Integration Tests', () => {
           id: '1',
           username: 'testuser',
           email: 'test@example.com',
-          role: 'admin'
-        })
+          role: 'admin',
+        }),
       });
 
       api.setToken('mock-jwt-token');
@@ -102,13 +104,13 @@ describe('API Integration Tests', () => {
           updated_at: '2023-01-01T00:00:00Z',
           health_status: 'healthy',
           restart_policy: 'always',
-          labels: {}
-        }
+          labels: {},
+        },
       ];
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => mockServices
+        json: async () => mockServices,
       });
 
       const services = await api.services.getAll();
@@ -131,12 +133,12 @@ describe('API Integration Tests', () => {
         updated_at: '2023-01-01T00:00:00Z',
         health_status: 'healthy',
         restart_policy: 'always',
-        labels: {}
+        labels: {},
       };
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => mockService
+        json: async () => mockService,
       });
 
       const service = await api.services.getById('1');
@@ -148,14 +150,14 @@ describe('API Integration Tests', () => {
     it('should start a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({})
+        json: async () => ({}),
       });
 
       await expect(api.startService('1')).resolves.not.toThrow();
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/start'),
         expect.objectContaining({
-          method: 'POST'
+          method: 'POST',
         })
       );
     });
@@ -163,14 +165,14 @@ describe('API Integration Tests', () => {
     it('should stop a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({})
+        json: async () => ({}),
       });
 
       await expect(api.stopService('1')).resolves.not.toThrow();
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/stop'),
         expect.objectContaining({
-          method: 'POST'
+          method: 'POST',
         })
       );
     });
@@ -178,14 +180,14 @@ describe('API Integration Tests', () => {
     it('should restart a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({})
+        json: async () => ({}),
       });
 
       await expect(api.restartService('1')).resolves.not.toThrow();
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/restart'),
         expect.objectContaining({
-          method: 'POST'
+          method: 'POST',
         })
       );
     });
@@ -193,12 +195,12 @@ describe('API Integration Tests', () => {
     it('should get service logs', async () => {
       const mockLogs = [
         '2023-01-01T00:00:00Z INFO Starting nginx...',
-        '2023-01-01T00:00:01Z INFO Server started successfully'
+        '2023-01-01T00:00:01Z INFO Server started successfully',
       ];
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ logs: mockLogs })
+        json: async () => ({ logs: mockLogs }),
       });
 
       const logs = await api.getServiceLogs('1', 100);
@@ -220,13 +222,13 @@ describe('API Integration Tests', () => {
           cpu_usage: 25.5,
           memory_usage: 60.2,
           disk_usage: 45.8,
-          uptime: 123456
-        }
+          uptime: 123456,
+        },
       };
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => mockOverview
+        json: async () => mockOverview,
       });
 
       const overview = await api.getSystemOverview();
@@ -250,7 +252,7 @@ describe('API Integration Tests', () => {
           email: 'admin@example.com',
           role: 'admin',
           created_at: '2023-01-01T00:00:00Z',
-          last_login: '2023-01-02T00:00:00Z'
+          last_login: '2023-01-02T00:00:00Z',
         },
         {
           id: '2',
@@ -258,13 +260,13 @@ describe('API Integration Tests', () => {
           email: 'user@example.com',
           role: 'user',
           created_at: '2023-01-01T00:00:00Z',
-          last_login: null
-        }
+          last_login: null,
+        },
       ];
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => mockUsers
+        json: async () => mockUsers,
       });
 
       const users = await api.users.getAll();
@@ -280,20 +282,20 @@ describe('API Integration Tests', () => {
         email: 'newuser@example.com',
         password: 'password123',
         role: 'user' as const,
-        active: true
+        active: true,
       };
 
       const mockCreatedUser = {
         id: '3',
         ...newUser,
         created_at: '2023-01-03T00:00:00Z',
-        last_login: null
+        last_login: null,
       };
 
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
         status: 201,
-        json: async () => mockCreatedUser
+        json: async () => mockCreatedUser,
       });
 
       const createdUser = await api.users.create(newUser);
@@ -316,8 +318,8 @@ describe('API Integration Tests', () => {
         ok: false,
         status: 500,
         json: async () => ({
-          message: 'Internal server error'
-        })
+          message: 'Internal server error',
+        }),
       });
 
       await expect(api.services.getAll()).rejects.toThrow();
@@ -328,8 +330,8 @@ describe('API Integration Tests', () => {
         ok: false,
         status: 401,
         json: async () => ({
-          message: 'Unauthorized'
-        })
+          message: 'Unauthorized',
+        }),
       });
 
       await expect(api.services.getAll()).rejects.toThrow();

@@ -3,7 +3,7 @@ import './app.css';
 
 // Initialize the Svelte app
 const app = new App({
-    target: document.getElementById('app')!,
+  target: document.getElementById('app')!,
 });
 
 export default app;

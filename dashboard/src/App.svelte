@@ -8,6 +8,7 @@
   import { authStore } from './lib/stores/auth';
   import { systemStore } from './lib/stores/system';
   import { toastStore } from './lib/stores/toastStore';
+  import { uiLogger } from './lib/utils/logger';
 
   // Components
   import Navbar from './lib/components/Navbar.svelte';
@@ -62,7 +63,7 @@
         await systemStore.loadSystemInfo();
       }
     } catch (error) {
-      console.error('App initialization error:', error);
+      uiLogger.error('App', error, { context: 'initialization' });
       toastStore.add({
         type: 'error',
         message: 'Failed to initialize application',

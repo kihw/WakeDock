@@ -23,18 +23,15 @@ const STATIC_CACHE_NAME = `wakedock-static-${version}`;
 const API_CACHE_NAME = `wakedock-api-${version}`;
 
 // Cache static assets on install
-const staticAssets = [
-  '/',
-  ...build,
-  ...files
-];
+const staticAssets = ['/', ...build, ...files];
 
 // Install event - cache static assets
 self.addEventListener('install', (event: ExtendableEvent) => {
   console.log('[SW] Installing service worker...');
   event.waitUntil(
-    caches.open(STATIC_CACHE_NAME)
-      .then(cache => {
+    caches
+      .open(STATIC_CACHE_NAME)
+      .then((cache) => {
         console.log('[SW] Caching static assets');
         return cache.addAll(staticAssets);
       })
@@ -42,7 +39,7 @@ self.addEventListener('install', (event: ExtendableEvent) => {
         console.log('[SW] Installation complete');
         return self.skipWaiting();
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('[SW] Installation failed:', error);
       })
   );
@@ -52,12 +49,13 @@ self.addEventListener('install', (event: ExtendableEvent) => {
 self.addEventListener('activate', (event: ExtendableEvent) => {
   console.log('[SW] Activating service worker...');
   event.waitUntil(
-    caches.keys()
-      .then(cacheNames => {
+    caches
+      .keys()
+      .then((cacheNames) => {
         return Promise.all(
           cacheNames
-            .filter(name => name !== STATIC_CACHE_NAME && name !== API_CACHE_NAME)
-            .map(name => {
+            .filter((name) => name !== STATIC_CACHE_NAME && name !== API_CACHE_NAME)
+            .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
             })
@@ -67,7 +65,7 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
         console.log('[SW] Activation complete');
         return self.clients.claim();
       })
-      .catch(error => {
+      .catch((error) => {
         console.error('[SW] Activation failed:', error);
       })
   );
@@ -105,7 +103,7 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   event.respondWith(
     fetch(request)
       .catch(() => caches.match(request))
-      .then(response => response || new Response('Offline', { status: 503 }))
+      .then((response) => response || new Response('Offline', { status: 503 }))
   );
 });
 
@@ -114,19 +112,19 @@ async function handleApiRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
   // GET requests to certain endpoints can be cached
-  if (request.method === 'GET' && (
-    url.pathname.includes('/services') ||
-    url.pathname.includes('/status') ||
-    url.pathname.includes('/health')
-  )) {
+  if (
+    request.method === 'GET' &&
+    (url.pathname.includes('/services') ||
+      url.pathname.includes('/status') ||
+      url.pathname.includes('/health'))
+  ) {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
       // Update cache in background
       fetch(request)
-        .then(response => {
+        .then((response) => {
           if (response.ok) {
-            caches.open(API_CACHE_NAME)
-              .then(cache => cache.put(request, response.clone()));
+            caches.open(API_CACHE_NAME).then((cache) => cache.put(request, response.clone()));
           }
         })
         .catch(() => {
@@ -226,7 +224,7 @@ async function doBackgroundSync(): Promise<void> {
   // Simplified implementation
 }
 
-// Push notification handling  
+// Push notification handling
 self.addEventListener('push', (event: PushEvent) => {
   console.log('[SW] Push notification received');
 
@@ -236,13 +234,11 @@ self.addEventListener('push', (event: PushEvent) => {
     badge: '/icons/badge-72x72.png',
     tag: 'wakedock-notification',
     data: {
-      url: '/'
-    }
+      url: '/',
+    },
   };
 
-  event.waitUntil(
-    self.registration.showNotification('WakeDock', options)
-  );
+  event.waitUntil(self.registration.showNotification('WakeDock', options));
 });
 
 self.addEventListener('notificationclick', (event: NotificationEvent) => {
@@ -250,9 +246,7 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
 
   event.notification.close();
 
-  event.waitUntil(
-    self.clients.openWindow('/')
-  );
+  event.waitUntil(self.clients.openWindow('/'));
 });
 
 // Helper function to remove pending action

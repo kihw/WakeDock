@@ -2,6 +2,7 @@
   // Monitoring Dashboard Page
   import { onMount, onDestroy } from 'svelte';
   import { websocket } from '$lib/websocket';
+  import { uiLogger } from '$lib/utils/logger';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';
   import ResourceChart from '$lib/components/charts/ResourceChart.svelte';
@@ -36,9 +37,9 @@
   async function loadMonitoringData() {
     try {
       // Load system metrics and alerts
-      console.log('Loading monitoring data...');
+      uiLogger.info('Monitoring', 'Loading monitoring data');
     } catch (error) {
-      console.error('Failed to load monitoring data:', error);
+      uiLogger.error('Monitoring', error, { context: 'loadMonitoringData' });
     }
   }
 

@@ -1,53 +1,29 @@
-# Scripts de Nettoyage WakeDock
+# Scripts WakeDock
 
-Ce dossier contient des scripts pour nettoyer automatiquement les fichiers temporaires et inutiles du projet WakeDock.
+Ce dossier contient les scripts essentiels pour le fonctionnement, la maintenance et le déploiement de WakeDock.
 
-## Scripts Disponibles
+## 🗂️ Structure Optimisée
 
-### 🪟 Windows
+### 🚀 Scripts de Démarrage et Configuration
+- **`setup.sh`** - Configuration initiale complète du projet
+- **`start.sh`** - Démarrage de l'application avec options
+- **`validate-config.py`** - Validation de la configuration
 
-#### `quick-clean.ps1`
-Script de nettoyage rapide et automatique.
+### 🗄️ Scripts de Base de Données  
+- **`init-db.sh`** - Initialisation de la base de données
+- **`init-db.sql`** - Script SQL d'initialisation
+- **`migrate.sh`** - Gestion des migrations de schéma
 
-**Utilisation:**
-```powershell
-.\scripts\quick-clean.ps1
-```
+### 🔧 Scripts de Maintenance
+- **`backup.sh`** - Sauvegarde complète des données
+- **`restore.sh`** - Restauration des sauvegardes
+- **`health-check.sh`** - Monitoring et vérification de santé
+- **`status.sh`** - Vérification du statut des services
 
-**Ce qu'il nettoie:**
-- Dossiers `__pycache__` et fichiers `.pyc/.pyo`
-- Dossiers de build (`.svelte-kit`, `build`, `dist`, `.vite`)
-- Caches de test (`.pytest_cache`, `.mypy_cache`, `.tox`)
-- Fichiers temporaires (`.tmp`, `.temp`, `.bak`)
-- Anciens logs (> 7 jours)
-
-#### `cleanup-windows.ps1`
-Script de nettoyage complet avec options interactives.
-
-**Utilisation:**
-```powershell
-# Mode interactif
-.\scripts\cleanup-windows.ps1
-
-# Mode automatique (sans confirmations)
-.\scripts\cleanup-windows.ps1 -Auto
-```
-
-**Fonctionnalités:**
-- Nettoyage automatique des fichiers temporaires
-- Options interactives pour supprimer `node_modules` et `.venv`
-- Nettoyage des anciennes sauvegardes
-- Logs détaillés des opérations
-
-### 🐧 Linux/macOS
-
-#### `cleanup.sh`
-Script de nettoyage pour les systèmes Unix (déjà existant).
-
-**Utilisation:**
-```bash
-# Mode interactif
-./scripts/cleanup.sh
+### 🆕 Scripts d'Automatisation (2025)
+- **`cleanup-project.sh`** - Nettoyage automatisé complet
+- **`manage-dependencies.sh`** - Gestion des dépendances et audit de sécurité
+- **`analyze-docker-compose.sh`** - Analyse et optimisation Docker Compose
 
 # Mode automatique
 ./scripts/cleanup.sh --auto
@@ -142,3 +118,103 @@ Pour améliorer ces scripts:
 ---
 
 💡 **Conseil:** Exécutez `quick-clean.ps1` régulièrement pour maintenir un environnement de développement propre.
+
+## 📖 Guide d'Utilisation
+
+### Configuration Initiale
+```bash
+# Configuration complète du projet
+./scripts/setup.sh
+
+# Validation de la configuration
+python scripts/validate-config.py
+```
+
+### Démarrage de l'Application
+```bash
+# Démarrage normal
+./scripts/start.sh
+
+# Démarrage avec options spécifiques
+./scripts/start.sh --env=production --logs
+```
+
+### Base de Données
+```bash
+# Initialisation de la base
+./scripts/init-db.sh
+
+# Migration de schéma
+./scripts/migrate.sh
+```
+
+### Maintenance
+```bash
+# Vérification de santé
+./scripts/health-check.sh
+
+# Statut des services
+./scripts/status.sh
+
+# Sauvegarde
+./scripts/backup.sh
+
+# Restauration
+./scripts/restore.sh [backup_file]
+```
+
+### Nettoyage et Optimisation
+```bash
+# Nettoyage complet
+./scripts/cleanup-project.sh
+
+# Gestion des dépendances
+./scripts/manage-dependencies.sh
+
+# Analyse Docker
+./scripts/analyze-docker-compose.sh
+```
+
+## 🔧 Scripts Supprimés (Juillet 2025)
+
+Les scripts suivants ont été supprimés car ils étaient redondants ou non essentiels :
+- ~~`code-cleanup.sh`~~ - Remplacé par `cleanup-project.sh`
+- ~~`cleanup.sh`~~ - Remplacé par `cleanup-project.sh`  
+- ~~`quick-clean.ps1`~~ - Fonctionnalité intégrée dans `cleanup-project.sh`
+- ~~`cleanup-windows.ps1`~~ - Fonctionnalité intégrée dans `cleanup-project.sh`
+- ~~`setup.bat`~~ - Version Windows non nécessaire
+- ~~`update.sh`~~ - Intégré dans `manage-dependencies.sh`
+- ~~`setup-caddy.sh`~~ - Configuration spécifique non critique
+
+## 🎯 Workflow Recommandé
+
+### Développement Quotidien
+```bash
+./scripts/status.sh           # Vérifier l'état
+./scripts/start.sh           # Démarrer l'application
+```
+
+### Maintenance Hebdomadaire  
+```bash
+./scripts/cleanup-project.sh      # Nettoyage
+./scripts/manage-dependencies.sh  # Audit des dépendances
+./scripts/backup.sh               # Sauvegarde
+```
+
+### Maintenance Mensuelle
+```bash
+./scripts/analyze-docker-compose.sh  # Analyse Docker
+./scripts/health-check.sh           # Vérification complète
+```
+
+### Déploiement
+```bash
+./scripts/setup.sh                  # Configuration
+./scripts/init-db.sh               # Base de données  
+./scripts/migrate.sh               # Migrations
+./scripts/start.sh --env=production # Démarrage
+```
+
+---
+
+**✨ Structure optimisée avec 14 scripts essentiels (7 scripts supprimés)**

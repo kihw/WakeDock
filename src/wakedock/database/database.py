@@ -1,5 +1,6 @@
 """Database configuration and session management for WakeDock."""
 
+import logging
 import os
 from typing import Generator, Optional
 from contextlib import contextmanager
@@ -9,6 +10,8 @@ from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # Create the declarative base for models
 Base = declarative_base()
@@ -51,13 +54,13 @@ class DatabaseManager:
             
         except (PermissionError, OSError) as e:
             # Fallback to a local directory inside the container
-            print(f"Warning: Cannot write to configured data path ({self.settings.wakedock.data_path}): {e}")
-            print("This is likely due to Docker volume mount permissions.")
-            print("Using fallback location inside container (data will not persist across container restarts)")
+            logger.warning("Cannot write to configured data path (%s): %s", self.settings.wakedock.data_path, e)
+            logger.warning("This is likely due to Docker volume mount permissions.")
+            logger.warning("Using fallback location inside container (data will not persist across container restarts)")
             fallback_dir = "/tmp/wakedock"
             os.makedirs(fallback_dir, exist_ok=True)
             fallback_path = os.path.join(fallback_dir, "wakedock.db")
-            print(f"Using fallback database path: {fallback_path}")
+            logger.info("Using fallback database path: %s", fallback_path)
             return f"sqlite:///{fallback_path}"
     
     def initialize(self) -> None:
