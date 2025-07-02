@@ -17,8 +17,7 @@ export function setupGlobalErrorHandling() {
         'extension context invalidated',
         'cannot read properties of null',
         
-        // Function-related errors that may be caused by import/compilation issues
-        'is not a function',
+        // Specific function-related errors that are safe to ignore (extension related)
         'generatetoken is not a function',
         'validatetoken is not a function',
         'a.email is not a function',
@@ -76,8 +75,8 @@ export function setupGlobalErrorHandling() {
         'autofill',
         'bootstrap-autofill',
         'extension context invalidated',
-        'is not a function',
         'generatetoken is not a function',
+        'validatetoken is not a function',
         'chrome-extension',
         'moz-extension'
       ];

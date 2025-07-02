@@ -16,9 +16,12 @@ class ApiError extends Error {
 async function makeRequest<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
-  const defaultHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
+  const defaultHeaders: Record<string, string> = {};
+  
+  // Only set Content-Type for non-FormData requests
+  if (!(options.body instanceof FormData)) {
+    defaultHeaders['Content-Type'] = 'application/json';
+  }
 
   const token = localStorage.getItem('auth_token');
   if (token) {
@@ -63,9 +66,18 @@ async function makeRequest<T>(endpoint: string, options: RequestInit = {}): Prom
 export const api = {
   auth: {
     async login(credentials: LoginCredentials): Promise<{ user: User; token: string }> {
-      return makeRequest('/auth/login', {
+      // Convert to form data as expected by FastAPI OAuth2PasswordRequestForm
+      const formData = new FormData();
+      formData.append('username', credentials.username);
+      formData.append('password', credentials.password);
+      
+      return makeRequest('/auth/token', {
         method: 'POST',
-        body: JSON.stringify(credentials),
+        body: formData,
+        // Remove content-type header to let browser set it with boundary for FormData
+        headers: {
+          // Don't set Content-Type - let browser set it for FormData
+        },
       });
     },
 

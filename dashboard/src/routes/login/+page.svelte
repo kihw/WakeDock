@@ -22,7 +22,7 @@
   import { secureAccessibility } from '$lib/utils/accessibility';
   // import { toastStore } from "$lib/stores/toastStore";
 
-  let email = 'admin@wakedock.com'; // Pre-fill for development
+  let email = 'test@error.com'; // Pre-fill for development ERROR TEST
   let password = 'admin123'; // Pre-fill for development (matches backend config)
   let twoFactorCode = '';
   let rememberMe = false;
@@ -229,10 +229,24 @@
       goto(redirectTo);
     } catch (err) {
       console.error('Login error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        status: err.status,
+        response: err.response
+      });
 
       // Sanitize error message to prevent XSS
-      const sanitizedError = sanitizeInput.text(err.message || 'Login failed');
+      const sanitizedError = sanitizeInput(err.message || 'Login failed');
       error = sanitizedError;
+
+      // DEBUG: Show detailed error information (remove in production)
+      console.error('=== DETAILED LOGIN ERROR DEBUG ===');
+      console.error('Error message:', err.message);
+      console.error('Error status:', err.status);
+      console.error('Error response:', err.response);
+      console.error('Full error object:', err);
+      console.error('=== END DEBUG ===');
 
       // Handle specific error cases
       if (err.message?.includes('2FA')) {
@@ -343,6 +357,14 @@
       const redirectTo = $page.url.searchParams.get('redirect') || '/';
       goto(redirectTo);
     } catch (err) {
+      console.error('Login submit error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        stack: err.stack,
+        status: err.status,
+        response: err.response
+      });
+      
       error = err.message || 'Login error';
 
       // Reset 2FA state on error
@@ -437,7 +459,7 @@
                 : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
               placeholder="Enter your email address"
               disabled={loading}
-              autocomplete="email username"
+              autocomplete="email"
               spellcheck="false"
               data-lpignore="false"
               data-form-type="email"
@@ -689,6 +711,17 @@
                 ? 'Button disabled due to rate limiting'
                 : 'Click to sign in to your account'}
           </div>
+        </div>
+
+        <!-- Debug button for testing error display (remove in production) -->
+        <div class="mt-4">
+          <button
+            type="button"
+            on:click={() => { error = 'Test error message'; console.log('Test error triggered:', error); }}
+            class="w-full text-sm text-gray-500 hover:text-gray-700"
+          >
+            [Debug] Test Error Display
+          </button>
         </div>
 
         <!-- Register link -->

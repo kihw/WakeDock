@@ -198,6 +198,14 @@ export const auth = {
         rememberMe: options?.rememberMe,
       };
 
+      // TEMPORARY: Simulate API call for debugging
+      console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
+      
+      // For debugging: always throw an error to test error handling
+      if (emailOrUsername === 'test@error.com') {
+        throw new Error('Test error for debugging error display');
+      }
+
       const response: ApiLoginResponse = await api.auth.login(loginRequest);
 
       // Check if 2FA is required (mock implementation - should come from API)
@@ -253,6 +261,14 @@ export const auth = {
 
       return extendedResponse;
     } catch (error) {
+      console.error('Auth store login error:', error);
+      console.error('Auth error details:', {
+        message: (error as any)?.message,
+        stack: (error as any)?.stack,
+        status: (error as any)?.status,
+        response: (error as any)?.response
+      });
+      
       const apiError = error as ApiError;
       update((state: AuthState) => ({
         ...state,
