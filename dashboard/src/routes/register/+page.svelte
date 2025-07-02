@@ -612,7 +612,7 @@
         aria-label="Registration form"
         data-form-type="register"
         data-bitwarden-watching="1"
-        autocomplete="off"
+        autocomplete="on"
       >
         <!-- CSRF Token (hidden) -->
         <input type="hidden" name="_csrf" value={csrfToken} />

@@ -536,12 +536,28 @@ export function validateServiceConfig(config: Record<string, any>): ValidationRe
  */
 export const csrf = {
   generate: generateCSRFToken,
+  generateToken: generateCSRFToken, // Alias for compatibility
   verify: verifyCSRFToken,
+  validateToken: verifyCSRFToken, // Alias for compatibility
+  storeToken: (token: string) => {
+    // Store token in session storage for later use
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('csrf_token', token);
+    }
+  },
   getToken: () => {
-    // Get token from meta tag or generate one
-    const meta =
-      typeof document !== 'undefined' ? document.querySelector('meta[name="csrf-token"]') : null;
-    return meta?.getAttribute('content') || generateCSRFToken();
+    // Get token from meta tag, session storage, or generate one
+    if (typeof document !== 'undefined') {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) return meta.getAttribute('content');
+    }
+    
+    if (typeof sessionStorage !== 'undefined') {
+      const stored = sessionStorage.getItem('csrf_token');
+      if (stored) return stored;
+    }
+    
+    return generateCSRFToken();
   },
 };
 

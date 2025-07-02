@@ -4,7 +4,8 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
   import { auth, isAuthenticated } from '$lib/stores/auth';
-  import { csrf, rateLimit, securityValidate, sanitizeInput } from '$lib/utils/validation';
+  import { csrf, rateLimit, securityValidate, sanitizeInput, validateEmail, generateCSRFToken } from '$lib/utils/validation';
+  import { setupGlobalErrorHandling, safeEmailValidation, safeSanitizeInput, safeGenerateCSRFToken, safeCSRF } from '$lib/utils/errorHandling';
   import { secureAccessibility } from '$lib/utils/accessibility';
   // import { toastStore } from "$lib/stores/toastStore";
 
@@ -26,9 +27,14 @@
 
   // Security and accessibility enhancement
   onMount(async () => {
-    // Generate and store CSRF token
-    csrfToken = csrf.generateToken();
-    csrf.storeToken(csrfToken);
+    // Generate CSRF token with fallback
+    try {
+      csrfToken = csrf.generateToken();
+      csrf.storeToken(csrfToken);
+    } catch (error) {
+      console.debug('Using fallback CSRF token generation:', error.message);
+      csrfToken = safeGenerateCSRFToken();
+    }
 
     // Enhance form accessibility
     if (formRef) {
@@ -43,16 +49,13 @@
       }
     });
 
-    // Add security headers for this page
-    if (typeof document !== 'undefined') {
-      const meta = document.createElement('meta');
-      meta.httpEquiv = 'Content-Security-Policy';
-      meta.content =
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';";
-      document.head.appendChild(meta);
-    }
+    // Setup comprehensive error handling
+    const cleanupErrorHandling = setupGlobalErrorHandling();
 
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      cleanupErrorHandling();
+    };
   });
 
   onDestroy(() => {
@@ -62,18 +65,26 @@
     csrfToken = '';
   });
 
-  // Enhanced validation functions
-  function validateEmail() {
-    const sanitizedEmail = sanitizeInput.email(email);
-    const validation = securityValidate.email(sanitizedEmail);
+  // Enhanced validation functions with fallbacks
+  function validateEmailField() {
+    const sanitizedEmail = safeSanitizeInput(email);
+    
+    // Try the main validation function, fall back to safe validation
+    let validation;
+    try {
+      validation = validateEmail(sanitizedEmail);
+    } catch (error) {
+      console.debug('Using fallback email validation:', error.message);
+      validation = safeEmailValidation(sanitizedEmail);
+    }
 
-    emailErrors = validation.valid ? [] : [validation.error];
+    emailErrors = validation.valid ? [] : [validation.message || 'Invalid email'];
     email = sanitizedEmail; // Update with sanitized value
 
     return validation.valid;
   }
 
-  function validatePassword() {
+  function validatePasswordField() {
     if (!password) {
       passwordErrors = ['Password is required'];
       return false;
@@ -125,8 +136,8 @@
     twoFactorErrors = [];
 
     // Validate all fields
-    const isEmailValid = validateEmail();
-    const isPasswordValid = validatePassword();
+    const isEmailValid = validateEmailField();
+    const isPasswordValid = validatePasswordField();
     const isTwoFactorValid = validateTwoFactor();
 
     if (!isEmailValid || !isPasswordValid || !isTwoFactorValid) {
@@ -141,7 +152,15 @@
     }
 
     // Validate CSRF token
-    if (!csrf.validateToken(csrfToken)) {
+    let isCSRFValid = false;
+    try {
+      isCSRFValid = csrf.validateToken(csrfToken);
+    } catch (error) {
+      console.debug('CSRF validation fallback used:', error.message);
+      isCSRFValid = csrfToken && csrfToken.length === 32; // Basic fallback validation
+    }
+    
+    if (!isCSRFValid) {
       error = 'Security token validation failed. Please refresh the page.';
       secureAccessibility.form.announceError('Security validation failed.');
       return;
@@ -152,9 +171,9 @@
 
     try {
       const loginData = {
-        email: sanitizeInput.email(email),
+        email: safeSanitizeInput(email),
         password, // Don't sanitize password as it may contain special chars
-        twoFactorCode: requiresTwoFactor ? sanitizeInput.text(twoFactorCode) : undefined,
+        twoFactorCode: requiresTwoFactor ? safeSanitizeInput(twoFactorCode) : undefined,
         rememberMe,
         csrfToken,
         fingerprint: await generateFingerprint(),
@@ -367,6 +386,8 @@
         on:submit|preventDefault={handleLogin}
         aria-labelledby="login-heading"
         novalidate
+        autocomplete="on"
+        data-form-type="login"
       >
         <input type="hidden" name="csrf_token" value={csrfToken} />
 
@@ -391,7 +412,7 @@
               aria-describedby={emailErrors.length > 0 ? 'email-error' : 'email-hint'}
               aria-invalid={emailErrors.length > 0}
               bind:value={email}
-              on:blur={validateEmail}
+              on:blur={validateEmailField}
               on:focus={() => handleInputFocus('email')}
               on:keydown={handleKeyDown}
               class="relative block w-full appearance-none rounded-md border {emailErrors.length > 0
@@ -399,7 +420,10 @@
                 : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
               placeholder="Enter your email address"
               disabled={loading}
-              autocomplete="email"
+              autocomplete="email username"
+              spellcheck="false"
+              data-lpignore="false"
+              data-form-type="email"
             />
             <div id="email-hint" class="sr-only">Enter your email address to log in</div>
             {#if emailErrors.length > 0}
@@ -426,7 +450,7 @@
               aria-describedby={passwordErrors.length > 0 ? 'password-error' : 'password-hint'}
               aria-invalid={passwordErrors.length > 0}
               bind:value={password}
-              on:blur={validatePassword}
+              on:blur={validatePasswordField}
               on:focus={() => handleInputFocus('password')}
               on:keydown={handleKeyDown}
               class="relative block w-full appearance-none rounded-md border {passwordErrors.length >
@@ -436,6 +460,9 @@
               placeholder="Enter your password"
               disabled={loading}
               autocomplete="current-password"
+              spellcheck="false"
+              data-lpignore="false"
+              data-form-type="password"
             />
             <div id="password-hint" class="sr-only">Enter your password to log in</div>
             {#if passwordErrors.length > 0}
@@ -668,5 +695,24 @@
   /* Style pour améliorer l'apparence */
   input:focus {
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  /* Prevent autofill extension styling conflicts */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px white inset !important;
+    -webkit-text-fill-color: #111827 !important;
+  }
+
+  /* Hide autofill extension overlays */
+  input::-webkit-contacts-auto-fill-button,
+  input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    height: 0;
+    width: 0;
+    margin: 0;
   }
 </style>
