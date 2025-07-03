@@ -22,7 +22,7 @@
   import { secureAccessibility } from '$lib/utils/accessibility';
   // import { toastStore } from "$lib/stores/toastStore";
 
-  let email = 'test@error.com'; // Pre-fill for development ERROR TEST
+  let email = 'admin@wakedock.com'; // Pre-fill for development testing
   let password = 'admin123'; // Pre-fill for development (matches backend config)
   let twoFactorCode = '';
   let rememberMe = false;
