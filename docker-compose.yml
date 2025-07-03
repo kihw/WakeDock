@@ -79,6 +79,8 @@ services:
     build:
       context: ./dashboard
       dockerfile: Dockerfile
+      args:
+        WAKEDOCK_API_URL: ${WAKEDOCK_API_URL:-http://wakedock-core:8000}
     container_name: wakedock-dashboard
     restart: ${RESTART_POLICY}
     env_file:
@@ -90,6 +92,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - WAKEDOCK_API_URL=${WAKEDOCK_API_URL}
+      - VITE_API_BASE_URL=${WAKEDOCK_API_URL}/api/v1
     networks:
       - ${WAKEDOCK_NETWORK}
     depends_on:

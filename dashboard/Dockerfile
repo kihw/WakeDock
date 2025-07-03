@@ -14,8 +14,17 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
+# Build arguments to pass API URL to the build
+ARG WAKEDOCK_API_URL=http://wakedock:8000
+ARG VITE_API_BASE_URL=${WAKEDOCK_API_URL}/api/v1
+
+# Set environment variables for build
+ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
+ENV WAKEDOCK_API_URL=${WAKEDOCK_API_URL}
+
 # Build the application with comprehensive error handling
 RUN echo "Building SvelteKit application..." && \
+    echo "API URL: ${VITE_API_BASE_URL}" && \
     npm run build && \
     echo "Build completed, checking output..." && \
     ls -la build/ && \

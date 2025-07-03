@@ -1,6 +1,21 @@
 import type { User, LoginCredentials } from './lib/types/api';
+import { browser } from '$app/environment';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+// Get API URL from environment variables with fallbacks
+function getApiBaseUrl(): string {
+  // In browser context, use build-time environment variables
+  if (browser) {
+    return import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+  }
+
+  // On server (SSR), use runtime environment variables (Docker)
+  return process.env.WAKEDOCK_API_URL
+    ? `${process.env.WAKEDOCK_API_URL}/api/v1`
+    : process.env.VITE_API_BASE_URL
+    || 'http://localhost:8000/api/v1';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiError extends Error {
   constructor(

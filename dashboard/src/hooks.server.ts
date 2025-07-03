@@ -58,13 +58,17 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   // CSP header for dashboard
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const wakedockApiUrl = process.env.WAKEDOCK_API_URL || 'http://localhost:8000';
+
   const cspDirectives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Note: unsafe-eval needed for Svelte in dev
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    "connect-src 'self' http://localhost:* https://localhost:* ws://localhost:* wss://localhost:*", // Allow HTTP and WebSocket connections
+    // Allow connections to Docker containers and localhost
+    `connect-src 'self' ${wakedockApiUrl} http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:*`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
