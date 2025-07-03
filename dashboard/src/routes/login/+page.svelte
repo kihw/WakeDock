@@ -233,7 +233,7 @@
         message: err.message,
         stack: err.stack,
         status: err.status,
-        response: err.response
+        response: err.response,
       });
 
       // Sanitize error message to prevent XSS
@@ -362,9 +362,9 @@
         message: err.message,
         stack: err.stack,
         status: err.status,
-        response: err.response
+        response: err.response,
       });
-      
+
       error = err.message || 'Login error';
 
       // Reset 2FA state on error
@@ -717,7 +717,10 @@
         <div class="mt-4">
           <button
             type="button"
-            on:click={() => { error = 'Test error message'; console.log('Test error triggered:', error); }}
+            on:click={() => {
+              error = 'Test error message';
+              console.log('Test error triggered:', error);
+            }}
             class="w-full text-sm text-gray-500 hover:text-gray-700"
           >
             [Debug] Test Error Display

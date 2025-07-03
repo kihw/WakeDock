@@ -8,7 +8,7 @@ export function setupGlobalErrorHandling() {
   const handleGlobalError = (event) => {
     if (event.error && event.error.message) {
       const errorMessage = event.error.message.toLowerCase();
-      
+
       // List of errors to silently ignore
       const ignoredErrors = [
         // Autofill extension errors
@@ -16,7 +16,7 @@ export function setupGlobalErrorHandling() {
         'bootstrap-autofill',
         'extension context invalidated',
         'cannot read properties of null',
-        
+
         // Specific function-related errors that are safe to ignore (extension related)
         'generatetoken is not a function',
         'validatetoken is not a function',
@@ -24,42 +24,42 @@ export function setupGlobalErrorHandling() {
         'f.generatetoken is not a function',
         'j.generatetoken is not a function',
         'j.validatetoken is not a function',
-        
+
         // Common extension-related errors
         'chrome-extension',
         'moz-extension',
         'safari-extension',
         'extension/',
-        
+
         // Password manager errors
         'lastpass',
         'bitwarden',
         '1password',
         'dashlane',
-        
+
         // Other common browser extension errors
         'content script',
         'injected script',
         'user script',
-        
+
         // WebSocket connection errors (expected in development)
         'websocket connection',
         'ws://',
         'failed to connect'
       ];
-      
+
       // Check if this error should be ignored
-      const shouldIgnore = ignoredErrors.some(pattern => 
+      const shouldIgnore = ignoredErrors.some(pattern =>
         errorMessage.includes(pattern)
       );
-      
+
       if (shouldIgnore) {
         // Silently ignore these errors
         event.preventDefault();
         console.debug('Browser extension/validation error ignored:', event.error.message);
         return false;
       }
-      
+
       // Log other errors for debugging
       console.warn('Unhandled error:', event.error.message, event.error.stack);
     }
@@ -70,7 +70,7 @@ export function setupGlobalErrorHandling() {
     const reason = event.reason;
     if (reason && typeof reason === 'object' && reason.message) {
       const errorMessage = reason.message.toLowerCase();
-      
+
       const ignoredErrors = [
         'autofill',
         'bootstrap-autofill',
@@ -80,17 +80,17 @@ export function setupGlobalErrorHandling() {
         'chrome-extension',
         'moz-extension'
       ];
-      
-      const shouldIgnore = ignoredErrors.some(pattern => 
+
+      const shouldIgnore = ignoredErrors.some(pattern =>
         errorMessage.includes(pattern)
       );
-      
+
       if (shouldIgnore) {
         event.preventDefault();
         console.debug('Promise rejection ignored:', reason.message);
         return false;
       }
-      
+
       console.warn('Unhandled promise rejection:', reason.message);
     }
   };
@@ -99,15 +99,15 @@ export function setupGlobalErrorHandling() {
   if (typeof window !== 'undefined') {
     window.addEventListener('error', handleGlobalError);
     window.addEventListener('unhandledrejection', handlePromiseRejection);
-    
+
     // Return cleanup function
     return () => {
       window.removeEventListener('error', handleGlobalError);
       window.removeEventListener('unhandledrejection', handlePromiseRejection);
     };
   }
-  
-  return () => {}; // No-op cleanup for SSR
+
+  return () => { }; // No-op cleanup for SSR
 }
 
 /**
@@ -134,7 +134,7 @@ export function safeEmailValidation(email) {
     // Basic email regex fallback
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const isValid = emailRegex.test(String(email).trim());
-    
+
     return {
       valid: isValid,
       isValid: isValid,
@@ -158,7 +158,7 @@ export function safeSanitizeInput(input) {
     if (input == null || input === undefined) {
       return '';
     }
-    
+
     // Basic sanitization fallback
     return String(input)
       .replace(/</g, '&lt;')

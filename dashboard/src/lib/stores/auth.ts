@@ -200,7 +200,7 @@ export const auth = {
 
       // TEMPORARY: Simulate API call for debugging
       console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
-      
+
       // For debugging: always throw an error to test error handling
       if (emailOrUsername === 'test@error.com') {
         throw new Error('Test error for debugging error display');
@@ -268,7 +268,7 @@ export const auth = {
         status: (error as any)?.status,
         response: (error as any)?.response
       });
-      
+
       const apiError = error as ApiError;
       update((state: AuthState) => ({
         ...state,

@@ -269,10 +269,10 @@ class AccessibilityManager {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
       : null;
   }
 
@@ -804,10 +804,10 @@ export class SecureColorContrast {
     const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return result
       ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16),
-        }
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16),
+      }
       : null;
   }
 
@@ -930,6 +930,24 @@ export class SecureFormAccessibility {
         labelElement.appendChild(requiredSpan);
       }
     });
+  }
+
+  /**
+   * Announce error message to screen readers
+   */
+  static announceError(message: string, priority: 'polite' | 'assertive' = 'assertive'): void {
+    // Sanitize message to prevent XSS
+    const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
+    a11yManager.announce(`Error: ${sanitizedMessage}`, priority);
+  }
+
+  /**
+   * Announce change to screen readers
+   */
+  static announceChange(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
+    // Sanitize message to prevent XSS
+    const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
+    a11yManager.announce(sanitizedMessage, priority);
   }
 }
 

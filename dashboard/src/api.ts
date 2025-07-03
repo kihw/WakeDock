@@ -17,7 +17,7 @@ async function makeRequest<T>(endpoint: string, options: RequestInit = {}): Prom
   const url = `${API_BASE_URL}${endpoint}`;
 
   const defaultHeaders: Record<string, string> = {};
-  
+
   // Only set Content-Type for non-FormData requests
   if (!(options.body instanceof FormData)) {
     defaultHeaders['Content-Type'] = 'application/json';
@@ -70,7 +70,7 @@ export const api = {
       const formData = new FormData();
       formData.append('username', credentials.username);
       formData.append('password', credentials.password);
-      
+
       return makeRequest('/auth/token', {
         method: 'POST',
         body: formData,
