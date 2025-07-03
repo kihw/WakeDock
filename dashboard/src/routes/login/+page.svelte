@@ -729,20 +729,6 @@
           </div>
         </div>
 
-        <!-- Debug button for testing error display (remove in production) -->
-        <div class="mt-4">
-          <button
-            type="button"
-            on:click={() => {
-              error = 'Test error message';
-              console.log('Test error triggered:', error);
-            }}
-            class="w-full text-sm text-gray-500 hover:text-gray-700"
-          >
-            [Debug] Test Error Display
-          </button>
-        </div>
-
         <!-- Register link -->
         <div class="text-center">
           <p class="text-sm text-gray-600">
