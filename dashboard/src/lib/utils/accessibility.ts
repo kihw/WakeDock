@@ -936,18 +936,46 @@ export class SecureFormAccessibility {
    * Announce error message to screen readers
    */
   static announceError(message: string, priority: 'polite' | 'assertive' = 'assertive'): void {
-    // Sanitize message to prevent XSS
-    const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
-    a11yManager.announce(`Error: ${sanitizedMessage}`, priority);
+    try {
+      // Sanitize message to prevent XSS
+      const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
+      if (typeof a11yManager !== 'undefined' && a11yManager.announce) {
+        a11yManager.announce(`Error: ${sanitizedMessage}`, priority);
+      } else {
+        // Fallback: use console for debugging
+        console.error(`Accessibility Error: ${sanitizedMessage}`);
+        // Try to announce via live region if available
+        const liveRegion = document.querySelector('[aria-live]');
+        if (liveRegion) {
+          liveRegion.textContent = `Error: ${sanitizedMessage}`;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to announce error:', error);
+    }
   }
 
   /**
    * Announce change to screen readers
    */
   static announceChange(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
-    // Sanitize message to prevent XSS
-    const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
-    a11yManager.announce(sanitizedMessage, priority);
+    try {
+      // Sanitize message to prevent XSS
+      const sanitizedMessage = message.replace(/<[^>]*>/g, '').substring(0, 200);
+      if (typeof a11yManager !== 'undefined' && a11yManager.announce) {
+        a11yManager.announce(sanitizedMessage, priority);
+      } else {
+        // Fallback: use console for debugging
+        console.log(`Accessibility Change: ${sanitizedMessage}`);
+        // Try to announce via live region if available
+        const liveRegion = document.querySelector('[aria-live]');
+        if (liveRegion) {
+          liveRegion.textContent = sanitizedMessage;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to announce change:', error);
+    }
   }
 }
 

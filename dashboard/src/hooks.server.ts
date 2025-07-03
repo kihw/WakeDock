@@ -56,10 +56,12 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-
   // CSP header for dashboard
   const isDevelopment = process.env.NODE_ENV === 'development';
   const wakedockApiUrl = process.env.WAKEDOCK_API_URL || 'http://localhost:8000';
+
+  // Extract WebSocket URL from API URL
+  const wsUrl = wakedockApiUrl.replace(/^https?:/, 'ws:');
 
   const cspDirectives = [
     "default-src 'self'",
@@ -68,7 +70,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
     "img-src 'self' data: blob:",
     "font-src 'self'",
     // Allow connections to Docker containers and localhost
-    `connect-src 'self' ${wakedockApiUrl} http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:*`,
+    `connect-src 'self' ${wakedockApiUrl} ${wsUrl} http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

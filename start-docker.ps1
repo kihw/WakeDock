@@ -13,7 +13,8 @@ if (-not (Test-Path "docker-compose.yml")) {
 try {
     docker version | Out-Null
     Write-Host "✅ Docker is running" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "❌ Docker is not running. Please start Docker Desktop." -ForegroundColor Red
     exit 1
 }
@@ -23,7 +24,8 @@ Write-Host "🔗 Creating Docker network..." -ForegroundColor Cyan
 docker network create caddy_net 2>$null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "✅ Network 'caddy_net' created" -ForegroundColor Green
-} else {
+}
+else {
     Write-Host "ℹ️  Network 'caddy_net' already exists" -ForegroundColor Yellow
 }
 
@@ -45,9 +47,10 @@ Write-Host "🔍 Checking service health..." -ForegroundColor Cyan
 
 # Check backend API
 try {
-    $apiHealth = Invoke-RestMethod -Uri "http://localhost:8000/health" -TimeoutSec 5
+    $response = Invoke-RestMethod -Uri "http://localhost:8000/health" -TimeoutSec 5
     Write-Host "✅ Backend API is healthy" -ForegroundColor Green
-} catch {
+}
+catch {
     Write-Host "⚠️  Backend API not yet ready" -ForegroundColor Yellow
 }
 
@@ -57,7 +60,8 @@ try {
     if ($dashboardResponse.StatusCode -eq 200) {
         Write-Host "✅ Dashboard is accessible" -ForegroundColor Green
     }
-} catch {
+}
+catch {
     Write-Host "⚠️  Dashboard not yet ready" -ForegroundColor Yellow
 }
 
