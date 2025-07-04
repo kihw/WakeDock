@@ -537,8 +537,10 @@ export function validateServiceConfig(config: Record<string, any>): ValidationRe
 export const csrf = {
   generate: generateCSRFToken,
   generateToken: generateCSRFToken, // Alias for compatibility
+  generatetoken: generateCSRFToken, // Lowercase alias for compatibility
   verify: verifyCSRFToken,
   validateToken: verifyCSRFToken, // Alias for compatibility
+  validatetoken: verifyCSRFToken, // Lowercase alias for compatibility
   storeToken: (token: string) => {
     // Store token in session storage for later use
     if (typeof sessionStorage !== 'undefined') {
@@ -839,3 +841,21 @@ export function validatePassword(password: string): ValidationResult {
 
   return { valid: true, isValid: true };
 }
+
+/**
+ * Enhanced validation API with fallback support
+ */
+export const validationAPI = {
+  email: validateEmail,
+  username: validateUsername,
+  password: validatePassword,
+  sanitizeInput,
+  generateCSRFToken,
+  verifyCSRFToken,
+  csrf
+};
+
+// Also export for compatibility
+export { validateEmail as email };
+export { validateUsername as username };
+export { validatePassword as password };

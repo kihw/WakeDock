@@ -86,7 +86,7 @@ export const api = {
       formData.append('username', credentials.username);
       formData.append('password', credentials.password);
 
-      return makeRequest('/auth/token', {
+      return makeRequest('/auth/login', {
         method: 'POST',
         body: formData,
         // Remove content-type header to let browser set it with boundary for FormData
