@@ -20,9 +20,10 @@
     safeCSRF,
   } from '$lib/utils/errorHandling';
   import { secureAccessibility } from '$lib/utils/accessibility';
+  import { debugConfig } from '$lib/config/environment';
   // import { toastStore } from "$lib/stores/toastStore";
 
-  let email = 'admin@wakedock.com'; // Pre-fill for development testing
+  let usernameOrEmail = 'admin'; // Pre-fill for development testing
   let password = 'admin123'; // Pre-fill for development (matches backend config)
   let twoFactorCode = '';
   let rememberMe = false;
@@ -32,7 +33,7 @@
   let showTwoFactorInput = false;
   let csrfToken = '';
   let formRef;
-  let emailErrors = [];
+  let usernameOrEmailErrors = [];
   let passwordErrors = [];
   let twoFactorErrors = [];
   let attemptCount = 0;
@@ -40,13 +41,20 @@
 
   // Security and accessibility enhancement
   onMount(async () => {
+    // Debug configuration
+    debugConfig();
     // Generate CSRF token with fallback
     try {
       csrfToken = csrf.generateToken();
       csrf.storeToken(csrfToken);
     } catch (error) {
       console.debug('Using fallback CSRF token generation:', error.message);
-      csrfToken = safeGenerateCSRFToken();
+      try {
+        csrfToken = safeGenerateCSRFToken();
+      } catch (fallbackError) {
+        // Ultimate fallback - generate manually
+        csrfToken = generateCSRFToken();
+      }
     }
 
     // Enhance form accessibility
@@ -79,20 +87,34 @@
   });
 
   // Enhanced validation functions with fallbacks
-  function validateEmailField() {
-    const sanitizedEmail = safeSanitizeInput(email);
+  function validateUsernameOrEmailField() {
+    const sanitizedInput = safeSanitizeInput(usernameOrEmail);
 
-    // Try the main validation function, fall back to safe validation
+    // Check if it's an email format or username
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isEmailFormat = emailRegex.test(sanitizedInput);
+    
     let validation;
-    try {
-      validation = validateEmail(sanitizedEmail);
-    } catch (error) {
-      console.debug('Using fallback email validation:', error.message);
-      validation = safeEmailValidation(sanitizedEmail);
+    if (isEmailFormat) {
+      // Validate as email
+      try {
+        validation = validateEmail(sanitizedInput);
+      } catch (error) {
+        console.debug('Using fallback email validation:', error.message);
+        validation = safeEmailValidation(sanitizedInput);
+      }
+    } else {
+      // Validate as username (basic validation)
+      const isValidUsername = sanitizedInput.length >= 3 && /^[a-zA-Z0-9_-]+$/.test(sanitizedInput);
+      validation = {
+        valid: isValidUsername,
+        isValid: isValidUsername,
+        message: isValidUsername ? '' : 'Username must be at least 3 characters and contain only letters, numbers, underscores, and hyphens'
+      };
     }
 
-    emailErrors = validation.valid ? [] : [validation.message || 'Invalid email'];
-    email = sanitizedEmail; // Update with sanitized value
+    usernameOrEmailErrors = validation.valid ? [] : [validation.message || 'Invalid username or email'];
+    usernameOrEmail = sanitizedInput; // Update with sanitized value
 
     return validation.valid;
   }
@@ -129,7 +151,7 @@
   }
 
   function checkRateLimit() {
-    const rateLimitKey = `login_attempt_${email}`;
+    const rateLimitKey = `login_attempt_${usernameOrEmail}`;
     // More generous rate limiting: 10 attempts per 5 minutes
     rateLimited = rateLimit.isLimited(rateLimitKey, 10, 5 * 60 * 1000);
 
@@ -145,16 +167,16 @@
   async function handleLogin() {
     // Reset errors
     error = '';
-    emailErrors = [];
+    usernameOrEmailErrors = [];
     passwordErrors = [];
     twoFactorErrors = [];
 
     // Validate all fields
-    const isEmailValid = validateEmailField();
+    const isUsernameOrEmailValid = validateUsernameOrEmailField();
     const isPasswordValid = validatePasswordField();
     const isTwoFactorValid = validateTwoFactor();
 
-    if (!isEmailValid || !isPasswordValid || !isTwoFactorValid) {
+    if (!isUsernameOrEmailValid || !isPasswordValid || !isTwoFactorValid) {
       error = 'Please correct the errors above';
       secureAccessibility.form.announceError('Form validation failed. Please correct the errors.');
       return;
@@ -185,7 +207,7 @@
 
     try {
       const loginData = {
-        email: safeSanitizeInput(email),
+        usernameOrEmail: safeSanitizeInput(usernameOrEmail),
         password, // Don't sanitize password as it may contain special chars
         twoFactorCode: requiresTwoFactor ? safeSanitizeInput(twoFactorCode) : undefined,
         rememberMe,
@@ -193,7 +215,7 @@
         fingerprint: await generateFingerprint(),
       };
 
-      const result = await auth.login(loginData.email, loginData.password, {
+      const result = await auth.login(loginData.usernameOrEmail, loginData.password, {
         twoFactorCode: loginData.twoFactorCode,
         rememberMe: loginData.rememberMe,
       });
@@ -307,11 +329,11 @@
       handleLogin();
     } else if (event.key === 'Escape') {
       // Clear form on escape
-      email = '';
+      usernameOrEmail = '';
       password = '';
       twoFactorCode = '';
       error = '';
-      emailErrors = [];
+      usernameOrEmailErrors = [];
       passwordErrors = [];
       twoFactorErrors = [];
     }
@@ -320,8 +342,8 @@
   function handleInputFocus(fieldName) {
     // Clear errors when user focuses on input
     switch (fieldName) {
-      case 'email':
-        emailErrors = [];
+      case 'usernameOrEmail':
+        usernameOrEmailErrors = [];
         break;
       case 'password':
         passwordErrors = [];
@@ -338,7 +360,7 @@
 
     // Create login data
     const loginData = {
-      email: sanitizeInput(email),
+      usernameOrEmail: sanitizeInput(usernameOrEmail),
       password: password, // Don't sanitize password as it might change valid chars
       twoFactorCode: twoFactorCode ? sanitizeInput(twoFactorCode) : '',
       rememberMe: rememberMe,
@@ -348,7 +370,7 @@
       loading = true;
       error = '';
 
-      const result = await auth.login(loginData.email, loginData.password, {
+      const result = await auth.login(loginData.usernameOrEmail, loginData.password, {
         twoFactorCode: loginData.twoFactorCode,
         rememberMe: loginData.rememberMe,
       });
@@ -364,7 +386,7 @@
 
       // Show success message if toastStore is available
       try {
-        // toastStore?.success(`Welcome ${email}!`);
+        // toastStore?.success(`Welcome ${usernameOrEmail}!`);
       } catch (e) {
         // Toast store not available, continue silently
       }
@@ -452,39 +474,39 @@
         <div class="space-y-4" role="group" aria-labelledby="login-fields">
           <h3 id="login-fields" class="sr-only">Login Credentials</h3>
 
-          <!-- Email field with validation -->
+          <!-- Username or Email field with validation -->
           <div>
-            <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
-              Email address
+            <label for="usernameOrEmail" class="block text-sm font-medium text-gray-700 mb-1">
+              Username or Email
               <span class="text-red-500" aria-label="required">*</span>
             </label>
             <input
-              id="email"
-              name="email"
-              type="email"
+              id="usernameOrEmail"
+              name="usernameOrEmail"
+              type="text"
               required
               aria-required="true"
-              aria-describedby={emailErrors.length > 0 ? 'email-error' : 'email-hint'}
-              aria-invalid={emailErrors.length > 0}
-              bind:value={email}
-              on:blur={validateEmailField}
-              on:focus={() => handleInputFocus('email')}
+              aria-describedby={usernameOrEmailErrors.length > 0 ? 'usernameOrEmail-error' : 'usernameOrEmail-hint'}
+              aria-invalid={usernameOrEmailErrors.length > 0}
+              bind:value={usernameOrEmail}
+              on:blur={validateUsernameOrEmailField}
+              on:focus={() => handleInputFocus('usernameOrEmail')}
               on:keydown={handleKeyDown}
-              class="relative block w-full appearance-none rounded-md border {emailErrors.length > 0
+              class="relative block w-full appearance-none rounded-md border {usernameOrEmailErrors.length > 0
                 ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
                 : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-gray-900 placeholder-gray-500 focus:z-10 focus:outline-none sm:text-sm"
-              placeholder="Enter your email address"
+              placeholder="Enter your username or email"
               disabled={loading}
-              autocomplete="email"
+              autocomplete="username"
               spellcheck="false"
               data-lpignore="false"
-              data-form-type="email"
+              data-form-type="username"
             />
-            <div id="email-hint" class="sr-only">Enter your email address to log in</div>
-            {#if emailErrors.length > 0}
-              <div id="email-error" class="mt-1 text-sm text-red-600" role="alert">
-                {#each emailErrors as emailError}
-                  <p>{emailError}</p>
+            <div id="usernameOrEmail-hint" class="sr-only">Enter your username or email address to log in</div>
+            {#if usernameOrEmailErrors.length > 0}
+              <div id="usernameOrEmail-error" class="mt-1 text-sm text-red-600" role="alert">
+                {#each usernameOrEmailErrors as usernameOrEmailError}
+                  <p>{usernameOrEmailError}</p>
                 {/each}
               </div>
             {/if}

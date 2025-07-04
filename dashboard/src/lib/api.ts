@@ -10,7 +10,7 @@ import type {
   LoginRequest,
   LoginResponse,
 } from './types/user';
-import { config } from './config/environment.js';
+import { config, updateConfigFromRuntime } from './config/environment.js';
 import { API_ENDPOINTS, getApiUrl } from './config/api.js';
 import { csrf, rateLimit, securityValidate } from './utils/validation.js';
 import { memoryUtils } from './utils/storage.js';
@@ -154,6 +154,19 @@ class ApiClient {
     // Try to load token from localStorage
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem(config.tokenKey);
+      
+      // Update configuration from runtime API if available
+      this.updateConfigFromRuntime();
+    }
+  }
+
+  private async updateConfigFromRuntime(): Promise<void> {
+    try {
+      await updateConfigFromRuntime();
+      // Update baseUrl with new configuration
+      this.baseUrl = config.apiUrl.replace(/\/$/, '');
+    } catch (error) {
+      console.debug('Failed to update runtime configuration:', error);
     }
   }
 
@@ -194,9 +207,13 @@ class ApiClient {
     }
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...securityHeaders.getDefaults(),
     };
+
+    // Only set Content-Type if not using FormData
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // Add CSRF token for state-changing operations
     if (

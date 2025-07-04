@@ -21,6 +21,8 @@ ARG VITE_API_BASE_URL=${WAKEDOCK_API_URL}/api/v1
 # Set environment variables for build
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 ENV WAKEDOCK_API_URL=${WAKEDOCK_API_URL}
+ENV PUBLIC_API_URL=${WAKEDOCK_API_URL}
+ENV PUBLIC_WS_URL=${WAKEDOCK_API_URL}/ws
 
 # Build the application with comprehensive error handling
 RUN echo "Building SvelteKit application..." && \

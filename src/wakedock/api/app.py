@@ -9,8 +9,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import logging
+import asyncio
 
-from wakedock.api.routes import services, health, proxy, system, security
+from wakedock.api.routes import services, health, proxy, system, security, websocket
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
 from wakedock.core.orchestrator import DockerOrchestrator
@@ -94,6 +95,13 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         tags=["authentication"]
     )
     
+    # WebSocket router
+    app.include_router(
+        websocket.router,
+        prefix="/api/v1",
+        tags=["websocket"]
+    )
+    
     app.include_router(
         proxy.router,
         prefix="",
@@ -108,9 +116,25 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     @app.on_event("startup")
     async def startup_event():
         logger.info("WakeDock API started")
+        # Start WebSocket ping task
+        asyncio.create_task(websocket.websocket_ping_task())
+        logger.info("WebSocket ping task started")
+        
+        # Connect Docker events handler to WebSocket if available
+        if hasattr(app.state, 'docker_events_handler') and app.state.docker_events_handler:
+            from wakedock.api.routes.websocket import handle_docker_event
+            app.state.docker_events_handler.subscribe(handle_docker_event)
+            logger.info("Docker events handler connected to WebSocket")
+        
+        # Connect system metrics handler to WebSocket if available
+        if hasattr(app.state, 'system_metrics_handler') and app.state.system_metrics_handler:
+            from wakedock.api.routes.websocket import broadcast_system_update
+            app.state.system_metrics_handler.subscribe(broadcast_system_update)
+            logger.info("System metrics handler connected to WebSocket")
         
     @app.on_event("shutdown")
     async def shutdown_event():
         logger.info("WakeDock API shutting down")
+        # WebSocket connections will be closed automatically
     
     return app

@@ -95,6 +95,30 @@ function getNumberEnvVar(key: string, fallback: number = 0): number {
 }
 
 /**
+ * Load configuration from runtime API if available, fallback to environment variables
+ */
+async function loadRuntimeConfig(): Promise<EnvironmentConfig | null> {
+  if (browser) {
+    try {
+      const response = await fetch('/api/config');
+      if (response.ok) {
+        const runtimeConfig = await response.json();
+        return {
+          ...defaultConfig,
+          apiUrl: runtimeConfig.apiUrl,
+          wsUrl: runtimeConfig.wsUrl,
+          isDevelopment: runtimeConfig.isDevelopment,
+          enableDebug: runtimeConfig.enableDebug,
+        };
+      }
+    } catch (error) {
+      console.debug('Runtime config not available, using build-time config:', error);
+    }
+  }
+  return null;
+}
+
+/**
  * Load configuration from environment variables
  */
 function loadConfig(): EnvironmentConfig {
@@ -145,7 +169,32 @@ function loadConfig(): EnvironmentConfig {
 }
 
 // Export the configuration
-export const config = loadConfig();
+export let config = loadConfig();
+
+/**
+ * Update configuration at runtime
+ */
+export async function updateConfigFromRuntime(): Promise<void> {
+  const runtimeConfig = await loadRuntimeConfig();
+  if (runtimeConfig) {
+    config = runtimeConfig;
+    console.log('Configuration updated from runtime:', config);
+  }
+}
+
+// Debug function to log current configuration
+export function debugConfig(): void {
+  console.log('WakeDock Configuration:', {
+    apiUrl: config.apiUrl,
+    wsUrl: config.wsUrl,
+    isDevelopment: config.isDevelopment,
+    environment: {
+      NODE_ENV: getEnvVar('NODE_ENV'),
+      PUBLIC_API_URL: getEnvVar('PUBLIC_API_URL'),
+      PUBLIC_WS_URL: getEnvVar('PUBLIC_WS_URL'),
+    }
+  });
+}
 
 // Environment-specific utilities
 export const isDevelopment = config.isDevelopment;

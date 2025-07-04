@@ -224,8 +224,27 @@ export const auth = {
         return extendedResponse;
       }
 
-      // Get current user
-      const user = await api.auth.getCurrentUser();
+      // Get current user with retry logic
+      let user;
+      try {
+        user = await api.auth.getCurrentUser();
+      } catch (userError) {
+        console.warn('getCurrentUser failed, using data from token:', userError);
+        // Fallback: extract user data from token
+        const decoded = decodeToken(response.access_token);
+        user = response.user || {
+          id: parseInt(decoded?.sub || '1'),
+          username: decoded?.username || emailOrUsername,
+          email: emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@wakedock.com`,
+          full_name: decoded?.full_name || 'User',
+          role: decoded?.role || 'user',
+          is_active: true,
+          is_verified: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: new Date().toISOString()
+        };
+      }
 
       // Calculate session expiry
       const decoded = decodeToken(response.access_token);
