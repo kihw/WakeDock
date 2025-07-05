@@ -1,122 +1,127 @@
+<!-- Dashboard Page Refactorisée -->
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { writable } from 'svelte/store';
-  import ServiceCard from '$lib/components/ServiceCard.svelte';
-  import StatsCards from '$lib/components/StatsCards.svelte';
-  import { api, type Service, type SystemOverview } from '$lib/api';
-  import { auth } from '$lib/stores/auth.js';
-  import { websocketClient } from '$lib/websocket.js';
   import { goto } from '$app/navigation';
-  import {
-    Container,
-    Play,
-    Square,
-    Plus,
-    Zap,
-    Activity,
-    TrendingUp,
-    RefreshCw,
-    Search,
-    Filter,
-  } from 'lucide-svelte';
+  import { auth } from '$lib/stores/auth.js';
+  import { api, type Service, type SystemOverview } from '$lib/api';
+  import { websocketClient } from '$lib/websocket.js';
+  import Dashboard from '$lib/components/dashboard/Dashboard.svelte';
 
-  let services: Service[] = [];
-  let loading = true;
-  let error = '';
-  let searchTerm = '';
-  let statusFilter = 'all';
-  let refreshing = false;
-  let systemOverview: SystemOverview | null = null;
-
-  // Initialize with safe defaults to prevent SSR errors
-  let quickStats = {
-    total: 0,
-    running: 0,
-    stopped: 0,
-    error: 0,
-  };
-
-  const stats = writable({
-    services: {
-      total: 0,
-      running: 0,
-      stopped: 0,
-      error: 0,
-    },
+  interface DashboardData {
     system: {
-      cpu_usage: 0,
-      memory_usage: 0,
-      disk_usage: 0,
-      uptime: 0,
-    },
-    docker: {
-      version: 'unknown',
-      api_version: 'unknown',
-      status: 'unknown',
-    },
-    caddy: {
-      version: 'unknown',
-      status: 'unknown',
-      active_routes: 0,
-    },
-  });
-
-  // Filtered services based on search and status
-  $: filteredServices = services.filter((service) => {
-    const matchesSearch =
-      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      service.subdomain.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  // Quick stats for the filtered services (update the initialized defaults)
-  $: if (filteredServices) {
-    quickStats = {
-      total: filteredServices.length || 0,
-      running: filteredServices.filter((s) => s.status === 'running').length || 0,
-      stopped: filteredServices.filter((s) => s.status === 'stopped').length || 0,
-      error: filteredServices.filter((s) => s.status === 'error').length || 0,
+      cpu_usage: number;
+      memory_usage: number;
+      disk_usage: number;
+      uptime: number;
     };
+    services: {
+      total: number;
+      running: number;
+      stopped: number;
+      error: number;
+    };
+    servicesList: Service[];
   }
 
-  // Status filter options (reactive to ensure SSR compatibility)
-  $: statusOptions = [
-    { value: 'all', label: 'All Services', count: quickStats.total },
-    { value: 'running', label: 'Running', count: quickStats.running },
-    { value: 'stopped', label: 'Stopped', count: quickStats.stopped },
-    { value: 'error', label: 'Error', count: quickStats.error },
-  ];
+  let dashboardData: DashboardData | null = null;
+  let loading = true;
+  let error = '';
+  let services: Service[] = [];
+  let systemOverview: SystemOverview | null = null;
 
-  let refreshInterval: ReturnType<typeof setInterval> | null = null;
+  // WebSocket subscriptions
   let wsUnsubscribers: (() => void)[] = [];
 
   onMount(async () => {
-    // Check if user is authenticated
+    // Check authentication
     if (!$auth.user) {
       goto('/login');
       return;
     }
 
-    await loadServices();
-    await loadSystemOverview();
-
-    // Set up WebSocket subscriptions for real-time updates
+    await initializeDashboard();
     setupWebSocketSubscriptions();
-
-    // Refresh data every 30 seconds
-    refreshInterval = setInterval(async () => {
-      await refreshData();
-    }, 30000);
   });
 
   onDestroy(() => {
-    if (refreshInterval) {
-      clearInterval(refreshInterval);
-    }
     // Clean up WebSocket subscriptions
     wsUnsubscribers.forEach((unsubscribe) => unsubscribe());
   });
+
+  async function initializeDashboard() {
+    loading = true;
+    error = '';
+
+    try {
+      await Promise.all([
+        loadServices(),
+        loadSystemOverview()
+      ]);
+      
+      updateDashboardData();
+    } catch (e) {
+      console.error('Failed to initialize dashboard:', e);
+      error = 'Failed to load dashboard data';
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function loadServices() {
+    try {
+      if (typeof window !== 'undefined' && api.isAuthenticated()) {
+        services = await api.services.getAll();
+      } else {
+        services = [];
+      }
+    } catch (apiError) {
+      console.warn('API not available:', apiError);
+      services = [];
+    }
+  }
+
+  async function loadSystemOverview() {
+    try {
+      if (typeof window !== 'undefined' && api.isAuthenticated()) {
+        systemOverview = await api.getSystemOverview();
+      }
+    } catch (error) {
+      console.warn('Failed to load system overview:', error);
+    }
+  }
+
+  function updateDashboardData() {
+    // Calculate service stats
+    const serviceStats = services.reduce(
+      (acc, service) => {
+        acc.total++;
+        switch (service.status) {
+          case 'running':
+            acc.running++;
+            break;
+          case 'stopped':
+            acc.stopped++;
+            break;
+          case 'error':
+            acc.error++;
+            break;
+        }
+        return acc;
+      },
+      { total: 0, running: 0, stopped: 0, error: 0 }
+    );
+
+    dashboardData = {
+      system: systemOverview?.system || {
+        cpu_usage: 0,
+        memory_usage: 0,
+        disk_usage: 0,
+        uptime: 0
+      },
+      services: serviceStats,
+      servicesList: services
+    };
+  }
 
   function setupWebSocketSubscriptions() {
     // Subscribe to service updates
@@ -141,7 +146,7 @@
           }
           return service;
         });
-        updateQuickStats();
+        updateDashboardData();
       }
     });
 
@@ -167,144 +172,23 @@
             active_routes: 0,
           },
         };
-        quickStats = update.services_count;
-        stats.update((s) => ({
-          ...s,
-          cpu: update.cpu_usage,
-          memory: update.memory_usage,
-          disk: update.disk_usage,
-        }));
+        updateDashboardData();
       }
     });
 
     wsUnsubscribers.push(serviceUnsubscribe, systemUnsubscribe);
   }
 
-  async function loadServices() {
-    try {
-      loading = true;
-      error = '';
-
-      // Try to load from API, fallback to mock data
-      try {
-        // Load services from API
-        if (typeof window !== 'undefined' && api.isAuthenticated()) {
-          const apiServices = await api.services.getAll();
-          services = apiServices;
-          updateQuickStats();
-        } else {
-          // SSR fallback or not authenticated
-          services = [];
-        }
-      } catch (apiError) {
-        console.warn('API not available:', apiError);
-        error = 'Unable to connect to WakeDock API. Please check your connection.';
-        services = [];
-      }
-      error = '';
-    } catch (e) {
-      error = 'Network error loading services';
-      console.error('Failed to load services:', e);
-    } finally {
-      loading = false;
-    }
+  // Dashboard event handlers
+  async function handleRefresh() {
+    await initializeDashboard();
   }
 
-  async function loadSystemOverview() {
-    try {
-      if (typeof window !== 'undefined' && api.isAuthenticated()) {
-        systemOverview = await api.getSystemOverview();
-        quickStats = systemOverview.services;
-        if (systemOverview) {
-          stats.update((s) => ({
-            ...s,
-            cpu: systemOverview!.system.cpu_usage,
-            memory: systemOverview!.system.memory_usage,
-            disk: systemOverview!.system.disk_usage,
-            uptime: systemOverview!.system.uptime,
-          }));
-        }
-      }
-    } catch (error) {
-      console.warn('Failed to load system overview:', error);
-    }
-  }
-
-  function updateQuickStats() {
-    quickStats = services.reduce(
-      (acc, service) => {
-        acc.total++;
-        switch (service.status) {
-          case 'running':
-            acc.running++;
-            break;
-          case 'stopped':
-            acc.stopped++;
-            break;
-          case 'error':
-            acc.error++;
-            break;
-        }
-        return acc;
-      },
-      { total: 0, running: 0, stopped: 0, error: 0 }
-    );
-  }
-
-  async function refreshData() {
-    refreshing = true;
-    try {
-      await Promise.all([loadServices(), loadSystemOverview()]);
-    } finally {
-      refreshing = false;
-    }
-  }
-
-  async function wakeService(serviceId: string) {
-    try {
-      // Find and update service status optimistically
-      services = services.map((s) => (s.id === serviceId ? { ...s, status: 'starting' } : s));
-      updateQuickStats();
-
-      // Call API to start service
-      if (api.isAuthenticated()) {
-        await api.startService(serviceId);
-        // The WebSocket will update the actual status when it changes
-      } else {
-        throw new Error('Not authenticated');
-      }
-    } catch (e) {
-      console.error('Failed to wake service:', e);
-      // Revert optimistic update
-      await loadServices();
-    }
-  }
-
-  async function sleepService(serviceId: string) {
-    try {
-      // Find and update service status optimistically
-      services = services.map((s) => (s.id === serviceId ? { ...s, status: 'stopping' } : s));
-      updateQuickStats();
-
-      // Call API to stop service
-      if (api.isAuthenticated()) {
-        await api.stopService(serviceId);
-        // The WebSocket will update the actual status when it changes
-      } else {
-        throw new Error('Not authenticated');
-      }
-    } catch (e) {
-      console.error('Failed to sleep service:', e);
-      // Revert optimistic update
-      await loadServices();
-    }
-  }
-
-  async function wakeAllServices() {
+  async function handleStartAll() {
     try {
       // Optimistically update all stopped services to starting
       services = services.map((s) => (s.status === 'stopped' ? { ...s, status: 'starting' } : s));
-      updateQuickStats();
+      updateDashboardData();
 
       // Start all stopped services
       if (api.isAuthenticated()) {
@@ -315,742 +199,90 @@
         throw new Error('Not authenticated');
       }
     } catch (e) {
-      console.error('Failed to wake all services:', e);
+      console.error('Failed to start all services:', e);
       // Revert optimistic update
       await loadServices();
+      updateDashboardData();
     }
+  }
+
+  async function handleStopAll() {
+    try {
+      // Optimistically update all running services to stopping
+      services = services.map((s) => (s.status === 'running' ? { ...s, status: 'stopping' } : s));
+      updateDashboardData();
+
+      // Stop all running services
+      if (api.isAuthenticated()) {
+        const runningServices = services.filter((s) => s.status === 'stopping');
+        await Promise.all(runningServices.map((service) => api.stopService(service.id)));
+        // The WebSocket will update the actual statuses when they change
+      } else {
+        throw new Error('Not authenticated');
+      }
+    } catch (e) {
+      console.error('Failed to stop all services:', e);
+      // Revert optimistic update
+      await loadServices();
+      updateDashboardData();
+    }
+  }
+
+  function handleDeployService() {
+    goto('/services/new');
   }
 </script>
 
 <svelte:head>
   <title>Dashboard - WakeDock</title>
+  <meta name="description" content="WakeDock dashboard - Monitor and manage your Docker services" />
 </svelte:head>
 
-<div class="dashboard">
-  <!-- Hero Section -->
-  <div class="hero-section">
-    <div class="hero-content">
-      <div class="hero-text">
-        <h1 class="hero-title">
-          <Container size={40} />
-          WakeDock Dashboard
-        </h1>
-        <p class="hero-description">
-          Intelligent Docker orchestration and service management platform
-        </p>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <div class="hero-stat-value">{quickStats.total}</div>
-            <div class="hero-stat-label">Total Services</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-value text-green-600">{quickStats.running}</div>
-            <div class="hero-stat-label">Running</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-value text-gray-600">{quickStats.stopped}</div>
-            <div class="hero-stat-label">Stopped</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="hero-actions">
-        <a href="/services/new" class="btn btn-primary btn-lg">
-          <Plus size={20} />
-          Deploy Service
-        </a>
-        <button class="btn btn-secondary btn-lg" on:click={refreshData} disabled={refreshing}>
-          <RefreshCw size={20} class={refreshing ? 'animate-spin' : ''} />
-          Refresh
-        </button>
-      </div>
-    </div>
-
-    <!-- Background Elements -->
-    <div class="hero-bg">
-      <div class="hero-circle circle-1"></div>
-      <div class="hero-circle circle-2"></div>
-      <div class="hero-circle circle-3"></div>
-    </div>
-  </div>
-
-  <!-- Stats Cards -->
-  <StatsCards {stats} />
-
-  <!-- Services Section -->
-  <div class="services-section">
-    <div class="section-header">
-      <div class="section-title">
-        <h2>Services</h2>
-        <p class="section-description">
-          {filteredServices.length} service{filteredServices.length !== 1 ? 's' : ''}
-          {searchTerm || statusFilter !== 'all' ? 'matching filters' : 'configured'}
-        </p>
-      </div>
-
-      <!-- Controls -->
-      <div class="section-controls">
-        <!-- Search -->
-        <div class="search-container">
-          <div class="search-input-wrapper">
-            <Search size={16} class="search-icon" />
-            <input
-              type="text"
-              placeholder="Search services..."
-              class="search-input"
-              bind:value={searchTerm}
-            />
-          </div>
-        </div>
-
-        <!-- Filter -->
-        <div class="filter-container">
-          <Filter size={16} class="filter-icon" />
-          <select class="filter-select" bind:value={statusFilter}>
-            {#each statusOptions as option}
-              <option value={option.value}>
-                {option.label} ({option.count})
-              </option>
-            {/each}
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- Services Content -->
-    {#if loading}
-      <div class="loading-state">
-        <div class="loading-grid">
-          {#each Array(4) as _}
-            <div class="loading-card">
-              <div class="loading-shimmer"></div>
-            </div>
-          {/each}
-        </div>
-        <p class="loading-text">Loading services...</p>
-      </div>
-    {:else if error}
-      <div class="error-state">
-        <div class="error-icon">
-          <Activity size={48} />
-        </div>
-        <h3 class="error-title">Failed to Load Services</h3>
-        <p class="error-message">{error}</p>
-        <button class="btn btn-primary" on:click={loadServices}>
-          <RefreshCw size={16} />
-          Try Again
-        </button>
-      </div>
-    {:else if filteredServices.length === 0}
-      <div class="empty-state">
-        {#if searchTerm || statusFilter !== 'all'}
-          <!-- No results for filters -->
-          <div class="empty-icon">
-            <Search size={48} />
-          </div>
-          <h3 class="empty-title">No services found</h3>
-          <p class="empty-message">Try adjusting your search or filter criteria</p>
-          <button
-            class="btn btn-secondary"
-            on:click={() => {
-              searchTerm = '';
-              statusFilter = 'all';
-            }}
-          >
-            Clear Filters
-          </button>
-        {:else}
-          <!-- No services at all -->
-          <div class="empty-icon">
-            <Container size={48} />
-          </div>
-          <h3 class="empty-title">No services configured</h3>
-          <p class="empty-message">Get started by deploying your first service</p>
-          <div class="empty-actions">
-            <a href="/services/new" class="btn btn-primary">
-              <Plus size={16} />
-              Deploy Your First Service
-            </a>
-            <a href="/docs/quickstart" class="btn btn-secondary"> View Documentation </a>
-          </div>
-        {/if}
-      </div>
-    {:else}
-      <div class="services-grid">
-        {#each filteredServices as service (service.id)}
-          <ServiceCard
-            service={{
-              ...service,
-              ports: service.ports.map((p) => `${p.host}:${p.container}/${p.protocol}`),
-              resource_usage: service.resource_usage
-                ? {
-                    cpu_percent: service.resource_usage.cpu_usage || 0,
-                    memory_usage: service.resource_usage.memory_usage || 0,
-                    memory_percent:
-                      (service.resource_usage.memory_usage / (1024 * 1024 * 1024)) * 100 || 0,
-                  }
-                : undefined,
-            }}
-            on:wake={() => wakeService(service.id)}
-            on:sleep={() => sleepService(service.id)}
-          />
-        {/each}
-      </div>
-    {/if}
-  </div>
-
-  <!-- Quick Actions -->
-  <div class="quick-actions-section">
-    <div class="quick-actions-header">
-      <h3>Quick Actions</h3>
-      <p>Common tasks and shortcuts</p>
-    </div>
-
-    <div class="quick-actions-grid">
-      <a href="/services/new" class="quick-action-card">
-        <div class="quick-action-icon">
-          <Plus size={24} />
-        </div>
-        <div class="quick-action-content">
-          <h4>Deploy Service</h4>
-          <p>Add a new Docker service</p>
-        </div>
-      </a>
-
-      <a href="/monitoring" class="quick-action-card">
-        <div class="quick-action-icon">
-          <Activity size={24} />
-        </div>
-        <div class="quick-action-content">
-          <h4>System Monitor</h4>
-          <p>View system metrics</p>
-        </div>
-      </a>
-
-      <a href="/settings" class="quick-action-card">
-        <div class="quick-action-icon">
-          <Zap size={24} />
-        </div>
-        <div class="quick-action-content">
-          <h4>Configuration</h4>
-          <p>Manage system settings</p>
-        </div>
-      </a>
-
-      <button class="quick-action-card" on:click={() => wakeAllServices()}>
-        <div class="quick-action-icon">
-          <Play size={24} />
-        </div>
-        <div class="quick-action-content">
-          <h4>Start All</h4>
-          <p>Wake all stopped services</p>
-        </div>
+{#if error}
+  <div class="error-container">
+    <div class="error-content">
+      <h1 class="error-title">Dashboard Error</h1>
+      <p class="error-message">{error}</p>
+      <button 
+        type="button"
+        class="error-retry"
+        on:click={handleRefresh}
+      >
+        Try Again
       </button>
     </div>
   </div>
-</div>
+{:else}
+  <Dashboard 
+    {dashboardData}
+    {loading}
+    on:refresh={handleRefresh}
+    on:startAll={handleStartAll}
+    on:stopAll={handleStopAll}
+    on:deployService={handleDeployService}
+  />
+{/if}
 
 <style>
-  .dashboard {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 0 var(--spacing-lg);
+  .error-container {
+    @apply min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center;
   }
 
-  /* Hero Section */
-  .hero-section {
-    position: relative;
-    padding: var(--spacing-3xl) 0;
-    margin-bottom: var(--spacing-2xl);
-    overflow: hidden;
-    border-radius: var(--radius-xl);
-    background: var(--gradient-surface);
-    border: 1px solid var(--color-border);
-  }
-
-  .hero-content {
-    position: relative;
-    z-index: 2;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: var(--spacing-2xl);
-  }
-
-  .hero-text {
-    flex: 1;
-    max-width: 600px;
-  }
-
-  .hero-title {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    font-size: 3rem;
-    font-weight: 800;
-    margin-bottom: var(--spacing-md);
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .hero-description {
-    font-size: 1.25rem;
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-xl);
-    line-height: 1.6;
-  }
-
-  .hero-stats {
-    display: flex;
-    gap: var(--spacing-xl);
-  }
-
-  .hero-stat {
-    text-align: center;
-  }
-
-  .hero-stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--color-text);
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .hero-stat-label {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    font-weight: 500;
-  }
-
-  .hero-actions {
-    display: flex;
-    flex-direction: column;
-    gap: var(--spacing-md);
-    flex-shrink: 0;
-  }
-
-  /* Hero Background */
-  .hero-bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    z-index: 1;
-    overflow: hidden;
-  }
-
-  .hero-circle {
-    position: absolute;
-    border-radius: 50%;
-    background: var(--gradient-primary);
-    opacity: 0.1;
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .circle-1 {
-    width: 200px;
-    height: 200px;
-    top: -100px;
-    right: -100px;
-    animation-delay: 0s;
-  }
-
-  .circle-2 {
-    width: 150px;
-    height: 150px;
-    bottom: -75px;
-    left: -75px;
-    animation-delay: 2s;
-  }
-
-  .circle-3 {
-    width: 100px;
-    height: 100px;
-    top: 50%;
-    right: 20%;
-    animation-delay: 4s;
-  }
-
-  /* Section Header */
-  .section-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: var(--spacing-xl);
-    gap: var(--spacing-lg);
-  }
-
-  .section-title h2 {
-    font-size: 2rem;
-    font-weight: 700;
-    margin-bottom: var(--spacing-xs);
-    color: var(--color-text);
-  }
-
-  .section-description {
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .section-controls {
-    display: flex;
-    gap: var(--spacing-md);
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  /* Search and Filter */
-  .search-container {
-    position: relative;
-  }
-
-  .search-input-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-  }
-
-  .search-input {
-    width: 300px;
-    padding: var(--spacing-sm) var(--spacing-md);
-    padding-left: 2.5rem;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-full);
-    background: var(--color-surface-glass);
-    color: var(--color-text);
-    font-size: 0.875rem;
-    transition: all var(--transition-normal);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  .search-input:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-    width: 350px;
-  }
-
-  .search-icon {
-    position: absolute;
-    left: var(--spacing-sm);
-    color: var(--color-text-muted);
-    pointer-events: none;
-  }
-
-  .filter-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-  }
-
-  .filter-icon {
-    color: var(--color-text-muted);
-  }
-
-  .filter-select {
-    padding: var(--spacing-sm) var(--spacing-md);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface-glass);
-    color: var(--color-text);
-    font-size: 0.875rem;
-    cursor: pointer;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-  }
-
-  /* Services Grid */
-  .services-grid {
-    display: grid;
-    gap: var(--spacing-lg);
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    margin-bottom: var(--spacing-2xl);
-  }
-
-  /* Loading State */
-  .loading-state {
-    text-align: center;
-    padding: var(--spacing-3xl) 0;
-  }
-
-  .loading-grid {
-    display: grid;
-    gap: var(--spacing-lg);
-    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-    margin-bottom: var(--spacing-xl);
-  }
-
-  .loading-card {
-    height: 300px;
-    border-radius: var(--radius-xl);
-    overflow: hidden;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-  }
-
-  .loading-shimmer {
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      var(--color-surface) 25%,
-      rgba(255, 255, 255, 0.4) 50%,
-      var(--color-surface) 75%
-    );
-    background-size: 200% 100%;
-    animation: shimmer 2s infinite;
-  }
-
-  .loading-text {
-    color: var(--color-text-secondary);
-    font-size: 1.125rem;
-  }
-
-  /* Error State */
-  .error-state {
-    text-align: center;
-    padding: var(--spacing-3xl) 0;
-  }
-
-  .error-icon {
-    color: var(--color-error);
-    margin-bottom: var(--spacing-lg);
+  .error-content {
+    @apply text-center;
   }
 
   .error-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: var(--spacing-sm);
+    @apply text-2xl font-bold text-gray-900 dark:text-white mb-4;
   }
 
   .error-message {
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-lg);
+    @apply text-gray-600 dark:text-gray-400 mb-6;
   }
 
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: var(--spacing-3xl) 0;
-  }
-
-  .empty-icon {
-    color: var(--color-text-muted);
-    margin-bottom: var(--spacing-lg);
-  }
-
-  .empty-title {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: var(--spacing-sm);
-  }
-
-  .empty-message {
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-lg);
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
-  }
-
-  .empty-actions {
-    display: flex;
-    gap: var(--spacing-md);
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  /* Quick Actions */
-  .quick-actions-section {
-    margin-top: var(--spacing-3xl);
-    padding: var(--spacing-2xl) 0;
-    border-top: 1px solid var(--color-border-light);
-  }
-
-  .quick-actions-header {
-    text-align: center;
-    margin-bottom: var(--spacing-xl);
-  }
-
-  .quick-actions-header h3 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .quick-actions-header p {
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  .quick-actions-grid {
-    display: grid;
-    gap: var(--spacing-lg);
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    max-width: 800px;
-    margin: 0 auto;
-  }
-
-  .quick-action-card {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-md);
-    padding: var(--spacing-lg);
-    background: var(--gradient-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    text-decoration: none;
-    color: var(--color-text);
-    transition: all var(--transition-normal);
-    cursor: pointer;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-  }
-
-  .quick-action-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lg);
-    border-color: var(--color-primary-light);
-  }
-
-  .quick-action-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius);
-    background: var(--gradient-primary);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .quick-action-content h4 {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0;
-    margin-bottom: var(--spacing-xs);
-  }
-
-  .quick-action-content p {
-    font-size: 0.875rem;
-    color: var(--color-text-secondary);
-    margin: 0;
-  }
-
-  /* Responsive Design */
-  @media (max-width: 1024px) {
-    .services-grid {
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    }
-  }
-
-  @media (max-width: 768px) {
-    .dashboard {
-      padding: 0 var(--spacing-md);
-    }
-
-    .hero-content {
-      flex-direction: column;
-      text-align: center;
-      gap: var(--spacing-xl);
-    }
-
-    .hero-title {
-      font-size: 2rem;
-    }
-
-    .hero-stats {
-      justify-content: center;
-    }
-
-    .hero-actions {
-      flex-direction: row;
-      justify-content: center;
-    }
-
-    .section-header {
-      flex-direction: column;
-      align-items: stretch;
-      gap: var(--spacing-md);
-    }
-
-    .section-controls {
-      flex-direction: column;
-      align-items: stretch;
-    }
-
-    .search-input {
-      width: 100%;
-    }
-
-    .search-input:focus {
-      width: 100%;
-    }
-
-    .services-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .quick-actions-grid {
-      grid-template-columns: 1fr;
-    }
-
-    .quick-action-card {
-      flex-direction: column;
-      text-align: center;
-    }
-  }
-
-  @media (max-width: 480px) {
-    .hero-actions {
-      flex-direction: column;
-    }
-
-    .empty-actions {
-      flex-direction: column;
-      align-items: center;
-    }
-  }
-
-  /* Animations */
-  @keyframes float {
-    0%,
-    100% {
-      transform: translateY(0px);
-    }
-    50% {
-      transform: translateY(-20px);
-    }
-  }
-
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
-  }
-
-  .animate-spin {
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    from {
-      transform: rotate(0deg);
-    }
-    to {
-      transform: rotate(360deg);
-    }
+  .error-retry {
+    @apply px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700;
+    @apply focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
+    @apply transition-colors duration-200;
   }
 </style>

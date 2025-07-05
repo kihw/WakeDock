@@ -9,6 +9,9 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 import yaml
 
+# Import VaultSettings from infrastructure
+from wakedock.infrastructure.vault.config import VaultSettings
+
 
 class LoggingSettings(BaseSettings):
     level: str = "INFO"
@@ -48,6 +51,17 @@ class CaddySettings(BaseSettings):
 
 class DatabaseSettings(BaseSettings):
     url: str = "sqlite:///./data/wakedock.db"
+
+    class Config:
+        extra = "ignore"
+
+
+class RedisSettings(BaseSettings):
+    host: str = "redis"
+    port: int = 6379
+    db: int = 0
+    password: Optional[str] = None
+    max_connections: int = 20
 
     class Config:
         extra = "ignore"
@@ -116,6 +130,8 @@ class Settings(BaseSettings):
     wakedock: WakeDockSettings = WakeDockSettings()
     caddy: CaddySettings = CaddySettings()
     database: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    vault: VaultSettings = VaultSettings()
     monitoring: MonitoringSettings = MonitoringSettings()
     logging: LoggingSettings = LoggingSettings()
     services: List[ServiceSettings] = []

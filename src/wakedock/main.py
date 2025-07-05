@@ -11,12 +11,14 @@ from wakedock.config import get_settings
 from wakedock.api.app import create_app
 from wakedock.core.monitoring import MonitoringService
 from wakedock.core.orchestrator import DockerOrchestrator
-from wakedock.core.caddy import caddy_manager
+from wakedock.infrastructure.caddy import caddy_manager
+from wakedock.infrastructure.cache.service import init_cache_service, shutdown_cache_service
 from wakedock.core.docker_events import initialize_docker_events
 from wakedock.core.system_metrics import initialize_system_metrics
 from wakedock.core.log_streaming import initialize_log_streaming
 from wakedock.core.notifications import initialize_notifications
 from wakedock.database.database import init_database
+from wakedock.monitoring.prometheus import init_prometheus_exporter
 import docker
 
 
@@ -68,6 +70,14 @@ async def main():
         logger.warning(f"Database initialization failed: {e}")
         logger.warning("Application will continue but database features may not work properly")
         # Don't raise the exception - allow the app to start
+    
+    # Initialize Redis cache service
+    try:
+        await init_cache_service()
+        logger.info("Cache service initialized successfully")
+    except Exception as e:
+        logger.warning(f"Cache service initialization failed: {e}")
+        logger.warning("Application will continue but caching features will not work")
     
     # Initialize services
     try:
@@ -145,6 +155,16 @@ async def main():
         logger.warning(f"Monitoring service initialization failed: {e}")
         monitoring_service = None
     
+    # Initialize Prometheus exporter
+    prometheus_exporter = None
+    try:
+        prometheus_exporter = init_prometheus_exporter(port=9090, host="0.0.0.0")
+        await prometheus_exporter.start()
+        logger.info("Prometheus exporter started on port 9090")
+    except Exception as e:
+        logger.warning(f"Prometheus exporter initialization failed: {e}")
+        logger.warning("Application will continue but Prometheus metrics will not be available")
+    
     # Connect monitoring service to orchestrator if both are available
     if orchestrator and monitoring_service:
         monitoring_service.set_orchestrator(orchestrator)
@@ -157,6 +177,7 @@ async def main():
     app.state.system_metrics_handler = system_metrics_handler
     app.state.log_streaming_handler = log_streaming_handler
     app.state.notification_manager = notification_manager
+    app.state.prometheus_exporter = prometheus_exporter
     
     # Start monitoring service
     if settings.monitoring.enabled and monitoring_service:
@@ -164,28 +185,28 @@ async def main():
     
     # Start Docker events monitoring
     if docker_events_handler:
-        from wakedock.api.routes.websocket import handle_docker_event
+        from wakedock.api.websocket import handle_docker_event
         docker_events_handler.subscribe(handle_docker_event)
         await docker_events_handler.start_monitoring()
         logger.info("Docker events monitoring started")
     
     # Start system metrics monitoring
     if system_metrics_handler:
-        from wakedock.api.routes.websocket import broadcast_system_update
+        from wakedock.api.websocket import broadcast_system_update
         system_metrics_handler.subscribe(broadcast_system_update)
         await system_metrics_handler.start_monitoring()
         logger.info("System metrics monitoring started")
     
     # Start log streaming monitoring
     if log_streaming_handler:
-        from wakedock.api.routes.websocket import broadcast_log_entry
+        from wakedock.api.websocket import broadcast_log_entry
         log_streaming_handler.subscribe(broadcast_log_entry)
         await log_streaming_handler.start_monitoring()
         logger.info("Log streaming monitoring started")
     
     # Connect notification manager to WebSocket
     if notification_manager:
-        from wakedock.api.routes.websocket import broadcast_notification
+        from wakedock.api.websocket import broadcast_notification
         notification_manager.subscribe(broadcast_notification)
         logger.info("Notification manager connected to WebSocket")
         
@@ -219,6 +240,11 @@ async def main():
         if settings.monitoring.enabled and monitoring_service:
             await monitoring_service.stop()
         
+        # Stop Prometheus exporter
+        if prometheus_exporter:
+            await prometheus_exporter.stop()
+            logger.info("Prometheus exporter stopped")
+        
         # Stop Docker events monitoring
         if docker_events_handler:
             await docker_events_handler.stop_monitoring()
@@ -233,6 +259,13 @@ async def main():
         if log_streaming_handler:
             await log_streaming_handler.stop_monitoring()
             logger.info("Log streaming monitoring stopped")
+        
+        # Shutdown cache service
+        try:
+            await shutdown_cache_service()
+            logger.info("Cache service shutdown completed")
+        except Exception as e:
+            logger.error(f"Cache service shutdown failed: {e}")
 
 
 if __name__ == "__main__":

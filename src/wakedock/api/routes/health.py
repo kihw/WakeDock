@@ -2,7 +2,7 @@
 Health check endpoints
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from typing import Dict, Any
 import psutil
@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 
 from wakedock.config import get_settings
+from wakedock.monitoring.prometheus import get_prometheus_exporter, CONTENT_TYPE_LATEST
 
 router = APIRouter()
 
@@ -52,8 +53,16 @@ async def health_check():
 
 
 @router.get("/metrics")
-async def metrics():
-    """Prometheus-style metrics endpoint"""
+async def metrics(request: Request):
+    """Prometheus metrics endpoint"""
+    # Try to get metrics from the Prometheus exporter
+    prometheus_exporter = getattr(request.app.state, 'prometheus_exporter', None)
+    if prometheus_exporter:
+        metrics_data = prometheus_exporter.get_metrics()
+        if metrics_data:
+            return Response(content=metrics_data, media_type=CONTENT_TYPE_LATEST)
+    
+    # Fallback to basic metrics if Prometheus exporter is not available
     cpu_percent = psutil.cpu_percent(interval=1)
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
@@ -64,7 +73,7 @@ async def metrics():
         f"wakedock_cpu_percent {cpu_percent}",
         f"",
         f"# HELP wakedock_memory_usage_bytes Memory usage in bytes",
-        f"# TYPE wakedock_memory_usage_bytes gauge",
+        f"# TYPE wakedock_memory_usage_bytes gauge", 
         f"wakedock_memory_usage_bytes {memory.used}",
         f"",
         f"# HELP wakedock_memory_total_bytes Total memory in bytes",
@@ -80,4 +89,4 @@ async def metrics():
         f"wakedock_disk_total_bytes {disk.total}",
     ]
     
-    return "\n".join(metrics)
+    return Response(content="\n".join(metrics), media_type=CONTENT_TYPE_LATEST)

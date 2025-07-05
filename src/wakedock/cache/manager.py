@@ -22,13 +22,13 @@ class CacheManager:
     def __init__(self, default_backend: Optional[CacheBackend] = None):
         self.backends: Dict[str, CacheBackend] = {}
         self.default_backend_name = "memory"
+        self._default_backend = default_backend
         
-        # Set up default backend
+        # Set up default backend lazily
         if default_backend:
             self.backends["default"] = default_backend
             self.default_backend_name = "default"
-        else:
-            self.backends["memory"] = MemoryCache()
+        # Memory backend will be created on first access
     
     def add_backend(self, name: str, backend: CacheBackend) -> None:
         """Add a cache backend."""
@@ -45,6 +45,11 @@ class CacheManager:
     def get_backend(self, name: Optional[str] = None) -> CacheBackend:
         """Get a cache backend by name."""
         backend_name = name or self.default_backend_name
+        
+        # Create memory backend lazily if needed
+        if backend_name == "memory" and backend_name not in self.backends:
+            self.backends["memory"] = MemoryCache()
+        
         if backend_name not in self.backends:
             raise ValueError(f"Backend {backend_name} not found")
         return self.backends[backend_name]
@@ -263,17 +268,52 @@ class CacheInvalidator:
         return total_invalidated
 
 
-# Global cache manager instance
-cache_manager = CacheManager()
+# Global cache manager instance (lazy initialization)
+_cache_manager: Optional[CacheManager] = None
+_cache_invalidator: Optional[CacheInvalidator] = None
 
-# Global cache invalidator
-cache_invalidator = CacheInvalidator(cache_manager)
+
+def get_cache_manager() -> CacheManager:
+    """Get the global cache manager instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    return _cache_manager
+
+
+def get_cache_invalidator() -> CacheInvalidator:
+    """Get the global cache invalidator instance."""
+    global _cache_invalidator
+    if _cache_invalidator is None:
+        _cache_invalidator = CacheInvalidator(get_cache_manager())
+    return _cache_invalidator
+
+
+# Global cache manager instance (lazy initialization)
+_cache_manager: Optional[CacheManager] = None
+_cache_invalidator: Optional[CacheInvalidator] = None
+
+
+def get_cache_manager() -> CacheManager:
+    """Get the global cache manager instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    return _cache_manager
+
+
+def get_cache_invalidator() -> CacheInvalidator:
+    """Get the global cache invalidator instance."""
+    global _cache_invalidator
+    if _cache_invalidator is None:
+        _cache_invalidator = CacheInvalidator(get_cache_manager())
+    return _cache_invalidator
 
 
 # Convenience functions
 async def get_cached(key: str, backend: Optional[str] = None) -> Optional[Any]:
     """Get value from global cache manager."""
-    return await cache_manager.get(key, backend)
+    return await get_cache_manager().get(key, backend)
 
 
 async def set_cached(
@@ -283,31 +323,109 @@ async def set_cached(
     backend: Optional[str] = None
 ) -> bool:
     """Set value in global cache manager."""
-    return await cache_manager.set(key, value, ttl, backend)
+    return await get_cache_manager().set(key, value, ttl, backend)
 
 
 async def delete_cached(key: str, backend: Optional[str] = None) -> bool:
     """Delete key from global cache manager."""
-    return await cache_manager.delete(key, backend)
+    return await get_cache_manager().delete(key, backend)
 
 
 async def clear_cache(backend: Optional[str] = None) -> bool:
     """Clear cache in global cache manager."""
-    return await cache_manager.clear(backend)
+    return await get_cache_manager().clear(backend)
 
 
 # Cache configuration helpers
 def setup_redis_cache(redis_url: str = "redis://localhost:6379/0") -> None:
     """Set up Redis cache backend."""
     redis_cache = RedisCache(redis_url)
-    cache_manager.add_backend("redis", redis_cache)
-    cache_manager.set_default_backend("redis")
+    manager = get_cache_manager()
+    manager.add_backend("redis", redis_cache)
+    manager.set_default_backend("redis")
     logger.info("Redis cache configured as default backend")
 
 
 def setup_memory_cache(max_size: int = 1000) -> None:
     """Set up memory cache backend."""
     memory_cache = MemoryCache(max_size=max_size)
-    cache_manager.add_backend("memory", memory_cache)
-    cache_manager.set_default_backend("memory")
+    manager = get_cache_manager()
+    manager.add_backend("memory", memory_cache)
+    manager.set_default_backend("memory")
+    logger.info("Memory cache configured as default backend")
+
+
+# Global cache manager instance (lazy initialization)
+_cache_manager: Optional[CacheManager] = None
+_cache_invalidator: Optional[CacheInvalidator] = None
+
+
+def get_cache_manager() -> CacheManager:
+    """Get the global cache manager instance."""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    return _cache_manager
+
+
+def get_cache_invalidator() -> CacheInvalidator:
+    """Get the global cache invalidator instance."""
+    global _cache_invalidator
+    if _cache_invalidator is None:
+        _cache_invalidator = CacheInvalidator(get_cache_manager())
+    return _cache_invalidator
+
+
+# For backward compatibility - these will be initialized on first access
+cache_manager = None
+cache_invalidator = None
+
+
+# For backward compatibility - these will be initialized on first access
+cache_manager = None
+cache_invalidator = None
+
+
+# Convenience functions
+async def get_cached(key: str, backend: Optional[str] = None) -> Optional[Any]:
+    """Get value from global cache manager."""
+    return await get_cache_manager().get(key, backend)
+
+
+async def set_cached(
+    key: str,
+    value: Any,
+    ttl: Optional[int] = None,
+    backend: Optional[str] = None
+) -> bool:
+    """Set value in global cache manager."""
+    return await get_cache_manager().set(key, value, ttl, backend)
+
+
+async def delete_cached(key: str, backend: Optional[str] = None) -> bool:
+    """Delete key from global cache manager."""
+    return await get_cache_manager().delete(key, backend)
+
+
+async def clear_cache(backend: Optional[str] = None) -> bool:
+    """Clear cache in global cache manager."""
+    return await get_cache_manager().clear(backend)
+
+
+# Cache configuration helpers
+def setup_redis_cache(redis_url: str = "redis://localhost:6379/0") -> None:
+    """Set up Redis cache backend."""
+    redis_cache = RedisCache(redis_url)
+    manager = get_cache_manager()
+    manager.add_backend("redis", redis_cache)
+    manager.set_default_backend("redis")
+    logger.info("Redis cache configured as default backend")
+
+
+def setup_memory_cache(max_size: int = 1000) -> None:
+    """Set up memory cache backend."""
+    memory_cache = MemoryCache(max_size=max_size)
+    manager = get_cache_manager()
+    manager.add_backend("memory", memory_cache)
+    manager.set_default_backend("memory")
     logger.info("Memory cache configured as default backend")

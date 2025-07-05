@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from wakedock.core.orchestrator import DockerOrchestrator
 from wakedock.core.monitoring import MonitoringService
+from wakedock.infrastructure.cache.service import CacheService
 from wakedock.database.database import get_db_session
 
 
@@ -46,3 +47,19 @@ def get_optional_orchestrator(request: Request) -> Optional[DockerOrchestrator]:
 def get_optional_monitoring_service(request: Request) -> Optional[MonitoringService]:
     """Dependency to get monitoring service that may be None"""
     return getattr(request.app.state, 'monitoring_service', None)
+
+
+def get_cache_service_dep(request: Request) -> CacheService:
+    """Dependency to get cache service instance from app state"""
+    cache_service = getattr(request.app.state, 'cache_service', None)
+    if cache_service is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cache service is not available"
+        )
+    return cache_service
+
+
+def get_optional_cache_service(request: Request) -> Optional[CacheService]:
+    """Dependency to get cache service that may be None"""
+    return getattr(request.app.state, 'cache_service', None)

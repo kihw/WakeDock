@@ -201,8 +201,10 @@ export const auth = {
         rememberMe: options?.rememberMe,
       };
 
-      // TEMPORARY: Simulate API call for debugging
-      console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
+      // Debug information for development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
+      }
 
       // For debugging: always throw an error to test error handling
       if (emailOrUsername === 'test@error.com') {

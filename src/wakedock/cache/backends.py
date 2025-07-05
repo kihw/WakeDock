@@ -84,7 +84,7 @@ class MemoryCache(CacheBackend):
         self._cache: Dict[str, CacheEntry] = {}
         self.max_size = max_size
         self.cleanup_interval = cleanup_interval
-        self._lock = asyncio.Lock()
+        self._lock = None  # Initialize lazily
         self._cleanup_task: Optional[asyncio.Task] = None
         self._stats = {
             "hits": 0,
@@ -93,12 +93,23 @@ class MemoryCache(CacheBackend):
             "deletes": 0,
             "evictions": 0
         }
-        self._start_cleanup_task()
+        self._initialized = False
+    
+    async def initialize(self):
+        """Initialize async components."""
+        if not self._initialized:
+            self._lock = asyncio.Lock()
+            self._start_cleanup_task()
+            self._initialized = True
     
     def _start_cleanup_task(self):
         """Start background cleanup task."""
-        if self._cleanup_task is None or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        try:
+            if self._cleanup_task is None or self._cleanup_task.done():
+                self._cleanup_task = asyncio.create_task(self._cleanup_loop())
+        except RuntimeError:
+            # No event loop running, skip task creation
+            pass
     
     async def _cleanup_loop(self):
         """Background loop to clean up expired entries."""
@@ -113,6 +124,8 @@ class MemoryCache(CacheBackend):
     
     async def _cleanup_expired(self):
         """Remove expired entries."""
+        if not self._initialized:
+            return
         async with self._lock:
             expired_keys = []
             for key, entry in self._cache.items():
@@ -141,6 +154,8 @@ class MemoryCache(CacheBackend):
     
     async def get(self, key: str) -> Optional[Any]:
         """Get value from cache."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             entry = self._cache.get(key)
             
@@ -158,6 +173,8 @@ class MemoryCache(CacheBackend):
     
     async def set(self, key: str, value: Any, ttl: Optional[int] = None) -> bool:
         """Set value in cache."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             await self._evict_if_needed()
             self._cache[key] = CacheEntry(value, ttl)
@@ -166,6 +183,8 @@ class MemoryCache(CacheBackend):
     
     async def delete(self, key: str) -> bool:
         """Delete key from cache."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             if key in self._cache:
                 del self._cache[key]
@@ -175,6 +194,8 @@ class MemoryCache(CacheBackend):
     
     async def exists(self, key: str) -> bool:
         """Check if key exists in cache."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             entry = self._cache.get(key)
             if entry and not entry.is_expired():
@@ -185,6 +206,8 @@ class MemoryCache(CacheBackend):
     
     async def clear(self) -> bool:
         """Clear all cache entries."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             self._cache.clear()
             return True
@@ -193,6 +216,8 @@ class MemoryCache(CacheBackend):
         """Get all keys matching pattern."""
         import fnmatch
         
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             await self._cleanup_expired()
             all_keys = list(self._cache.keys())
@@ -204,6 +229,8 @@ class MemoryCache(CacheBackend):
     
     async def size(self) -> int:
         """Get cache size."""
+        if not self._initialized:
+            await self.initialize()
         async with self._lock:
             return len(self._cache)
     

@@ -16,7 +16,7 @@ from docker.models.containers import Container
 from docker.models.images import Image
 
 from wakedock.config import get_settings, ServiceSettings
-from wakedock.core.caddy import caddy_manager
+from wakedock.infrastructure.caddy import caddy_manager
 
 logger = logging.getLogger(__name__)
 

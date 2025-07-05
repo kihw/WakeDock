@@ -8,8 +8,9 @@ from typing import Dict, Any
 from datetime import datetime
 
 from wakedock.core.monitoring import MonitoringService
-from wakedock.core.caddy import caddy_manager
-from wakedock.api.dependencies import get_monitoring_service, get_orchestrator
+from wakedock.infrastructure.caddy import caddy_manager
+from wakedock.infrastructure.cache.service import CacheService
+from wakedock.api.dependencies import get_monitoring_service, get_orchestrator, get_optional_cache_service
 
 router = APIRouter()
 
@@ -44,9 +45,27 @@ class SystemOverviewResponse(BaseModel):
 
 
 @router.get("/overview", response_model=SystemOverviewResponse)
-async def get_system_overview(monitoring: MonitoringService = Depends(get_monitoring_service)):
-    """Get system overview metrics"""
-    overview = await monitoring.get_system_overview()
+async def get_system_overview(
+    monitoring: MonitoringService = Depends(get_monitoring_service),
+    cache_service: CacheService = Depends(get_optional_cache_service)
+):
+    """Get system overview metrics with intelligent caching"""
+    
+    # Utiliser cache intelligent pour l'overview système
+    async def fetch_overview():
+        return await monitoring.get_system_overview()
+    
+    # Si cache disponible, l'utiliser
+    if cache_service and cache_service.is_initialized():
+        cache_key = cache_service.get_cache_key("system", "overview")
+        overview = await cache_service.get(
+            cache_key, 
+            fetch_overview, 
+            "system_metrics"
+        )
+    else:
+        # Fallback sans cache
+        overview = await fetch_overview()
     
     return SystemOverviewResponse(
         services=ServicesOverview(**overview["services"]),

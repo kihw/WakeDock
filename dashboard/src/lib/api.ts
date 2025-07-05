@@ -146,6 +146,73 @@ class ApiClient {
   private retryDelay: number = 1000; // Base delay in ms
   private timeout: number = 30000; // 30 seconds - reasonable timeout
 
+  // Configurable timeouts per endpoint
+  private endpointTimeouts: Record<string, number> = {
+    '/auth/login': 10000,     // 10s pour auth
+    '/auth/register': 10000,  // 10s pour auth
+    '/auth/refresh': 5000,    // 5s pour refresh
+    '/services': 20000,       // 20s pour services
+    '/services/create': 30000, // 30s pour création
+    '/services/update': 25000, // 25s pour mise à jour
+    '/services/logs': 15000,  // 15s pour logs
+    '/system': 30000,         // 30s pour system
+    '/system/overview': 15000, // 15s pour overview
+    '/health': 5000,          // 5s pour health check
+    default: 15000            // 15s par défaut
+  };
+
+  // Circuit breaker implementation
+  private circuitBreaker = {
+    failures: new Map<string, number>(),
+    lastFailureTime: new Map<string, number>(),
+    failureThreshold: 5,
+    recoveryTimeout: 30000, // 30s recovery
+    halfOpenTimeout: 10000, // 10s half-open
+    
+    isOpen: (endpoint: string): boolean => {
+      const failures = this.circuitBreaker.failures.get(endpoint) || 0;
+      const lastFailure = this.circuitBreaker.lastFailureTime.get(endpoint) || 0;
+      const now = Date.now();
+      
+      // Circuit is open if we exceeded failure threshold and not enough time has passed
+      if (failures >= this.circuitBreaker.failureThreshold) {
+        return (now - lastFailure) < this.circuitBreaker.recoveryTimeout;
+      }
+      
+      return false;
+    },
+    
+    recordFailure: (endpoint: string): void => {
+      const failures = (this.circuitBreaker.failures.get(endpoint) || 0) + 1;
+      this.circuitBreaker.failures.set(endpoint, failures);
+      this.circuitBreaker.lastFailureTime.set(endpoint, Date.now());
+    },
+    
+    recordSuccess: (endpoint: string): void => {
+      this.circuitBreaker.failures.set(endpoint, 0);
+      this.circuitBreaker.lastFailureTime.delete(endpoint);
+    }
+  };
+
+  // Network status detection
+  private networkStatus = {
+    isOnline: true,
+    lastOnlineCheck: Date.now(),
+    checkInterval: 5000, // Check every 5s when offline
+    
+    updateStatus: (): void => {
+      const wasOnline = this.networkStatus.isOnline;
+      this.networkStatus.isOnline = navigator.onLine;
+      this.networkStatus.lastOnlineCheck = Date.now();
+      
+      if (!wasOnline && this.networkStatus.isOnline) {
+        console.log('🌐 Network connection restored');
+      } else if (wasOnline && !this.networkStatus.isOnline) {
+        console.log('🔌 Network connection lost');
+      }
+    }
+  };
+
   constructor(baseUrl: string = '') {
     // Use configuration from environment
     this.baseUrl = baseUrl || config.apiUrl;
@@ -154,6 +221,11 @@ class ApiClient {
     // Try to load token from localStorage
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem(config.tokenKey);
+      
+      // Set up network status monitoring
+      window.addEventListener('online', this.networkStatus.updateStatus);
+      window.addEventListener('offline', this.networkStatus.updateStatus);
+      this.networkStatus.updateStatus();
       
       // Update configuration from runtime API if available
       this.updateConfigFromRuntime();
@@ -174,8 +246,39 @@ class ApiClient {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  private shouldRetry(error: any, attempt: number): boolean {
+  /**
+   * Get timeout for specific endpoint
+   */
+  private getTimeout(endpoint: string): number {
+    // Check for exact match first
+    if (this.endpointTimeouts[endpoint]) {
+      return this.endpointTimeouts[endpoint];
+    }
+    
+    // Check for partial matches
+    for (const [pattern, timeout] of Object.entries(this.endpointTimeouts)) {
+      if (pattern !== 'default' && endpoint.startsWith(pattern)) {
+        return timeout;
+      }
+    }
+    
+    return this.endpointTimeouts.default;
+  }
+
+  private shouldRetry(error: any, attempt: number, endpoint: string): boolean {
     if (attempt >= this.maxRetries) return false;
+
+    // Don't retry if circuit breaker is open
+    if (this.circuitBreaker.isOpen(endpoint)) {
+      console.warn(`Circuit breaker open for ${endpoint}, skipping retry`);
+      return false;
+    }
+
+    // Don't retry if offline
+    if (!this.networkStatus.isOnline) {
+      console.warn('Network offline, skipping retry');
+      return false;
+    }
 
     // Retry on network errors, timeouts, and 5xx server errors
     if (error.name === 'TypeError' || error.name === 'NetworkError') return true;
@@ -197,6 +300,16 @@ class ApiClient {
     retryAttempt: number = 0
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+
+    // Check circuit breaker
+    if (this.circuitBreaker.isOpen(path)) {
+      throw new Error(`Circuit breaker open for ${path} - too many recent failures`);
+    }
+
+    // Check network status
+    if (!this.networkStatus.isOnline) {
+      throw new Error('Network offline - check your connection');
+    }
 
     // Rate limiting check
     if (!options.skipRateLimit) {
@@ -242,8 +355,9 @@ class ApiClient {
     headers.Origin = window.location.origin;
     headers.Referer = window.location.href;
 
-    // Create timeout controller
-    const timeoutController = this.createTimeoutController(this.timeout);
+    // Create timeout controller with endpoint-specific timeout
+    const endpointTimeout = options.timeout || this.getTimeout(path);
+    const timeoutController = this.createTimeoutController(endpointTimeout);
     const originalSignal = options.signal;
 
     // Combine timeout signal with any existing signal
@@ -265,7 +379,7 @@ class ApiClient {
           url,
           method: options.method || 'GET',
           timestamp: new Date().toISOString(),
-          timeoutMs: this.timeout,
+          timeoutMs: endpointTimeout,
           headers: Object.keys(headers)
         });
       }
@@ -338,11 +452,18 @@ class ApiClient {
           delete responseData.constructor;
         }
 
+        // Record success in circuit breaker
+        this.circuitBreaker.recordSuccess(path);
         return responseData;
       } else {
+        // Record success in circuit breaker
+        this.circuitBreaker.recordSuccess(path);
         return {} as T;
       }
     } catch (error: any) {
+      // Record failure in circuit breaker
+      this.circuitBreaker.recordFailure(path);
+
       // Add detailed error logging
       console.error('API request failed:', {
         url,
@@ -350,22 +471,23 @@ class ApiClient {
         errorName: error.name,
         errorMessage: error.message,
         errorStack: error.stack,
-        timeout: this.timeout,
-        retryAttempt
+        timeout: endpointTimeout,
+        retryAttempt,
+        circuitBreakerFailures: this.circuitBreaker.failures.get(path) || 0
       });
 
       // Handle timeout specifically
       if (error.name === 'AbortError') {
         console.error('⏰ TIMEOUT DETECTED:', {
           url,
-          timeoutMs: this.timeout,
+          timeoutMs: endpointTimeout,
           timestamp: new Date().toISOString(),
           errorName: error.name
         });
         const timeoutError: ApiError = {
-          message: `Request timeout after ${this.timeout}ms`,
+          message: `Request timeout after ${endpointTimeout}ms`,
           code: 'TIMEOUT',
-          details: { url, timeout: this.timeout },
+          details: { url, timeout: endpointTimeout },
         };
         error = timeoutError;
       }
@@ -381,7 +503,7 @@ class ApiClient {
       }
 
       // Retry logic
-      if (this.shouldRetry(error, retryAttempt)) {
+      if (this.shouldRetry(error, retryAttempt, path)) {
         const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
         console.warn(
           `API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`,
