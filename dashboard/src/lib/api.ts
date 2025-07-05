@@ -14,6 +14,7 @@ import { config, updateConfigFromRuntime } from './config/environment.js';
 import { API_ENDPOINTS, getApiUrl } from './config/api.js';
 import { csrf, rateLimit, securityValidate } from './utils/validation.js';
 import { memoryUtils } from './utils/storage.js';
+import { apiMonitor } from './monitoring/api-monitor.js';
 
 export interface ApiError {
   message: string;
@@ -454,15 +455,28 @@ class ApiClient {
 
         // Record success in circuit breaker
         this.circuitBreaker.recordSuccess(path);
+        
+        // Record success in monitoring
+        const requestDuration = Date.now() - requestStart;
+        apiMonitor.recordSuccess(path, requestDuration);
+        
         return responseData;
       } else {
         // Record success in circuit breaker
         this.circuitBreaker.recordSuccess(path);
+        
+        // Record success in monitoring
+        const requestDuration = Date.now() - requestStart;
+        apiMonitor.recordSuccess(path, requestDuration);
+        
         return {} as T;
       }
     } catch (error: any) {
       // Record failure in circuit breaker
       this.circuitBreaker.recordFailure(path);
+      
+      // Record error in monitoring
+      apiMonitor.recordError(path, error);
 
       // Add detailed error logging
       console.error('API request failed:', {
