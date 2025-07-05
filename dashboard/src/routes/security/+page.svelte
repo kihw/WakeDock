@@ -1,23 +1,20 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { api } from '$lib/api';
-  import { ui, isAuthenticated } from '$lib/stores';
-  import { websocket } from '$lib/websocket';
   import { goto } from '$app/navigation';
+  import { api } from '$lib/api';
+  import { isAuthenticated } from '$lib/stores';
+  import { websocket } from '$lib/websocket';
   import { auditLogger, AuditCategory, AuditAction, securityAudit } from '$lib/utils/auditLogger';
   import { logger } from '$lib/utils/logger';
-  import Button from '$lib/components/Button.svelte';
-  import Input from '$lib/components/forms/Input.svelte';
-  import Select from '$lib/components/forms/Select.svelte';
-  import DateRangePicker from '$lib/components/forms/DateRangePicker.svelte';
-  import Alert from '$lib/components/Alert.svelte';
-  import Card from '$lib/components/Card.svelte';
-  import SecureTable from '$lib/components/tables/SecureTable.svelte';
   import { announce } from '$lib/utils/accessibility';
-  import ConfirmModal from '$lib/components/modals/ConfirmModal.svelte';
-  import { serverConfig } from '$lib/config';
+  
+  // Import modular components
+  import SecurityTabs from '$lib/components/security/SecurityTabs.svelte';
+  import SecurityMetrics from '$lib/components/security/SecurityMetrics.svelte';
+  import SecurityEventsTable from '$lib/components/security/SecurityEventsTable.svelte';
+  import AuditLogs from '$lib/components/security/AuditLogs.svelte';
 
-  // Original Security Monitoring code
+  // Types
   interface SecurityEvent {
     id: string;
     type: 'success' | 'warning' | 'error' | 'info';
@@ -43,11 +40,238 @@
     }>;
   }
 
+  // State
+  let activeTab = 'monitoring';
+  let loading = true;
+  let autoRefresh = true;
+  let refreshInterval: NodeJS.Timeout | null = null;
+  
+  // Security Monitoring State
   let securityMetrics: SecurityMetrics = {
     totalSessions: 0,
     activeSessions: 0,
     failedLogins: 0,
     lastActivity: '',
+    securityEvents: [],
+    blockedIPs: [],
+    recentActivity: [],
+  };
+  let eventSearchTerm = '';
+  let selectedEventType = 'all';
+
+  // Audit Logs State
+  let auditLoading = true;
+  let auditError = '';
+  let auditLogs: any[] = [];
+  let selectedLog: any = null;
+  let filterCategory = '';
+  let filterAction = '';
+  let filterStatus = '';
+  let filterText = '';
+  let startDate: Date | null = null;
+  let endDate: Date | null = null;
+
+  onMount(async () => {
+    // Redirect if not authenticated
+    if (!$isAuthenticated) {
+      goto('/login');
+      return;
+    }
+
+    await loadSecurityMetrics();
+    setupWebSocket();
+    
+    if (autoRefresh) {
+      startAutoRefresh();
+    }
+
+    await loadAuditLogs();
+    
+    // Log this security page access
+    securityAudit.dataAccess('read', 'security_dashboard');
+  });
+
+  onDestroy(() => {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+    }
+    websocket.disconnect();
+  });
+
+  // Security Metrics Functions
+  async function loadSecurityMetrics() {
+    try {
+      loading = true;
+      const response = await api.get('/security/metrics');
+      securityMetrics = response.data;
+      announce('Security metrics loaded');
+    } catch (error) {
+      logger.error('Failed to load security metrics:', error);
+      announce('Failed to load security metrics', 'assertive');
+    } finally {
+      loading = false;
+    }
+  }
+
+  function setupWebSocket() {
+    websocket.connect();
+    websocket.subscribe('security_event', addSecurityEvent);
+    websocket.subscribe('session_update', updateSessionMetrics);
+  }
+
+  function addSecurityEvent(data: SecurityEvent) {
+    securityMetrics.securityEvents = [data, ...securityMetrics.securityEvents.slice(0, 99)];
+    announce(`New security event: ${data.message}`, 'polite');
+  }
+
+  function updateSessionMetrics(data: any) {
+    securityMetrics.activeSessions = data.activeSessions;
+    securityMetrics.totalSessions = data.totalSessions;
+  }
+
+  function startAutoRefresh() {
+    refreshInterval = setInterval(loadSecurityMetrics, 30000); // 30 seconds
+  }
+
+  function stopAutoRefresh() {
+    if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+    }
+  }
+
+  function handleAutoRefreshToggle(event: CustomEvent<{ enabled: boolean }>) {
+    autoRefresh = event.detail.enabled;
+    if (autoRefresh) {
+      startAutoRefresh();
+    } else {
+      stopAutoRefresh();
+    }
+  }
+
+  // Audit Logs Functions
+  async function loadAuditLogs() {
+    try {
+      auditLoading = true;
+      auditError = '';
+      const response = await api.get('/security/audit-logs');
+      auditLogs = response.data.logs || [];
+    } catch (error) {
+      auditError = 'Failed to load audit logs. Please try again.';
+      logger.error('Failed to load audit logs:', error);
+    } finally {
+      auditLoading = false;
+    }
+  }
+
+  async function handleClearAuditLogs() {
+    try {
+      await api.delete('/security/audit-logs');
+      auditLogs = [];
+      announce('Audit logs cleared successfully');
+      securityAudit.systemAdmin('clear_audit_logs', 'audit_logs');
+    } catch (error) {
+      auditError = 'Failed to clear audit logs. Please try again.';
+      logger.error('Failed to clear audit logs:', error);
+    }
+  }
+
+  async function handleExportAuditLogs(event: CustomEvent<{ format: 'csv' | 'json' }>) {
+    try {
+      const format = event.detail.format;
+      const response = await api.get(`/security/audit-logs/export?format=${format}`, {
+        responseType: 'blob'
+      });
+      
+      const blob = new Blob([response.data], { 
+        type: format === 'csv' ? 'text/csv' : 'application/json' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `audit-logs-${new Date().toISOString().split('T')[0]}.${format}`;
+      link.click();
+      window.URL.revokeObjectURL(url);
+      
+      announce(`Audit logs exported as ${format.toUpperCase()}`);
+    } catch (error) {
+      logger.error('Failed to export audit logs:', error);
+      announce('Failed to export audit logs', 'assertive');
+    }
+  }
+
+  function handleTabChange(event: CustomEvent<{ tab: string }>) {
+    activeTab = event.detail.tab;
+  }
+
+  function handleEventClick(event: CustomEvent<{ event: SecurityEvent }>) {
+    // Handle security event details view
+    console.log('Security event clicked:', event.detail.event);
+  }
+
+  function handleLogSelect(event: CustomEvent<{ log: any }>) {
+    selectedLog = event.detail.log;
+    // Handle audit log details view
+    console.log('Audit log selected:', event.detail.log);
+  }
+</script>
+
+<svelte:head>
+  <title>Security - WakeDock</title>
+  <meta name="description" content="Security monitoring and audit logs for WakeDock" />
+</svelte:head>
+
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Security Center</h1>
+    <p class="mt-2 text-gray-600 dark:text-gray-400">
+      Monitor security events and review audit logs for your WakeDock instance.
+    </p>
+  </div>
+
+  <!-- Tabs Navigation -->
+  <SecurityTabs bind:activeTab on:tabChange={handleTabChange} />
+
+  <!-- Tab Content -->
+  {#if activeTab === 'monitoring'}
+    <div class="space-y-6">
+      <!-- Security Metrics -->
+      <SecurityMetrics 
+        metrics={securityMetrics}
+        {loading}
+        {autoRefresh}
+        on:refresh={loadSecurityMetrics}
+        on:toggleAutoRefresh={handleAutoRefreshToggle}
+      />
+
+      <!-- Security Events -->
+      <SecurityEventsTable
+        events={securityMetrics.securityEvents}
+        {loading}
+        bind:searchTerm={eventSearchTerm}
+        bind:selectedType={selectedEventType}
+        on:eventClick={handleEventClick}
+      />
+    </div>
+  {:else if activeTab === 'audit'}
+    <!-- Audit Logs -->
+    <AuditLogs
+      logs={auditLogs}
+      loading={auditLoading}
+      error={auditError}
+      bind:filterCategory
+      bind:filterAction
+      bind:filterStatus
+      bind:filterText
+      bind:startDate
+      bind:endDate
+      on:refresh={loadAuditLogs}
+      on:clearLogs={handleClearAuditLogs}
+      on:export={handleExportAuditLogs}
+      on:logSelect={handleLogSelect}
+    />
+  {/if}
+</div>
     securityEvents: [],
     blockedIPs: [],
     recentActivity: [],

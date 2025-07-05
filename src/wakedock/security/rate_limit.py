@@ -7,6 +7,7 @@ Provides Redis-based rate limiting for API endpoints and user actions.
 import time
 import json
 import logging
+import os
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -15,9 +16,11 @@ from enum import Enum
 try:
     import redis
     REDIS_AVAILABLE = True
+    RedisType = redis.Redis
 except ImportError:
     REDIS_AVAILABLE = False
     redis = None
+    RedisType = None
 
 from wakedock.log_config import get_logger
 
@@ -62,7 +65,7 @@ class RateLimitError(Exception):
 class RateLimiter:
     """Base rate limiter class."""
     
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional[Any] = None):
         self.redis = redis_client
         self._fallback_store = {}  # In-memory fallback
     
@@ -381,7 +384,7 @@ class TokenBucketRateLimiter(RateLimiter):
 class RateLimitManager:
     """Manages multiple rate limiters and rules."""
     
-    def __init__(self, redis_client: Optional[redis.Redis] = None):
+    def __init__(self, redis_client: Optional[Any] = None):
         self.redis = redis_client
         self.limiters = {
             RateLimitStrategy.SLIDING_WINDOW: SlidingWindowRateLimiter(redis_client),
@@ -665,7 +668,7 @@ def get_rate_limiter() -> RateLimitManager:
     return _rate_limiter
 
 
-def init_rate_limiting(redis_client: Optional[redis.Redis] = None) -> RateLimitManager:
+def init_rate_limiting(redis_client: Optional[Any] = None) -> RateLimitManager:
     """Initialize rate limiting."""
     global _rate_limiter
     _rate_limiter = RateLimitManager(redis_client)
