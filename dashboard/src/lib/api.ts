@@ -144,7 +144,7 @@ class ApiClient {
   private token: string | null = null;
   private maxRetries: number = 3;
   private retryDelay: number = 1000; // Base delay in ms
-  private timeout: number = 30000; // 30 seconds
+  private timeout: number = 30000; // 30 seconds - reasonable timeout
 
   constructor(baseUrl: string = '') {
     // Use configuration from environment
@@ -210,8 +210,16 @@ class ApiClient {
       ...securityHeaders.getDefaults(),
     };
 
-    // Only set Content-Type if not using FormData
-    if (!(options.body instanceof FormData)) {
+    // Merge existing headers if they exist first
+    if (options.headers) {
+      const existingHeaders = new Headers(options.headers);
+      existingHeaders.forEach((value, key) => {
+        headers[key] = value;
+      });
+    }
+
+    // Only set Content-Type if not already set and not using FormData or URLSearchParams
+    if (!headers['Content-Type'] && !(options.body instanceof FormData) && !(options.body instanceof URLSearchParams)) {
       headers['Content-Type'] = 'application/json';
     }
 
@@ -224,14 +232,6 @@ class ApiClient {
       if (csrfToken) {
         headers['X-CSRF-Token'] = csrfToken;
       }
-    }
-
-    // Merge existing headers if they exist
-    if (options.headers) {
-      const existingHeaders = new Headers(options.headers);
-      existingHeaders.forEach((value, key) => {
-        headers[key] = value;
-      });
     }
 
     if (this.token) {
@@ -259,11 +259,33 @@ class ApiClient {
     }
 
     try {
+      // DEBUG: Log request start only in development mode
+      if (config.enableDebug || process.env.NODE_ENV === 'development') {
+        console.log('🚀 API Request START:', {
+          url,
+          method: options.method || 'GET',
+          timestamp: new Date().toISOString(),
+          timeoutMs: this.timeout,
+          headers: Object.keys(headers)
+        });
+      }
+      
+      const requestStart = Date.now();
       const response = await fetch(url, {
         ...options,
         headers,
         signal: combinedSignal,
       });
+      
+      const requestDuration = Date.now() - requestStart;
+      if (config.enableDebug || process.env.NODE_ENV === 'development') {
+        console.log('✅ API Response received:', {
+          url,
+          status: response.status,
+          duration: requestDuration + 'ms',
+          timestamp: new Date().toISOString()
+        });
+      }
 
       // Clear timeout since request completed
       if (!timeoutController.signal.aborted) {
@@ -321,10 +343,27 @@ class ApiClient {
         return {} as T;
       }
     } catch (error: any) {
+      // Add detailed error logging
+      console.error('API request failed:', {
+        url,
+        error: error,
+        errorName: error.name,
+        errorMessage: error.message,
+        errorStack: error.stack,
+        timeout: this.timeout,
+        retryAttempt
+      });
+
       // Handle timeout specifically
       if (error.name === 'AbortError') {
+        console.error('⏰ TIMEOUT DETECTED:', {
+          url,
+          timeoutMs: this.timeout,
+          timestamp: new Date().toISOString(),
+          errorName: error.name
+        });
         const timeoutError: ApiError = {
-          message: 'Request timeout',
+          message: `Request timeout after ${this.timeout}ms`,
           code: 'TIMEOUT',
           details: { url, timeout: this.timeout },
         };
@@ -394,12 +433,15 @@ class ApiClient {
   get auth() {
     return {
       login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-        const formData = new FormData();
+        const formData = new URLSearchParams();
         formData.append('username', credentials.username);
         formData.append('password', credentials.password);
 
         const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
           method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
           body: formData,
         });
 

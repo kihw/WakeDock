@@ -134,6 +134,9 @@ class DockerEventsHandler:
                     await self._safe_callback(callback, service_update)
                 except Exception as e:
                     logger.error(f"Error in Docker events callback: {e}")
+            
+            # Send notifications for important events
+            await self._send_notifications(action, container_name, container_id, service_update)
                     
         except Exception as e:
             logger.error(f"Error processing Docker event: {e}")
@@ -147,6 +150,59 @@ class DockerEventsHandler:
                 callback(data)
         except Exception as e:
             logger.error(f"Callback execution failed: {e}")
+            
+    async def _send_notifications(self, action: str, container_name: str, container_id: str, service_data: Dict[str, Any]) -> None:
+        """Send notifications for important Docker events"""
+        try:
+            from wakedock.core.notifications import get_notification_manager, NotificationHelpers
+            notification_manager = get_notification_manager()
+            
+            if not notification_manager:
+                return
+                
+            # Skip notifications for WakeDock's own containers
+            if any(name in container_name.lower() for name in ['wakedock', 'postgres', 'redis', 'caddy']):
+                return
+                
+            status = service_data.get('status', 'unknown')
+            
+            if action == 'start' and status == 'running':
+                await NotificationHelpers.docker_container_started(
+                    notification_manager, container_name, container_id
+                )
+            elif action in ['stop', 'die'] and status in ['exited', 'stopped']:
+                await NotificationHelpers.docker_container_stopped(
+                    notification_manager, container_name, container_id
+                )
+            elif action == 'health_status':
+                health_status = service_data.get('health_status')
+                if health_status == 'unhealthy':
+                    await notification_manager.create_notification(
+                        title="Container Health Alert",
+                        message=f"Container '{container_name}' is unhealthy",
+                        level="warning",
+                        category="docker",
+                        data={"container_name": container_name, "container_id": container_id, "health_status": health_status}
+                    )
+            elif action == 'create':
+                await notification_manager.create_notification(
+                    title="Container Created",
+                    message=f"New container '{container_name}' has been created",
+                    level="info",
+                    category="docker",
+                    data={"container_name": container_name, "container_id": container_id}
+                )
+            elif action == 'destroy':
+                await notification_manager.create_notification(
+                    title="Container Removed",
+                    message=f"Container '{container_name}' has been removed",
+                    level="info",
+                    category="docker",
+                    data={"container_name": container_name, "container_id": container_id}
+                )
+                
+        except Exception as e:
+            logger.error(f"Error sending Docker event notification: {e}")
             
     async def _get_container_data(self, container_id: str, container_name: str) -> Dict[str, Any]:
         """Get detailed container information"""

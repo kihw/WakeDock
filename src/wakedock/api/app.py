@@ -132,6 +132,18 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
             app.state.system_metrics_handler.subscribe(broadcast_system_update)
             logger.info("System metrics handler connected to WebSocket")
         
+        # Connect log streaming handler to WebSocket if available
+        if hasattr(app.state, 'log_streaming_handler') and app.state.log_streaming_handler:
+            from wakedock.api.routes.websocket import broadcast_log_entry
+            app.state.log_streaming_handler.subscribe(broadcast_log_entry)
+            logger.info("Log streaming handler connected to WebSocket")
+        
+        # Connect notification manager to WebSocket if available
+        if hasattr(app.state, 'notification_manager') and app.state.notification_manager:
+            from wakedock.api.routes.websocket import broadcast_notification
+            app.state.notification_manager.subscribe(broadcast_notification)
+            logger.info("Notification manager connected to WebSocket")
+        
     @app.on_event("shutdown")
     async def shutdown_event():
         logger.info("WakeDock API shutting down")

@@ -143,13 +143,16 @@ export const auth = {
         set({
           user,
           token,
-          refreshToken: null, // TODO: récupérer depuis localStorage si disponible
+          refreshToken: localStorage.getItem('wakedock_refresh_token'), // Récupérer depuis localStorage
           isAuthenticated: true,
           isLoading: false,
           error: null,
           isRefreshing: false,
           lastActivity: new Date(),
-          sessionExpiry: null, // TODO: calculer à partir du token
+          sessionExpiry: token ? (() => {
+            const decoded = decodeToken(token);
+            return decoded?.exp ? new Date(decoded.exp * 1000) : null;
+          })() : null, // Calculer à partir du token
         });
       } else {
         set({
@@ -208,10 +211,10 @@ export const auth = {
 
       const response: ApiLoginResponse = await api.auth.login(loginRequest);
 
-      // Check if 2FA is required (mock implementation - should come from API)
+      // Check if 2FA is required based on API response
       const extendedResponse: ExtendedLoginResponse = {
         ...response,
-        requiresTwoFactor: !options?.twoFactorCode && emailOrUsername === 'admin@wakedock.com', // Mock condition
+        requiresTwoFactor: response.user?.twoFactorEnabled && !options?.twoFactorCode,
       };
 
       // If 2FA is required and not provided, return the response without setting auth state
@@ -254,7 +257,7 @@ export const auth = {
       const authState: AuthState = {
         user,
         token: response.access_token,
-        refreshToken: extendedResponse.refresh_token || null,
+        refreshToken: extendedResponse.refresh_token || localStorage.getItem('wakedock_refresh_token'),
         isAuthenticated: true,
         isLoading: false,
         error: null,

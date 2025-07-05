@@ -15,6 +15,10 @@ export interface User {
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
+  // 2FA fields
+  twoFactorEnabled?: boolean;
+  twoFactorSecret?: string;
+  backupCodes?: string[];
 }
 
 export interface CreateUserRequest {

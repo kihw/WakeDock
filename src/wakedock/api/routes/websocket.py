@@ -417,6 +417,272 @@ async def handle_websocket_message(websocket: WebSocket, message: Dict[str, Any]
                 'data': stats
             })
             
+        elif message_type == 'start_log_stream':
+            # Start log streaming for a specific container
+            container_id = data.get('container_id', '')
+            if container_id:
+                # Get log streaming handler from app state (we'll need to access it)
+                from wakedock.core.log_streaming import get_log_streaming_handler
+                log_handler = get_log_streaming_handler()
+                
+                if log_handler:
+                    success = await log_handler.start_container_stream(container_id)
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'log_stream_response',
+                        'data': {
+                            'container_id': container_id,
+                            'action': 'start',
+                            'success': success,
+                            'message': 'Log stream started' if success else 'Failed to start log stream'
+                        }
+                    })
+                else:
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'error',
+                        'data': {
+                            'error': 'Log streaming not available',
+                            'code': 'LOG_STREAMING_UNAVAILABLE'
+                        }
+                    })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Missing container_id for log streaming',
+                        'code': 'MISSING_CONTAINER_ID'
+                    }
+                })
+                
+        elif message_type == 'stop_log_stream':
+            # Stop log streaming for a specific container
+            container_id = data.get('container_id', '')
+            if container_id:
+                from wakedock.core.log_streaming import get_log_streaming_handler
+                log_handler = get_log_streaming_handler()
+                
+                if log_handler:
+                    success = await log_handler.stop_container_stream(container_id)
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'log_stream_response',
+                        'data': {
+                            'container_id': container_id,
+                            'action': 'stop',
+                            'success': success,
+                            'message': 'Log stream stopped' if success else 'Failed to stop log stream'
+                        }
+                    })
+                else:
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'error',
+                        'data': {
+                            'error': 'Log streaming not available',
+                            'code': 'LOG_STREAMING_UNAVAILABLE'
+                        }
+                    })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Missing container_id for log streaming',
+                        'code': 'MISSING_CONTAINER_ID'
+                    }
+                })
+                
+        elif message_type == 'get_recent_logs':
+            # Get recent logs for a specific container
+            container_id = data.get('container_id', '')
+            lines = data.get('lines', 100)
+            
+            if container_id:
+                from wakedock.core.log_streaming import get_log_streaming_handler
+                log_handler = get_log_streaming_handler()
+                
+                if log_handler:
+                    logs = await log_handler.get_recent_logs(container_id, lines)
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'recent_logs',
+                        'data': {
+                            'container_id': container_id,
+                            'logs': logs,
+                            'count': len(logs)
+                        }
+                    })
+                else:
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'error',
+                        'data': {
+                            'error': 'Log streaming not available',
+                            'code': 'LOG_STREAMING_UNAVAILABLE'
+                        }
+                    })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Missing container_id for log retrieval',
+                        'code': 'MISSING_CONTAINER_ID'
+                    }
+                })
+                
+        elif message_type == 'get_notifications':
+            # Get notifications with optional filtering
+            limit = data.get('limit', 50)
+            offset = data.get('offset', 0)
+            level = data.get('level')
+            category = data.get('category')
+            unread_only = data.get('unread_only', False)
+            
+            from wakedock.core.notifications import get_notification_manager
+            notification_manager = get_notification_manager()
+            
+            if notification_manager:
+                notifications = notification_manager.get_notifications(
+                    limit=limit,
+                    offset=offset,
+                    level=level,
+                    category=category,
+                    unread_only=unread_only
+                )
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'notifications_list',
+                    'data': {
+                        'notifications': notifications,
+                        'count': len(notifications),
+                        'filters': {
+                            'limit': limit,
+                            'offset': offset,
+                            'level': level,
+                            'category': category,
+                            'unread_only': unread_only
+                        }
+                    }
+                })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Notification manager not available',
+                        'code': 'NOTIFICATIONS_UNAVAILABLE'
+                    }
+                })
+                
+        elif message_type == 'mark_notification_read':
+            # Mark a notification as read
+            notification_id = data.get('notification_id', '')
+            
+            if notification_id:
+                from wakedock.core.notifications import get_notification_manager
+                notification_manager = get_notification_manager()
+                
+                if notification_manager:
+                    success = await notification_manager.mark_as_read(notification_id)
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'notification_action_response',
+                        'data': {
+                            'notification_id': notification_id,
+                            'action': 'mark_read',
+                            'success': success,
+                            'message': 'Notification marked as read' if success else 'Notification not found'
+                        }
+                    })
+                else:
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'error',
+                        'data': {
+                            'error': 'Notification manager not available',
+                            'code': 'NOTIFICATIONS_UNAVAILABLE'
+                        }
+                    })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Missing notification_id',
+                        'code': 'MISSING_NOTIFICATION_ID'
+                    }
+                })
+                
+        elif message_type == 'dismiss_notification':
+            # Dismiss a notification
+            notification_id = data.get('notification_id', '')
+            
+            if notification_id:
+                from wakedock.core.notifications import get_notification_manager
+                notification_manager = get_notification_manager()
+                
+                if notification_manager:
+                    success = await notification_manager.dismiss_notification(notification_id)
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'notification_action_response',
+                        'data': {
+                            'notification_id': notification_id,
+                            'action': 'dismiss',
+                            'success': success,
+                            'message': 'Notification dismissed' if success else 'Notification not found'
+                        }
+                    })
+                else:
+                    await websocket_manager.send_personal_message(websocket, {
+                        'type': 'error',
+                        'data': {
+                            'error': 'Notification manager not available',
+                            'code': 'NOTIFICATIONS_UNAVAILABLE'
+                        }
+                    })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Missing notification_id',
+                        'code': 'MISSING_NOTIFICATION_ID'
+                    }
+                })
+                
+        elif message_type == 'clear_all_notifications':
+            # Clear all notifications
+            from wakedock.core.notifications import get_notification_manager
+            notification_manager = get_notification_manager()
+            
+            if notification_manager:
+                count = await notification_manager.clear_all_notifications()
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'notification_action_response',
+                    'data': {
+                        'action': 'clear_all',
+                        'success': True,
+                        'count': count,
+                        'message': f'Cleared {count} notifications'
+                    }
+                })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Notification manager not available',
+                        'code': 'NOTIFICATIONS_UNAVAILABLE'
+                    }
+                })
+                
+        elif message_type == 'get_notification_stats':
+            # Get notification statistics
+            from wakedock.core.notifications import get_notification_manager
+            notification_manager = get_notification_manager()
+            
+            if notification_manager:
+                stats = notification_manager.get_notification_stats()
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'notification_stats',
+                    'data': stats
+                })
+            else:
+                await websocket_manager.send_personal_message(websocket, {
+                    'type': 'error',
+                    'data': {
+                        'error': 'Notification manager not available',
+                        'code': 'NOTIFICATIONS_UNAVAILABLE'
+                    }
+                })
+            
         else:
             # Unknown message type
             await websocket_manager.send_personal_message(websocket, {

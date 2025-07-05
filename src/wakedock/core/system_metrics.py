@@ -70,6 +70,7 @@ class SystemMetricsHandler:
                     # Only broadcast if metrics have changed significantly
                     if self._should_broadcast(metrics):
                         await self._broadcast_metrics(metrics)
+                        await self._check_resource_alerts(metrics)
                         self.last_metrics = metrics
                     
                     # Wait for next update
@@ -255,6 +256,51 @@ class SystemMetricsHandler:
     async def get_current_metrics(self) -> Dict[str, Any]:
         """Get current system metrics on demand"""
         return await self._collect_metrics()
+        
+    async def _check_resource_alerts(self, metrics: Dict[str, Any]) -> None:
+        """Check for resource usage alerts and send notifications"""
+        try:
+            from wakedock.core.notifications import get_notification_manager, NotificationHelpers
+            notification_manager = get_notification_manager()
+            
+            if not notification_manager:
+                return
+                
+            # Check CPU usage
+            cpu_usage = metrics.get('cpu', {}).get('percent', 0)
+            if cpu_usage > 90:
+                await NotificationHelpers.system_resource_critical(
+                    notification_manager, "CPU", cpu_usage, 90
+                )
+            elif cpu_usage > 80:
+                await NotificationHelpers.system_resource_warning(
+                    notification_manager, "CPU", cpu_usage, 80
+                )
+            
+            # Check Memory usage
+            memory_usage = metrics.get('memory', {}).get('percent', 0)
+            if memory_usage > 95:
+                await NotificationHelpers.system_resource_critical(
+                    notification_manager, "Memory", memory_usage, 95
+                )
+            elif memory_usage > 85:
+                await NotificationHelpers.system_resource_warning(
+                    notification_manager, "Memory", memory_usage, 85
+                )
+            
+            # Check Disk usage
+            disk_usage = metrics.get('disk', {}).get('percent', 0)
+            if disk_usage > 95:
+                await NotificationHelpers.system_resource_critical(
+                    notification_manager, "Disk", disk_usage, 95
+                )
+            elif disk_usage > 85:
+                await NotificationHelpers.system_resource_warning(
+                    notification_manager, "Disk", disk_usage, 85
+                )
+                
+        except Exception as e:
+            logger.error(f"Error checking resource alerts: {e}")
 
 # Global instance (will be initialized by the main app)
 system_metrics_handler: Optional[SystemMetricsHandler] = None

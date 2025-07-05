@@ -14,6 +14,8 @@ from wakedock.core.orchestrator import DockerOrchestrator
 from wakedock.core.caddy import caddy_manager
 from wakedock.core.docker_events import initialize_docker_events
 from wakedock.core.system_metrics import initialize_system_metrics
+from wakedock.core.log_streaming import initialize_log_streaming
+from wakedock.core.notifications import initialize_notifications
 from wakedock.database.database import init_database
 import docker
 
@@ -95,6 +97,28 @@ async def main():
     except Exception as e:
         logger.warning(f"System metrics handler initialization failed: {e}")
         logger.warning("Application will continue but system metrics monitoring will not work")
+    
+    # Initialize Log streaming handler
+    log_streaming_handler = None
+    try:
+        if docker_events_handler:  # Reuse the same docker client
+            log_streaming_handler = initialize_log_streaming(docker_client)
+        else:
+            docker_client = docker.from_env()
+            log_streaming_handler = initialize_log_streaming(docker_client)
+        logger.info("Log streaming handler initialized successfully")
+    except Exception as e:
+        logger.warning(f"Log streaming handler initialization failed: {e}")
+        logger.warning("Application will continue but log streaming will not work")
+    
+    # Initialize Notification manager
+    notification_manager = None
+    try:
+        notification_manager = initialize_notifications(max_notifications=1000)
+        logger.info("Notification manager initialized successfully")
+    except Exception as e:
+        logger.warning(f"Notification manager initialization failed: {e}")
+        logger.warning("Application will continue but notifications will not work")
 
     # Initialize Caddy manager and force correct configuration
     try:
@@ -131,6 +155,8 @@ async def main():
     # Store handlers in app state
     app.state.docker_events_handler = docker_events_handler
     app.state.system_metrics_handler = system_metrics_handler
+    app.state.log_streaming_handler = log_streaming_handler
+    app.state.notification_manager = notification_manager
     
     # Start monitoring service
     if settings.monitoring.enabled and monitoring_service:
@@ -149,6 +175,29 @@ async def main():
         system_metrics_handler.subscribe(broadcast_system_update)
         await system_metrics_handler.start_monitoring()
         logger.info("System metrics monitoring started")
+    
+    # Start log streaming monitoring
+    if log_streaming_handler:
+        from wakedock.api.routes.websocket import broadcast_log_entry
+        log_streaming_handler.subscribe(broadcast_log_entry)
+        await log_streaming_handler.start_monitoring()
+        logger.info("Log streaming monitoring started")
+    
+    # Connect notification manager to WebSocket
+    if notification_manager:
+        from wakedock.api.routes.websocket import broadcast_notification
+        notification_manager.subscribe(broadcast_notification)
+        logger.info("Notification manager connected to WebSocket")
+        
+        # Send startup notification
+        from wakedock.core.notifications import NotificationLevel, NotificationCategory
+        await notification_manager.create_notification(
+            title="WakeDock Started",
+            message="WakeDock Docker management platform has started successfully",
+            level=NotificationLevel.SUCCESS,
+            category=NotificationCategory.SYSTEM,
+            source="wakedock"
+        )
     
     # Start the server
     config = uvicorn.Config(
@@ -179,6 +228,11 @@ async def main():
         if system_metrics_handler:
             await system_metrics_handler.stop_monitoring()
             logger.info("System metrics monitoring stopped")
+        
+        # Stop log streaming monitoring
+        if log_streaming_handler:
+            await log_streaming_handler.stop_monitoring()
+            logger.info("Log streaming monitoring stopped")
 
 
 if __name__ == "__main__":

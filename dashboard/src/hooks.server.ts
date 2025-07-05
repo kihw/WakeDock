@@ -58,7 +58,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   // CSP header for dashboard
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const wakedockApiUrl = process.env.WAKEDOCK_API_URL || 'http://localhost:8000';
+  const wakedockApiUrl = process.env.WAKEDOCK_API_URL || process.env.PUBLIC_API_URL || 'http://195.201.199.226:8000';
 
   // Extract WebSocket URL from API URL
   const wsUrl = wakedockApiUrl.replace(/^https?:/, 'ws:');
@@ -70,7 +70,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
     "img-src 'self' data: blob:",
     "font-src 'self'",
     // Allow connections to Docker containers and localhost
-    `connect-src 'self' ${wakedockApiUrl} ${wsUrl} http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`,
+    `connect-src 'self' ${wakedockApiUrl} ${wsUrl} http://localhost:* https://localhost:* http://195.201.199.226:* https://195.201.199.226:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://195.201.199.226:* wss://195.201.199.226:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",
