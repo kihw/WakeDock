@@ -169,26 +169,26 @@ class ApiClient {
     failureThreshold: 5,
     recoveryTimeout: 30000, // 30s recovery
     halfOpenTimeout: 10000, // 10s half-open
-    
+
     isOpen: (endpoint: string): boolean => {
       const failures = this.circuitBreaker.failures.get(endpoint) || 0;
       const lastFailure = this.circuitBreaker.lastFailureTime.get(endpoint) || 0;
       const now = Date.now();
-      
+
       // Circuit is open if we exceeded failure threshold and not enough time has passed
       if (failures >= this.circuitBreaker.failureThreshold) {
         return (now - lastFailure) < this.circuitBreaker.recoveryTimeout;
       }
-      
+
       return false;
     },
-    
+
     recordFailure: (endpoint: string): void => {
       const failures = (this.circuitBreaker.failures.get(endpoint) || 0) + 1;
       this.circuitBreaker.failures.set(endpoint, failures);
       this.circuitBreaker.lastFailureTime.set(endpoint, Date.now());
     },
-    
+
     recordSuccess: (endpoint: string): void => {
       this.circuitBreaker.failures.set(endpoint, 0);
       this.circuitBreaker.lastFailureTime.delete(endpoint);
@@ -200,12 +200,12 @@ class ApiClient {
     isOnline: true,
     lastOnlineCheck: Date.now(),
     checkInterval: 5000, // Check every 5s when offline
-    
+
     updateStatus: (): void => {
       const wasOnline = this.networkStatus.isOnline;
       this.networkStatus.isOnline = navigator.onLine;
       this.networkStatus.lastOnlineCheck = Date.now();
-      
+
       if (!wasOnline && this.networkStatus.isOnline) {
         console.log('🌐 Network connection restored');
       } else if (wasOnline && !this.networkStatus.isOnline) {
@@ -222,12 +222,12 @@ class ApiClient {
     // Try to load token from localStorage
     if (typeof window !== 'undefined') {
       this.token = localStorage.getItem(config.tokenKey);
-      
+
       // Set up network status monitoring
       window.addEventListener('online', this.networkStatus.updateStatus);
       window.addEventListener('offline', this.networkStatus.updateStatus);
       this.networkStatus.updateStatus();
-      
+
       // Update configuration from runtime API if available
       this.updateConfigFromRuntime();
     }
@@ -255,14 +255,14 @@ class ApiClient {
     if (this.endpointTimeouts[endpoint]) {
       return this.endpointTimeouts[endpoint];
     }
-    
+
     // Check for partial matches
     for (const [pattern, timeout] of Object.entries(this.endpointTimeouts)) {
       if (pattern !== 'default' && endpoint.startsWith(pattern)) {
         return timeout;
       }
     }
-    
+
     return this.endpointTimeouts.default;
   }
 
@@ -384,14 +384,14 @@ class ApiClient {
           headers: Object.keys(headers)
         });
       }
-      
+
       const requestStart = Date.now();
       const response = await fetch(url, {
         ...options,
         headers,
         signal: combinedSignal,
       });
-      
+
       const requestDuration = Date.now() - requestStart;
       if (config.enableDebug || process.env.NODE_ENV === 'development') {
         console.log('✅ API Response received:', {
@@ -455,26 +455,26 @@ class ApiClient {
 
         // Record success in circuit breaker
         this.circuitBreaker.recordSuccess(path);
-        
+
         // Record success in monitoring
         const requestDuration = Date.now() - requestStart;
         apiMonitor.recordSuccess(path, requestDuration);
-        
+
         return responseData;
       } else {
         // Record success in circuit breaker
         this.circuitBreaker.recordSuccess(path);
-        
+
         // Record success in monitoring
         const requestDuration = Date.now() - requestStart;
         apiMonitor.recordSuccess(path, requestDuration);
-        
+
         return {} as T;
       }
     } catch (error: any) {
       // Record failure in circuit breaker
       this.circuitBreaker.recordFailure(path);
-      
+
       // Record error in monitoring
       apiMonitor.recordError(path, error);
 

@@ -13,7 +13,7 @@
   const sizeClasses = {
     small: 'col-span-1 row-span-1',
     medium: 'col-span-2 row-span-1',
-    large: 'col-span-3 row-span-2'
+    large: 'col-span-3 row-span-2',
   };
 
   onMount(() => {
@@ -51,21 +51,21 @@
     updateMetrics();
   }
 
-  $: errorRate = metrics && metrics.requestCount > 0 
-    ? (metrics.errorCount / metrics.requestCount) * 100 
-    : 0;
+  $: errorRate =
+    metrics && metrics.requestCount > 0 ? (metrics.errorCount / metrics.requestCount) * 100 : 0;
 
   function getCircuitBreakerEntries(metrics: ApiMetrics) {
     return Object.entries(metrics.circuitBreakerStatus).map(([endpoint, status]) => ({
       endpoint,
-      status: status as any
+      status: status as any,
     }));
   }
 
   $: circuitBreakerEntries = metrics ? getCircuitBreakerEntries(metrics) : [];
-  $: circuitBreakerIssues = circuitBreakerEntries.filter(entry => entry.status.isOpen);
+  $: circuitBreakerIssues = circuitBreakerEntries.filter((entry) => entry.status.isOpen);
 
-  $: hasIssues = errorRate > 5 || circuitBreakerIssues.length > 0 || !metrics?.networkStatus.isOnline;
+  $: hasIssues =
+    errorRate > 5 || circuitBreakerIssues.length > 0 || !metrics?.networkStatus.isOnline;
 </script>
 
 <div class="widget api-monitor-widget {sizeClasses[size]} {hasIssues ? 'has-issues' : ''}">
@@ -78,7 +78,7 @@
       {/if}
     </div>
     <div class="widget-actions">
-      <button 
+      <button
         type="button"
         on:click={toggleExpanded}
         class="btn btn-sm"
@@ -123,7 +123,11 @@
 
         <!-- Response Time -->
         <div class="metric" class:slow={metrics.averageResponseTime > 2000}>
-          <Clock class="w-4 h-4 {metrics.averageResponseTime > 2000 ? 'text-yellow-500' : 'text-gray-400'}" />
+          <Clock
+            class="w-4 h-4 {metrics.averageResponseTime > 2000
+              ? 'text-yellow-500'
+              : 'text-gray-400'}"
+          />
           <div class="metric-content">
             <span class="metric-value">{metrics.averageResponseTime.toFixed(0)}ms</span>
             <span class="metric-label">Avg Response</span>
@@ -155,18 +159,10 @@
           <div class="section">
             <h4>Actions</h4>
             <div class="actions">
-              <button 
-                type="button"
-                on:click={downloadReport}
-                class="btn btn-sm btn-outline"
-              >
+              <button type="button" on:click={downloadReport} class="btn btn-sm btn-outline">
                 Download Report
               </button>
-              <button 
-                type="button"
-                on:click={clearMetrics}
-                class="btn btn-sm btn-outline"
-              >
+              <button type="button" on:click={clearMetrics} class="btn btn-sm btn-outline">
                 Clear Metrics
               </button>
             </div>
