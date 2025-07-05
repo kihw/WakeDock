@@ -272,10 +272,10 @@
     />
   {/if}
 </div>
-    securityEvents: [],
-    blockedIPs: [],
-    recentActivity: [],
-  };
+
+<script>
+  // Move script code here if needed
+</script>
 
   let loading = true;
   let autoRefresh = true;

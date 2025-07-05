@@ -1,0 +1,69 @@
+# Multi-stage optimized Dockerfile for WakeDock Dashboard
+FROM node:18-alpine as base
+
+# Install system dependencies
+RUN apk add --no-cache \
+    tini \
+    curl \
+    && npm config set registry https://registry.npmjs.org/
+
+# Stage: Dependencies
+FROM base as dependencies
+
+WORKDIR /app
+
+# Copy package files for better caching
+COPY package.json package-lock.json ./
+
+# Install dependencies with cache optimization
+RUN npm ci --only=production --ignore-scripts
+
+# Stage: Build
+FROM base as build
+
+WORKDIR /app
+
+# Copy dependencies from previous stage
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY . .
+
+# Build application with optimizations
+ENV NODE_ENV=production
+RUN npm run build && \
+    # Verify build success
+    test -f build/index.js || (echo "❌ Build failed: index.js not found in build/" && ls -la build/ && exit 1) && \
+    echo "✅ Dashboard build successful"
+
+# Clean up development dependencies
+RUN npm prune --production
+
+# Stage: Production
+FROM nginx:alpine as production
+
+# Copy optimized nginx configuration
+COPY docker/nginx.performance.conf /etc/nginx/nginx.conf
+
+# Copy built application
+COPY --from=build /app/build /usr/share/nginx/html
+
+# Pre-compress assets for better performance
+RUN find /usr/share/nginx/html -type f \( -name "*.js" -o -name "*.css" -o -name "*.html" -o -name "*.svg" \) \
+    -exec gzip -k -9 {} \;
+
+# Create non-root user
+RUN addgroup -g 1001 -S nginx && \
+    adduser -S nginx -u 1001 -G nginx
+
+# Set proper permissions
+RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx
+USER nginx
+
+# Expose port
+EXPOSE 80
+
+# Optimized health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost/health || curl -f http://localhost/ || exit 1
+
+# Start nginx with proper signal handling
+CMD ["nginx", "-g", "daemon off;"]

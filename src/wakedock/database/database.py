@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..config import get_settings
+from ..performance.database.optimizer import DatabaseOptimizer
 
 logger = logging.getLogger(__name__)
 
@@ -82,13 +83,14 @@ class DatabaseManager:
                     echo=self.settings.wakedock.debug
                 )
             else:
-                # PostgreSQL/MySQL settings
-                self.engine = create_engine(
+                # PostgreSQL/MySQL settings with optimization
+                self.engine = DatabaseOptimizer.create_optimized_engine(
                     self.database_url,
-                    pool_pre_ping=True,
-                    pool_recycle=300,
                     echo=self.settings.wakedock.debug
                 )
+            
+            # Initialize database optimizer
+            self.optimizer = DatabaseOptimizer(self.engine)
             
             # Create session factory
             self.SessionLocal = sessionmaker(
@@ -146,6 +148,19 @@ class DatabaseManager:
             raise
         finally:
             session.close()
+    
+    def get_optimizer(self) -> Optional[DatabaseOptimizer]:
+        """Get the database optimizer instance."""
+        if not self._initialized:
+            self.initialize()
+        return getattr(self, 'optimizer', None)
+    
+    def get_performance_stats(self) -> dict:
+        """Get database performance statistics."""
+        optimizer = self.get_optimizer()
+        if optimizer:
+            return optimizer.get_performance_stats()
+        return {}
 
 
 # Global database manager instance (lazy initialization)

@@ -20,6 +20,12 @@ from wakedock.core.monitoring import MonitoringService
 from wakedock.infrastructure.cache.service import get_cache_service
 from wakedock.infrastructure.vault.service import get_vault_service
 from wakedock.security.middleware import SecurityAuditMiddleware, RequestTimingMiddleware
+from wakedock.performance.api.middleware import (
+    PerformanceMiddleware,
+    CacheMiddleware,
+    ResponseOptimizationMiddleware,
+    ConnectionPoolMiddleware
+)
 from wakedock.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -40,6 +46,12 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     # Security middleware (should be first)
     app.add_middleware(SecurityAuditMiddleware, log_requests=True, log_responses=True)
     app.add_middleware(RequestTimingMiddleware, slow_request_threshold=2.0)
+    
+    # Performance middleware
+    app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring)
+    app.add_middleware(CacheMiddleware)
+    app.add_middleware(ResponseOptimizationMiddleware)
+    app.add_middleware(ConnectionPoolMiddleware)
     
     # CORS middleware
     app.add_middleware(

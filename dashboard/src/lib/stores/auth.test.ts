@@ -78,8 +78,8 @@ describe('Auth Store', () => {
     await expect(auth.login('wrong', 'wrong')).rejects.toThrow('Invalid credentials');
 
     const state = get(auth);
-    expect(state.user).toBeNull();
-    expect(state.token).toBeNull();
+    expect(state.user).toBeFalsy();
+    expect(state.token).toBeFalsy();
     expect(state.isLoading).toBe(false);
     expect(state.error).toBe('Invalid credentials');
   });

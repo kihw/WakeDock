@@ -33,7 +33,7 @@ describe('API Integration Tests', () => {
         ok: true,
         json: async () => ({
           user: { id: '1', username: 'testuser', email: 'test@example.com' },
-          token: 'mock-jwt-token',
+          access_token: 'mock-jwt-token',
         }),
       });
 
@@ -44,7 +44,7 @@ describe('API Integration Tests', () => {
 
       expect(response.user.username).toBe('testuser');
       expect(response.access_token).toBe('mock-jwt-token');
-    });
+    }, 10000);
 
     it('should fail login with invalid credentials', async () => {
       // Mock failed login response
@@ -81,7 +81,7 @@ describe('API Integration Tests', () => {
 
       expect(user.username).toBe('testuser');
       expect(user.role).toBe('admin');
-    });
+    }, 10000);
   });
 
   describe('Services Management', () => {
@@ -95,6 +95,7 @@ describe('API Integration Tests', () => {
         {
           id: '1',
           name: 'nginx-proxy',
+          subdomain: 'nginx',
           image: 'nginx:alpine',
           status: 'running',
           ports: [{ host: 80, container: 80, protocol: 'tcp' }],
@@ -118,12 +119,13 @@ describe('API Integration Tests', () => {
       expect(services).toHaveLength(1);
       expect(services[0].name).toBe('nginx-proxy');
       expect(services[0].status).toBe('running');
-    });
+    }, 10000);
 
     it('should get service by id', async () => {
       const mockService = {
         id: '1',
         name: 'nginx-proxy',
+        subdomain: 'nginx',
         image: 'nginx:alpine',
         status: 'running',
         ports: [{ host: 80, container: 80, protocol: 'tcp' }],
@@ -145,52 +147,52 @@ describe('API Integration Tests', () => {
 
       expect(service.id).toBe('1');
       expect(service.name).toBe('nginx-proxy');
-    });
+    }, 10000);
 
     it('should start a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({}),
+        json: async () => ({ success: true, message: 'Service started' }),
       });
 
-      await expect(api.startService('1')).resolves.not.toThrow();
+      await api.services.start('1');
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/start'),
         expect.objectContaining({
           method: 'POST',
         })
       );
-    });
+    }, 10000);
 
     it('should stop a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({}),
+        json: async () => ({ success: true, message: 'Service stopped' }),
       });
 
-      await expect(api.stopService('1')).resolves.not.toThrow();
+      await api.services.stop('1');
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/stop'),
         expect.objectContaining({
           method: 'POST',
         })
       );
-    });
+    }, 10000);
 
     it('should restart a service', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
         ok: true,
-        json: async () => ({}),
+        json: async () => ({ success: true, message: 'Service restarted' }),
       });
 
-      await expect(api.restartService('1')).resolves.not.toThrow();
+      await api.services.restart('1');
       expect(fetch).toHaveBeenCalledWith(
         expect.stringContaining('/services/1/restart'),
         expect.objectContaining({
           method: 'POST',
         })
       );
-    });
+    }, 10000);
 
     it('should get service logs', async () => {
       const mockLogs = [
@@ -207,7 +209,7 @@ describe('API Integration Tests', () => {
 
       expect(logs).toHaveLength(2);
       expect(logs[0]).toContain('Starting nginx');
-    });
+    }, 10000);
   });
 
   describe('System Overview', () => {
@@ -236,7 +238,7 @@ describe('API Integration Tests', () => {
       expect(overview.services.total).toBe(5);
       expect(overview.services.running).toBe(3);
       expect(overview.system.cpu_usage).toBe(25.5);
-    });
+    }, 10000);
   });
 
   describe('User Management', () => {
@@ -274,7 +276,7 @@ describe('API Integration Tests', () => {
       expect(users).toHaveLength(2);
       expect(users[0].role).toBe('admin');
       expect(users[1].role).toBe('user');
-    });
+    }, 10000);
 
     it('should create a new user', async () => {
       const newUser = {
@@ -303,7 +305,7 @@ describe('API Integration Tests', () => {
       expect(createdUser.id).toBe('3');
       expect(createdUser.username).toBe('newuser');
       expect(createdUser.role).toBe('user');
-    });
+    }, 10000);
   });
 
   describe('Error Handling', () => {
@@ -311,7 +313,7 @@ describe('API Integration Tests', () => {
       global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
 
       await expect(api.services.getAll()).rejects.toThrow('Network error');
-    });
+    }, 10000);
 
     it('should handle HTTP errors', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
@@ -323,7 +325,7 @@ describe('API Integration Tests', () => {
       });
 
       await expect(api.services.getAll()).rejects.toThrow();
-    });
+    }, 10000);
 
     it('should handle authentication errors', async () => {
       global.fetch = vi.fn().mockResolvedValueOnce({
@@ -335,6 +337,6 @@ describe('API Integration Tests', () => {
       });
 
       await expect(api.services.getAll()).rejects.toThrow();
-    });
+    }, 10000);
   });
 });

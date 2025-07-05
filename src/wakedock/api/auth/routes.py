@@ -1,12 +1,13 @@
 """Authentication routes for WakeDock API."""
 
 from datetime import datetime, timedelta
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from wakedock.database.database import get_db_session
+from wakedock.database.database import get_db_session, get_async_db_session
 from wakedock.database.models import User, UserRole
 from .models import (
     UserCreate, UserUpdate, UserResponse, UserLogin, 
@@ -18,6 +19,9 @@ from .dependencies import (
     get_current_user, get_current_active_user, 
     require_admin, require_role
 )
+from wakedock.security.jwt_rotation import get_jwt_rotation_service, get_jwt_rotation_manager
+from wakedock.security.session_timeout import get_session_timeout_service
+from wakedock.security.ids_middleware import get_security_dashboard
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -105,25 +109,65 @@ def login_user(
 
 
 @router.post("/refresh", response_model=Token)
-def refresh_token(
+async def refresh_token(
     refresh_token: str,
-    db: Session = Depends(get_db_session)
+    request: Request,
+    db: AsyncSession = Depends(get_async_db_session)
 ):
-    """Refresh access token using refresh token."""
-    new_token = jwt_manager.refresh_access_token(refresh_token)
-    if not new_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
-        )
+    """Refresh access token using refresh token with automatic rotation."""
     
-    # Here you would fetch user data for the response
-    # For now, we'll return a minimal response
-    return {
-        "access_token": new_token,
-        "token_type": "bearer",
-        "expires_in": int(jwt_manager.access_token_expires.total_seconds())
-    }
+    # Obtenir le service de rotation JWT
+    jwt_rotation_service = get_jwt_rotation_service()
+    
+    # Vérifier si le token doit être tourné
+    if jwt_rotation_service.should_rotate_token(refresh_token):
+        # Effectuer la rotation
+        new_tokens = await jwt_rotation_service.rotate_tokens(refresh_token, db)
+        
+        if not new_tokens:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token or rotation failed"
+            )
+        
+        # Créer la session timeout
+        session_timeout_service = get_session_timeout_service()
+        ip_address = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("User-Agent", "")
+        
+        # Décoder le token pour obtenir l'ID utilisateur
+        payload = jwt_rotation_service.decode_token(new_tokens.access_token)
+        if payload and payload.get("user_id"):
+            await session_timeout_service.create_session(
+                user_id=payload["user_id"],
+                session_id=new_tokens.access_token,
+                ip_address=ip_address,
+                user_agent=user_agent
+            )
+        
+        return {
+            "access_token": new_tokens.access_token,
+            "refresh_token": new_tokens.refresh_token,
+            "token_type": "bearer",
+            "expires_in": int((new_tokens.access_expires_at - datetime.now()).total_seconds()),
+            "rotated": True
+        }
+    
+    else:
+        # Utiliser le système de refresh existant
+        new_token = jwt_manager.refresh_access_token(refresh_token)
+        if not new_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid refresh token"
+            )
+        
+        return {
+            "access_token": new_token,
+            "token_type": "bearer",
+            "expires_in": int(jwt_manager.access_token_expires.total_seconds()),
+            "rotated": False
+        }
 
 
 @router.get("/me", response_model=UserResponse)
@@ -285,3 +329,250 @@ def delete_user(
     db.commit()
     
     return {"message": "User deleted successfully"}
+
+
+@router.post("/logout")
+async def logout_user(
+    request: Request,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db_session)
+):
+    """Logout user and revoke all tokens."""
+    
+    # Obtenir le token depuis l'en-tête Authorization
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        access_token = auth_header.replace("Bearer ", "")
+        
+        # Révoquer le token
+        jwt_rotation_service = get_jwt_rotation_service()
+        jwt_rotation_service.revoke_token(access_token)
+        
+        # Terminer toutes les sessions utilisateur
+        session_timeout_service = get_session_timeout_service()
+        terminated_sessions = await session_timeout_service.terminate_all_user_sessions(current_user.id)
+        
+        return {
+            "message": "Déconnexion réussie",
+            "sessions_terminated": terminated_sessions
+        }
+    
+    return {"message": "Déconnexion réussie"}
+
+
+@router.post("/revoke-all-tokens")
+async def revoke_all_user_tokens(
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_async_db_session)
+):
+    """Revoke all tokens for the current user."""
+    
+    # Révoquer tous les tokens utilisateur
+    jwt_rotation_service = get_jwt_rotation_service()
+    jwt_rotation_service.revoke_all_user_tokens(current_user.id)
+    
+    # Terminer toutes les sessions utilisateur
+    session_timeout_service = get_session_timeout_service()
+    terminated_sessions = await session_timeout_service.terminate_all_user_sessions(current_user.id)
+    
+    return {
+        "message": "Tous les tokens ont été révoqués",
+        "sessions_terminated": terminated_sessions
+    }
+
+
+@router.get("/security/events")
+async def get_security_events(
+    limit: int = 100,
+    threat_level: Optional[str] = None,
+    attack_type: Optional[str] = None,
+    ip_address: Optional[str] = None,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get security events (admin only)."""
+    
+    # Vérifier les permissions admin
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.get_security_events(
+        limit=limit,
+        threat_level=threat_level,
+        attack_type=attack_type,
+        ip_address=ip_address
+    )
+
+
+@router.get("/security/statistics")
+async def get_security_statistics(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get security statistics (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.get_security_statistics()
+
+
+@router.get("/security/ip/{ip_address}")
+async def get_ip_profile(
+    ip_address: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get IP profile (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    profile = security_dashboard.get_ip_profile(ip_address)
+    
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profil IP non trouvé"
+        )
+    
+    return profile
+
+
+@router.post("/security/ip/{ip_address}/block")
+async def block_ip_address(
+    ip_address: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Block an IP address (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.block_ip(ip_address)
+
+
+@router.post("/security/ip/{ip_address}/unblock")
+async def unblock_ip_address(
+    ip_address: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Unblock an IP address (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.unblock_ip(ip_address)
+
+
+@router.post("/security/ip/{ip_address}/whitelist")
+async def whitelist_ip_address(
+    ip_address: str,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Whitelist an IP address (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.whitelist_ip(ip_address)
+
+
+@router.get("/security/threats")
+async def get_top_threats(
+    limit: int = 10,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get top security threats (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    security_dashboard = get_security_dashboard()
+    return security_dashboard.get_top_threats(limit)
+
+
+@router.get("/jwt/rotation/stats")
+async def get_jwt_rotation_stats(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get JWT rotation statistics (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    jwt_rotation_service = get_jwt_rotation_service()
+    return jwt_rotation_service.get_rotation_stats()
+
+
+@router.get("/session/stats")
+async def get_session_stats(
+    current_user: User = Depends(get_current_active_user)
+):
+    """Get session statistics (admin only)."""
+    
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
+    
+    session_timeout_service = get_session_timeout_service()
+    return session_timeout_service.get_session_stats()
+
+
+@router.post("/session/extend")
+async def extend_current_session(
+    request: Request,
+    current_user: User = Depends(get_current_active_user)
+):
+    """Extend current user session."""
+    
+    # Obtenir le token depuis l'en-tête Authorization
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        access_token = auth_header.replace("Bearer ", "")
+        
+        # Étendre la session
+        session_timeout_service = get_session_timeout_service()
+        extended = await session_timeout_service.extend_session(access_token)
+        
+        if extended:
+            return {"message": "Session étendue avec succès"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Session invalide ou expirée"
+            )
+    
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Token d'authentification requis"
+    )

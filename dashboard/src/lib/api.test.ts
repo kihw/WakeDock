@@ -276,7 +276,7 @@ describe('Enhanced API Client', () => {
                 ok: false,
                 status: 400,
                 statusText: 'Bad Request',
-                text: async () => '{"message": "<script>alert(\\'xss\\')</script>"}',
+                text: async () => '{"message": "<script>alert(\'xss\')</script>"}',
                 headers: new Headers()
             });
 

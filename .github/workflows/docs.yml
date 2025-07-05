@@ -1,0 +1,48 @@
+name: Documentation Build & Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', 'src/**/*.py', 'dashboard/src/**/*.ts']
+  pull_request:
+    branches: [main]
+    paths: ['docs/**']
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Install dependencies
+      run: |
+        pip install sphinx sphinx-rtd-theme
+        cd dashboard && npm install
+    
+    - name: Generate API Documentation
+      run: |
+        sphinx-apidoc -o docs/api src/wakedock
+        sphinx-build -b html docs docs/_build
+    
+    - name: Generate Frontend Documentation
+      run: |
+        cd dashboard
+        npx typedoc --out ../docs/frontend src/lib
+    
+    - name: Deploy to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      if: github.ref == 'refs/heads/main'
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build

@@ -9,11 +9,17 @@ import asyncio
 import logging
 import os
 from typing import Optional, Dict, Any
-import redis.asyncio as redis
+try:
+    import redis
+    from redis import Redis
+except ImportError:
+    redis = None
+    Redis = None
 
 from .manager import CacheManager
 from .monitoring import CacheMonitor
 from wakedock.config import get_settings
+from wakedock.performance.cache.intelligent import IntelligentCache
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +28,7 @@ class CacheService:
     """Service principal de cache pour WakeDock"""
     
     def __init__(self):
-        self.redis_client: Optional[redis.Redis] = None
+        self.redis_client: Optional[Redis] = None
         self.cache_manager: Optional[CacheManager] = None
         self.cache_monitor: Optional[CacheMonitor] = None
         self._initialized = False
@@ -76,6 +82,9 @@ class CacheService:
             
             # Initialiser cache manager
             self.cache_manager = CacheManager(self.redis_client)
+            
+            # Initialiser intelligent cache
+            self.intelligent_cache = IntelligentCache(self.redis_client)
             
             # Initialiser monitoring
             self.cache_monitor = CacheMonitor(self.cache_manager)
@@ -171,6 +180,26 @@ class CacheService:
             await self.cache_manager.invalidate_namespace(namespace)
         elif pattern:
             await self.cache_manager.cache.invalidate(pattern=pattern)
+    
+    async def get_with_intelligent_cache(self, key: str, fetcher=None, cache_type: str = "default"):
+        """Récupération avec cache intelligent"""
+        if not self._initialized:
+            if fetcher:
+                return await fetcher()
+            return None
+        
+        return await self.intelligent_cache.get_with_strategy(
+            key, fetcher, cache_type
+        )
+    
+    async def set_with_intelligent_cache(self, key: str, value: Any, cache_type: str = "default"):
+        """Écriture avec cache intelligent"""
+        if not self._initialized:
+            return
+        
+        await self.intelligent_cache.set_with_strategy(
+            key, value, cache_type
+        )
     
     # === Méthodes spécialisées ===
     

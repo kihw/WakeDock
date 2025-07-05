@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { apiMonitor, type ApiMetrics } from '$lib/monitoring/api-monitor.js';
-  import { Activity, AlertTriangle, Wifi, WifiOff, TrendingUp, Clock } from 'lucide-svelte';
+  import { Activity } from 'lucide-svelte';
+  import ApiMonitorHeader from './api-monitor/ApiMonitorHeader.svelte';
+  import ApiMetricsGrid from './api-monitor/ApiMetricsGrid.svelte';
+  import CircuitBreakerStatus from './api-monitor/CircuitBreakerStatus.svelte';
+  import ApiMonitorActions from './api-monitor/ApiMonitorActions.svelte';
 
   export let size: 'small' | 'medium' | 'large' = 'medium';
   export let refreshInterval: number = 5000; // 5 seconds
@@ -51,9 +55,6 @@
     updateMetrics();
   }
 
-  $: errorRate =
-    metrics && metrics.requestCount > 0 ? (metrics.errorCount / metrics.requestCount) * 100 : 0;
-
   function getCircuitBreakerEntries(metrics: ApiMetrics) {
     return Object.entries(metrics.circuitBreakerStatus).map(([endpoint, status]) => ({
       endpoint,
@@ -61,112 +62,25 @@
     }));
   }
 
+  $: errorRate =
+    metrics && metrics.requestCount > 0 ? (metrics.errorCount / metrics.requestCount) * 100 : 0;
   $: circuitBreakerEntries = metrics ? getCircuitBreakerEntries(metrics) : [];
   $: circuitBreakerIssues = circuitBreakerEntries.filter((entry) => entry.status.isOpen);
-
   $: hasIssues =
     errorRate > 5 || circuitBreakerIssues.length > 0 || !metrics?.networkStatus.isOnline;
 </script>
 
 <div class="widget api-monitor-widget {sizeClasses[size]} {hasIssues ? 'has-issues' : ''}">
-  <div class="widget-header">
-    <div class="widget-title">
-      <Activity class="w-5 h-5" />
-      <h3>API Monitor</h3>
-      {#if hasIssues}
-        <AlertTriangle class="w-4 h-4 text-red-500" />
-      {/if}
-    </div>
-    <div class="widget-actions">
-      <button
-        type="button"
-        on:click={toggleExpanded}
-        class="btn btn-sm"
-        title="Toggle detailed view"
-      >
-        {isExpanded ? 'Collapse' : 'Expand'}
-      </button>
-    </div>
-  </div>
+  <ApiMonitorHeader {hasIssues} {isExpanded} on:toggleExpanded={toggleExpanded} />
 
   <div class="widget-content">
     {#if metrics}
-      <div class="metrics-grid">
-        <!-- Network Status -->
-        <div class="metric network-status" class:offline={!metrics.networkStatus.isOnline}>
-          {#if metrics.networkStatus.isOnline}
-            <Wifi class="w-5 h-5 text-green-500" />
-            <span class="metric-label">Online</span>
-          {:else}
-            <WifiOff class="w-5 h-5 text-red-500" />
-            <span class="metric-label">Offline</span>
-          {/if}
-        </div>
-
-        <!-- Request Count -->
-        <div class="metric">
-          <TrendingUp class="w-4 h-4 text-blue-500" />
-          <div class="metric-content">
-            <span class="metric-value">{metrics.requestCount}</span>
-            <span class="metric-label">Requests</span>
-          </div>
-        </div>
-
-        <!-- Error Rate -->
-        <div class="metric" class:error={errorRate > 5}>
-          <AlertTriangle class="w-4 h-4 {errorRate > 5 ? 'text-red-500' : 'text-gray-400'}" />
-          <div class="metric-content">
-            <span class="metric-value">{errorRate.toFixed(1)}%</span>
-            <span class="metric-label">Error Rate</span>
-          </div>
-        </div>
-
-        <!-- Response Time -->
-        <div class="metric" class:slow={metrics.averageResponseTime > 2000}>
-          <Clock
-            class="w-4 h-4 {metrics.averageResponseTime > 2000
-              ? 'text-yellow-500'
-              : 'text-gray-400'}"
-          />
-          <div class="metric-content">
-            <span class="metric-value">{metrics.averageResponseTime.toFixed(0)}ms</span>
-            <span class="metric-label">Avg Response</span>
-          </div>
-        </div>
-      </div>
+      <ApiMetricsGrid {metrics} />
 
       {#if isExpanded}
         <div class="expanded-content">
-          <!-- Circuit Breaker Status -->
-          {#if Object.keys(metrics.circuitBreakerStatus).length > 0}
-            <div class="section">
-              <h4>Circuit Breakers</h4>
-              <div class="circuit-breakers">
-                {#each circuitBreakerEntries as entry}
-                  <div class="circuit-breaker" class:open={entry.status.isOpen}>
-                    <span class="endpoint">{entry.endpoint}</span>
-                    <span class="status {entry.status.isOpen ? 'open' : 'closed'}">
-                      {entry.status.isOpen ? 'OPEN' : 'CLOSED'}
-                    </span>
-                    <span class="failures">{entry.status.failures} failures</span>
-                  </div>
-                {/each}
-              </div>
-            </div>
-          {/if}
-
-          <!-- Actions -->
-          <div class="section">
-            <h4>Actions</h4>
-            <div class="actions">
-              <button type="button" on:click={downloadReport} class="btn btn-sm btn-outline">
-                Download Report
-              </button>
-              <button type="button" on:click={clearMetrics} class="btn btn-sm btn-outline">
-                Clear Metrics
-              </button>
-            </div>
-          </div>
+          <CircuitBreakerStatus {metrics} />
+          <ApiMonitorActions on:downloadReport={downloadReport} on:clearMetrics={clearMetrics} />
         </div>
       {/if}
     {:else}
@@ -270,13 +184,6 @@
     display: flex;
     flex-direction: column;
     gap: 16px;
-  }
-
-  .section h4 {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1f2937;
-    margin-bottom: 8px;
   }
 
   .circuit-breakers {
@@ -408,10 +315,6 @@
 
   :global(.dark) .metric-label {
     color: #9ca3af;
-  }
-
-  :global(.dark) .section h4 {
-    color: white;
   }
 
   :global(.dark) .circuit-breaker {

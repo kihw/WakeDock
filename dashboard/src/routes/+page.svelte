@@ -6,6 +6,7 @@
   import { api, type Service, type SystemOverview } from '$lib/api';
   import { websocketClient } from '$lib/websocket.js';
   import Dashboard from '$lib/components/dashboard/Dashboard.svelte';
+  import { Button } from '$lib/components/ui/atoms';
 
   interface DashboardData {
     system: {
@@ -53,11 +54,8 @@
     error = '';
 
     try {
-      await Promise.all([
-        loadServices(),
-        loadSystemOverview()
-      ]);
-      
+      await Promise.all([loadServices(), loadSystemOverview()]);
+
       updateDashboardData();
     } catch (e) {
       console.error('Failed to initialize dashboard:', e);
@@ -116,10 +114,10 @@
         cpu_usage: 0,
         memory_usage: 0,
         disk_usage: 0,
-        uptime: 0
+        uptime: 0,
       },
       services: serviceStats,
-      servicesList: services
+      servicesList: services,
     };
   }
 
@@ -243,17 +241,11 @@
     <div class="error-content">
       <h1 class="error-title">Dashboard Error</h1>
       <p class="error-message">{error}</p>
-      <button 
-        type="button"
-        class="error-retry"
-        on:click={handleRefresh}
-      >
-        Try Again
-      </button>
+      <Button variant="success" on:click={handleRefresh}>Try Again</Button>
     </div>
   </div>
 {:else}
-  <Dashboard 
+  <Dashboard
     {dashboardData}
     {loading}
     on:refresh={handleRefresh}
@@ -278,11 +270,5 @@
 
   .error-message {
     @apply text-gray-600 dark:text-gray-400 mb-6;
-  }
-
-  .error-retry {
-    @apply px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700;
-    @apply focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2;
-    @apply transition-colors duration-200;
   }
 </style>

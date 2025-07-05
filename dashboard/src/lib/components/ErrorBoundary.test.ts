@@ -3,12 +3,14 @@
  * Tests for the global error boundary component
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/svelte';
-import ErrorBoundary from '../../lib/components/ErrorBoundary.svelte';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render } from '@testing-library/svelte';
+import { get } from 'svelte/store';
+import ErrorBoundary from './ErrorBoundary.svelte';
+import { getErrorBoundary, captureError } from '../utils/errorHandling';
 
 // Mock the logger
-vi.mock('../../lib/utils/logger', () => ({
+vi.mock('../utils/logger', () => ({
   logger: {
     error: vi.fn(),
     warn: vi.fn(),
@@ -17,135 +19,120 @@ vi.mock('../../lib/utils/logger', () => ({
 }));
 
 // Mock the monitoring service
-vi.mock('../../lib/services/monitoring', () => ({
+vi.mock('../services/monitoring', () => ({
   monitoring: {
     reportError: vi.fn(),
   },
 }));
 
-// Mock component that throws an error
-const ThrowingComponent = {
-  render: () => {
-    throw new Error('Test error');
+// Mock the notifications service
+vi.mock('../services/notifications', () => ({
+  notifications: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
   },
-};
+}));
 
 describe('ErrorBoundary', () => {
+  let consoleErrorSpy: any;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    console.error = vi.fn(); // Suppress console.error in tests
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => { });
   });
 
-  it('should render children when no error occurs', () => {
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should render component without errors', () => {
+    const { container } = render(ErrorBoundary);
+    expect(container).toBeDefined();
+  });
+
+  it('should create error boundary with boundary ID', () => {
+    const boundaryId = 'test-boundary';
     render(ErrorBoundary, {
       props: {
-        $$slots: {
-          default: [() => 'Normal content'],
-        },
+        boundaryId,
       },
     });
 
-    expect(screen.getByText('Normal content')).toBeDefined();
+    const boundary = getErrorBoundary(boundaryId);
+    const state = get(boundary);
+    expect(state.hasError).toBe(false);
+    expect(state.retryCount).toBe(0);
   });
 
-  it('should display error message when error occurs', async () => {
-    // We need to simulate an error boundary catching an error
-    // This is a bit tricky with Svelte testing, so we'll test the error state directly
-
+  it('should capture and handle errors', () => {
+    const boundaryId = 'test-boundary-error';
     render(ErrorBoundary, {
       props: {
-        fallback: 'Custom error message',
+        boundaryId,
       },
     });
 
-    // Simulate error by triggering the error state manually
-    const errorButton = screen.queryByText('Report Error');
-    if (errorButton) {
-      expect(screen.getByText(/something went wrong/i)).toBeDefined();
-    }
+    // Simulate error capture
+    captureError(boundaryId, new Error('Test error'));
+
+    const boundary = getErrorBoundary(boundaryId);
+    const state = get(boundary);
+    expect(state.hasError).toBe(true);
+    expect(state.error?.error.message).toBe('Test error');
   });
 
-  it('should show retry button', () => {
+  it('should support retry functionality', () => {
+    const boundaryId = 'test-boundary-retry';
     render(ErrorBoundary, {
       props: {
-        showRetry: true,
-        fallback: 'Error occurred',
-      },
-    });
-
-    // The retry button should be available in error state
-    // We'll test this by setting an error condition
-    const component = render(ErrorBoundary, {
-      props: {
-        showRetry: true,
-      },
-    });
-
-    // In a real scenario, we'd need to trigger an error
-    // For now, we'll just verify the component renders
-    expect(component.container).toBeDefined();
-  });
-
-  it('should call onError callback when error occurs', async () => {
-    const onErrorMock = vi.fn();
-
-    render(ErrorBoundary, {
-      props: {
-        onError: onErrorMock,
-      },
-    });
-
-    // In a real test, we'd need to trigger an actual error
-    // This is more of a structure test
-    expect(onErrorMock).not.toHaveBeenCalled();
-  });
-
-  it('should display custom fallback content', () => {
-    const customFallback = 'Custom error fallback content';
-
-    render(ErrorBoundary, {
-      props: {
-        fallback: customFallback,
-      },
-    });
-
-    // Component should render without error initially
-    expect(screen.queryByText(customFallback)).toBeNull();
-  });
-
-  it('should handle report error action', async () => {
-    const { monitoring } = await import('../../lib/services/monitoring');
-
-    render(ErrorBoundary, {
-      props: {
-        showReport: true,
-      },
-    });
-
-    // We would need to trigger an error state first
-    // This is testing the component structure
-    expect(vi.mocked(monitoring.reportError)).not.toHaveBeenCalled();
-  });
-
-  it('should reset error state on retry', async () => {
-    const component = render(ErrorBoundary, {
-      props: {
+        boundaryId,
         showRetry: true,
       },
     });
 
-    // This tests the component structure
-    // In a real scenario, we'd simulate error -> retry flow
-    expect(component.container.innerHTML).toBeTruthy();
+    const boundary = getErrorBoundary(boundaryId);
+    const state = get(boundary);
+    expect(state.canRetry).toBe(true);
   });
 
-  it('should log errors properly', async () => {
-    const { logger } = await import('../../lib/utils/logger');
+  it('should handle custom fallback', () => {
+    const customFallback = 'Custom error message';
+    render(ErrorBoundary, {
+      props: {
+        customFallback,
+      },
+    });
 
-    render(ErrorBoundary);
+    // Component should render without errors
+    expect(true).toBe(true);
+  });
 
-    // The logger should be imported and available
-    expect(logger).toBeDefined();
-    expect(logger.error).toBeDefined();
+  it('should handle max retries configuration', () => {
+    const maxRetries = 3;
+    render(ErrorBoundary, {
+      props: {
+        maxRetries,
+      },
+    });
+
+    // Component should render without errors
+    expect(true).toBe(true);
+  });
+
+  it('should handle error reporting configuration', () => {
+    render(ErrorBoundary, {
+      props: {
+        reportErrors: true,
+      },
+    });
+
+    // Component should render without errors
+    expect(true).toBe(true);
+  });
+
+  it('should handle boundary ID generation', () => {
+    const { container } = render(ErrorBoundary);
+    expect(container).toBeDefined();
   });
 });

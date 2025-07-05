@@ -19,6 +19,15 @@ from wakedock.core.log_streaming import initialize_log_streaming
 from wakedock.core.notifications import initialize_notifications
 from wakedock.database.database import init_database
 from wakedock.monitoring.prometheus import init_prometheus_exporter
+
+# Imports des services de sécurité
+from wakedock.security.manager import get_security_manager, initialize_security, shutdown_security
+from wakedock.security.ids_middleware import IntrusionDetectionMiddleware
+from wakedock.security.session_timeout import SessionTimeoutMiddleware
+
+# Imports des optimisations de performance
+from wakedock.performance.integration import initialize_performance, shutdown_performance, get_performance_manager
+
 import docker
 
 
@@ -26,6 +35,30 @@ async def main():
     """Main application entry point"""
     # Load configuration
     settings = get_settings()
+    
+    # Configuration sécurité
+    security_config = {
+        "jwt_secret_key": settings.get("jwt_secret_key", "wakedock-default-secret-change-in-production"),
+        "security": {
+            "environment": getattr(settings, "environment", "development"),
+            "session": {
+                "idle_timeout_minutes": 60,
+                "max_concurrent_sessions": 5,
+                "warn_before_timeout_minutes": 5
+            },
+            "features": {
+                "enable_mfa": getattr(settings, "enable_mfa", True),
+                "enable_intrusion_detection": True,
+                "enable_api_rate_limiting": True,
+                "enable_session_rotation": True
+            },
+            "rate_limiting": {
+                "enabled": True,
+                "requests_per_minute": 100,
+                "login_attempts_per_minute": 5
+            }
+        }
+    }
     
     # Create data directories first
     Path(settings.wakedock.data_path).mkdir(parents=True, exist_ok=True)
@@ -61,6 +94,34 @@ async def main():
         logger.warning(fallback_warning)
         
     logger.info("Starting WakeDock...")
+    
+    # Initialiser les services de sécurité en priorité
+    security_services = None
+    try:
+        logger.info("Initializing security services...")
+        security_services = await initialize_security(security_config)
+        logger.info("Security services initialized successfully")
+        logger.info(f"- JWT Rotation: ✓")
+        logger.info(f"- Session Timeout: ✓") 
+        logger.info(f"- Intrusion Detection: ✓")
+        logger.info(f"- Security Config: ✓")
+    except Exception as e:
+        logger.error(f"Security services initialization failed: {e}")
+        logger.warning("Application will continue but security features will be limited")
+
+    # Initialiser les optimisations de performance
+    performance_manager = None
+    try:
+        logger.info("Initializing performance optimizations...")
+        performance_manager = await initialize_performance()
+        logger.info("Performance optimizations initialized successfully")
+        logger.info(f"- Intelligent Cache: ✓")
+        logger.info(f"- Database Optimizer: ✓")
+        logger.info(f"- API Middleware: ✓")
+        logger.info(f"- Performance Monitoring: ✓")
+    except Exception as e:
+        logger.error(f"Performance optimization initialization failed: {e}")
+        logger.warning("Application will continue but performance features will be limited")
     
     # Initialize database
     try:
@@ -172,13 +233,50 @@ async def main():
     # Create FastAPI app
     app = create_app(orchestrator, monitoring_service)
     
+    # Intégrer les optimisations de performance dans l'app
+    if performance_manager:
+        try:
+            logger.info("Integrating performance optimizations with FastAPI app...")
+            await performance_manager.initialize(app=app, database_engine=None)  # Engine will be passed when available
+            logger.info("Performance optimizations integrated successfully")
+        except Exception as e:
+            logger.error(f"Failed to integrate performance optimizations: {e}")
+    
+    # Ajouter les middlewares de sécurité si les services sont disponibles
+    if security_services:
+        try:
+            logger.info("Adding security middlewares...")
+            
+            # Middleware de détection d'intrusion
+            app.add_middleware(
+                IntrusionDetectionMiddleware,
+                ids=security_services.intrusion_detection_system,
+                block_on_threat=True,
+                log_all_events=False  # Log seulement les menaces moyennes et élevées
+            )
+            
+            # Middleware de timeout de session
+            app.add_middleware(
+                SessionTimeoutMiddleware,
+                session_manager=security_services.session_timeout_manager
+            )
+            
+            logger.info("Security middlewares added successfully")
+            logger.info("- Intrusion Detection Middleware: ✓")
+            logger.info("- Session Timeout Middleware: ✓")
+            
+        except Exception as e:
+            logger.error(f"Failed to add security middlewares: {e}")
+    
     # Store handlers in app state
     app.state.docker_events_handler = docker_events_handler
     app.state.system_metrics_handler = system_metrics_handler
     app.state.log_streaming_handler = log_streaming_handler
     app.state.notification_manager = notification_manager
     app.state.prometheus_exporter = prometheus_exporter
-    
+    app.state.security_services = security_services  # Ajouter les services de sécurité
+    app.state.performance_manager = performance_manager  # Ajouter le gestionnaire de performance
+
     # Start monitoring service
     if settings.monitoring.enabled and monitoring_service:
         await monitoring_service.start()
@@ -266,6 +364,20 @@ async def main():
             logger.info("Cache service shutdown completed")
         except Exception as e:
             logger.error(f"Cache service shutdown failed: {e}")
+        
+        # Shutdown security services
+        try:
+            await shutdown_security()
+            logger.info("Security services shutdown completed")
+        except Exception as e:
+            logger.error(f"Security services shutdown failed: {e}")
+        
+        # Shutdown performance optimizations
+        try:
+            await shutdown_performance()
+            logger.info("Performance optimizations shutdown completed")
+        except Exception as e:
+            logger.error(f"Performance optimizations shutdown failed: {e}")
 
 
 if __name__ == "__main__":

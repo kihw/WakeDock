@@ -196,7 +196,13 @@
   }
 
   .col-span-full {
-    @apply md:col-span-2;
+    grid-column: span 1;
+  }
+
+  @media (min-width: 768px) {
+    .col-span-full {
+      grid-column: span 2;
+    }
   }
 
   .feature-section {
