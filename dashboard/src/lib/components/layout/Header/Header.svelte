@@ -5,7 +5,7 @@
   import type { Writable } from 'svelte/store';
   import { generateCSRFToken } from '$lib/utils/validation';
   import { announceToScreenReader } from '$lib/utils/accessibility';
-  
+
   import MainNavigation from './Navigation/MainNavigation.svelte';
   import MobileNavigation from './Navigation/MobileNavigation.svelte';
   import GlobalSearch from './Search/GlobalSearch.svelte';
@@ -88,10 +88,10 @@
   function handleThemeToggle() {
     const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
     const newTheme = isDark ? 'light' : 'dark';
-    
+
     document.documentElement.setAttribute('data-theme', newTheme);
     localStorage.setItem('wakedock_theme', newTheme);
-    
+
     announceToScreenReader(`Theme changed to ${newTheme} mode`);
   }
 
@@ -102,7 +102,7 @@
   }
 </script>
 
-<header 
+<header
   class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 sticky top-0 z-40"
   class:compact={variant === 'compact'}
 >
@@ -124,7 +124,7 @@
 
           <!-- Brand -->
           <a href="/" class="flex items-center space-x-2">
-            <img src="/logo.svg" alt="WakeDock" class="h-8 w-8" />
+            <img src="/logo.png" alt="WakeDock" class="h-8 w-8" />
             <span class="text-xl font-bold text-gray-900 dark:text-white">WakeDock</span>
           </a>
         </div>
@@ -145,18 +145,18 @@
       <!-- Right Section: User Actions -->
       <div class="flex items-center space-x-4">
         <!-- User Menu -->
-        <UserMenu 
-          {user} 
-          {unreadNotifications} 
+        <UserMenu
+          {user}
+          {unreadNotifications}
           on:themeToggle={handleThemeToggle}
           on:logout={handleLogout}
         />
-        
+
         <!-- Mobile Menu Toggle -->
         <button
           type="button"
           class="p-2 rounded-md text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 lg:hidden"
-          on:click={() => isMobileMenuOpen = !isMobileMenuOpen}
+          on:click={() => (isMobileMenuOpen = !isMobileMenuOpen)}
           aria-label="Toggle mobile menu"
           aria-expanded={isMobileMenuOpen}
         >
@@ -168,10 +168,7 @@
 
   <!-- Mobile Navigation -->
   {#if isMobileMenuOpen}
-    <MobileNavigation 
-      {currentPath} 
-      on:close={() => isMobileMenuOpen = false} 
-    />
+    <MobileNavigation {currentPath} on:close={() => (isMobileMenuOpen = false)} />
   {/if}
 </header>
 
@@ -179,7 +176,7 @@
   .compact {
     @apply h-12;
   }
-  
+
   .compact .h-16 {
     @apply h-12;
   }

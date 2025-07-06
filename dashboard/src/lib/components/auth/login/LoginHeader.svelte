@@ -10,7 +10,7 @@
 <div class="login-header">
   <div class="brand-container">
     <button on:click={() => goto('/')} class="brand-link" aria-label="Go to home page">
-      <img src="/logo.svg" alt="WakeDock" class="brand-logo" />
+      <img src="/logo.png" alt="WakeDock" class="brand-logo" />
       <span class="brand-text">WakeDock</span>
     </button>
   </div>

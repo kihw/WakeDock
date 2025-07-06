@@ -3,7 +3,7 @@ Optimisations de performance pour la base de données
 Implémente le monitoring et l'optimisation des requêtes
 """
 
-from sqlalchemy import event, text, select
+from sqlalchemy import event, text, select, create_engine
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.pool import QueuePool
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -36,6 +36,22 @@ class DatabaseOptimizer:
         self.query_times = []
         self.slow_queries = []
         self._setup_monitoring()
+    
+    @classmethod
+    def create_optimized_engine(cls, database_url: str, **kwargs):
+        """Create an optimized database engine with performance settings"""
+        
+        # Default optimization settings for PostgreSQL/MySQL
+        engine_kwargs = {
+            'pool_size': 20,
+            'max_overflow': 30,
+            'pool_timeout': 30,
+            'pool_recycle': 3600,  # 1 hour
+            'pool_pre_ping': True,  # Verify connections before use
+            **kwargs
+        }
+        
+        return create_engine(database_url, **engine_kwargs)
     
     def _setup_monitoring(self):
         """Monitor les requêtes lentes"""

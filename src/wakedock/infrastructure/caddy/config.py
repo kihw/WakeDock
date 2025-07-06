@@ -27,8 +27,8 @@ class CaddyConfigManager:
         """Initialiser le gestionnaire de configuration"""
         self.settings = get_settings()
         
-        # Chemins de configuration
-        self.config_path = Path("/etc/caddy/Caddyfile")
+        # Déterminer le répertoire de configuration approprié
+        self.config_path = self._get_config_path()
         self.templates_path = self.config_path.parent / "templates"
         self.backups_path = self.config_path.parent / "backups"
         
@@ -41,10 +41,45 @@ class CaddyConfigManager:
         # S'assurer que le Caddyfile initial existe
         self._ensure_initial_caddyfile()
     
+    def _get_config_path(self) -> Path:
+        """Déterminer le chemin de configuration Caddy approprié"""
+        # Ordre de priorité pour les répertoires de configuration
+        potential_paths = [
+            Path("/etc/caddy/Caddyfile"),  # Standard Docker location
+            Path("/app/config/caddy/Caddyfile"),  # Application config
+            Path("/tmp/caddy/Caddyfile"),  # Fallback temporaire
+        ]
+        
+        for path in potential_paths:
+            try:
+                # Tester la création du répertoire
+                path.parent.mkdir(parents=True, exist_ok=True)
+                # Tester l'écriture
+                test_file = path.parent / ".write_test"
+                test_file.write_text("test")
+                test_file.unlink()
+                
+                logger.info(f"Using Caddy config path: {path}")
+                return path
+                
+            except (PermissionError, OSError) as e:
+                logger.warning(f"Cannot use {path.parent}: {e}")
+                continue
+        
+        # Si tous échouent, utiliser le répertoire temporaire 
+        fallback_path = Path("/tmp/wakedock/caddy/Caddyfile")
+        logger.warning(f"Using fallback config path: {fallback_path}")
+        return fallback_path
+    
     def _ensure_directories(self) -> None:
         """Créer les répertoires nécessaires"""
         for path in [self.config_path.parent, self.templates_path, self.backups_path]:
-            path.mkdir(parents=True, exist_ok=True)
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Created directory: {path}")
+            except (PermissionError, OSError) as e:
+                logger.warning(f"Could not create directory {path}: {e}")
+                # Les répertoires seront créés lors de l'accès si possible
     
     def _setup_jinja(self) -> None:
         """Configurer l'environnement Jinja2"""

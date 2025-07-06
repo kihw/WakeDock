@@ -205,7 +205,7 @@ src/lib/components/layout/Header/
   <!-- Logo -->
   <div class="header-brand">
     <a href="/" class="brand-link">
-      <img src="/logo.svg" alt="WakeDock" class="brand-logo" />
+      <img src="/logo.png" alt="WakeDock" class="brand-logo" />
       <span class="brand-text">WakeDock</span>
     </a>
   </div>

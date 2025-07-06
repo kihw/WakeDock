@@ -77,8 +77,11 @@ class CacheService:
                 self.redis_client = redis.Redis(**redis_config)
             
             # Test connectivité
-            await self.redis_client.ping()
-            logger.info("Redis connection established")
+            ping_result = self.redis_client.ping()
+            if ping_result:
+                logger.info("Redis connection established")
+            else:
+                raise Exception("Redis ping failed")
             
             # Initialiser cache manager
             self.cache_manager = CacheManager(self.redis_client)

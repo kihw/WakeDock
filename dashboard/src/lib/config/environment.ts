@@ -37,7 +37,7 @@ export interface EnvironmentConfig {
 // Default configuration
 const defaultConfig: EnvironmentConfig = {
   // API Configuration
-  apiUrl: 'http://localhost:8000',
+  apiUrl: 'http://195.201.199.226:8000',
   apiTimeout: 30000, // 30 seconds
 
   // Authentication
@@ -45,7 +45,7 @@ const defaultConfig: EnvironmentConfig = {
   sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
 
   // WebSocket
-  wsUrl: 'ws://localhost:8000/ws',
+  wsUrl: 'ws://195.201.199.226:8000/ws',
   wsReconnectInterval: 5000, // 5 seconds
   wsMaxReconnectAttempts: 10,
 

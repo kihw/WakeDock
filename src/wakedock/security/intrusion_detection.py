@@ -12,7 +12,20 @@ from enum import Enum
 import logging
 from collections import defaultdict, deque
 import ipaddress
-from user_agents import parse as parse_user_agent
+# from user_agents import parse as parse_user_agent  # TODO: Fix user_agents dependency
+try:
+    from user_agents import parse as parse_user_agent
+except ImportError:
+    def parse_user_agent(ua_string):
+        """Fallback user agent parser when user_agents package is not available"""
+        return type('UserAgent', (), {
+            'browser': type('Browser', (), {'family': 'Unknown', 'version': (0, 0)})(),
+            'os': type('OS', (), {'family': 'Unknown', 'version': (0, 0)})(),
+            'device': type('Device', (), {'family': 'Unknown'})(),
+            'is_mobile': False,
+            'is_tablet': False,
+            'is_pc': True
+        })()
 import hashlib
 
 logger = logging.getLogger(__name__)

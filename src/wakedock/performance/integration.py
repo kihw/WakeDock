@@ -160,7 +160,7 @@ class PerformanceManager:
         
         try:
             # Add performance middleware
-            setup_performance_middleware(app, self.performance_config["api"])
+            setup_performance_middleware(app)
             logger.info("✅ API optimizations configured successfully")
         except Exception as e:
             logger.error(f"❌ API optimization setup failed: {e}")

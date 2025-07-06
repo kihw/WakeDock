@@ -169,11 +169,14 @@ async def get_caddy_status():
 async def fix_caddy_default_page():
     """Detect and fix Caddy default page issue"""
     try:
-        success = await caddy_manager.detect_and_fix_default_page()
+        # Check if Caddy is healthy and reload configuration
+        is_healthy = await caddy_manager.is_healthy()
+        if is_healthy:
+            await caddy_manager.reload_config()
         
         return {
-            "success": success,
-            "message": "Caddy default page fixed" if success else "Failed to fix Caddy default page",
+            "success": is_healthy,
+            "message": "Caddy configuration reloaded" if is_healthy else "Caddy is not healthy",
             "timestamp": datetime.now()
         }
     except Exception as e:

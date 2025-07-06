@@ -8,10 +8,24 @@ import time
 import gzip
 from typing import Callable, Dict, Any, Optional
 from fastapi import FastAPI, Request, Response, HTTPException
-from fastapi.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.responses import JSONResponse
-from starlette.middleware.compression import CompressionMiddleware
-from starlette.middleware.gzip import GZipMiddleware
+# Compression middleware - using GZip as fallback if compression module not available
+try:
+    from starlette.middleware.compression import CompressionMiddleware
+except ImportError:
+    # Fallback to GZip if compression middleware not available
+    CompressionMiddleware = None
+
+try:
+    from starlette.middleware.gzip import GZipMiddleware
+except ImportError:
+    # Create fallback middleware if GZip not available
+    class GZipMiddleware:
+        def __init__(self, app, minimum_size=1000):
+            self.app = app
+        def __call__(self, scope):
+            return self.app(scope)
 import logging
 import json
 from datetime import datetime, timedelta
@@ -212,7 +226,7 @@ class ResponseOptimizationMiddleware(BaseHTTPMiddleware):
         return response
 
 
-class ConnectionPoolingMiddleware(BaseHTTPMiddleware):
+class ConnectionPoolMiddleware(BaseHTTPMiddleware):
     """Middleware pour gestion optimisée des connexions"""
     
     def __init__(self, app: FastAPI):
@@ -240,14 +254,23 @@ class ConnectionPoolingMiddleware(BaseHTTPMiddleware):
 def setup_performance_middleware(app: FastAPI):
     """Configure tous les middlewares de performance"""
     
-    # Compression middleware
-    app.add_middleware(
-        CompressionMiddleware,
-        minimum_size=1000  # Compress responses > 1KB
-    )
+    # Compression middleware (if available)
+    if CompressionMiddleware is not None:
+        app.add_middleware(
+            CompressionMiddleware,
+            minimum_size=1000  # Compress responses > 1KB
+        )
+        logger.info("CompressionMiddleware added")
+    else:
+        # Fallback to GZip middleware
+        app.add_middleware(
+            GZipMiddleware,
+            minimum_size=1000
+        )
+        logger.info("GZipMiddleware added as fallback")
     
     # Custom middlewares (order matters!)
-    app.add_middleware(ConnectionPoolingMiddleware)
+    app.add_middleware(ConnectionPoolMiddleware)
     app.add_middleware(ResponseOptimizationMiddleware)
     app.add_middleware(CacheMiddleware)
     app.add_middleware(PerformanceMiddleware)

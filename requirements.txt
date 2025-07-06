@@ -53,5 +53,8 @@ celery==5.3.4
 # Email & Templating (optional)
 aiosmtplib==3.0.1
 
+# Security dependencies  
+user-agents==2.2.0
+
 # Production server
 gunicorn==21.2.0

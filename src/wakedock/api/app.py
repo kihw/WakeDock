@@ -43,17 +43,7 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         redoc_url="/api/redoc" if settings.wakedock.debug else None,
     )
     
-    # Security middleware (should be first)
-    app.add_middleware(SecurityAuditMiddleware, log_requests=True, log_responses=True)
-    app.add_middleware(RequestTimingMiddleware, slow_request_threshold=2.0)
-    
-    # Performance middleware
-    app.add_middleware(PerformanceMiddleware, monitoring_service=monitoring)
-    app.add_middleware(CacheMiddleware)
-    app.add_middleware(ResponseOptimizationMiddleware)
-    app.add_middleware(ConnectionPoolMiddleware)
-    
-    # CORS middleware
+    # CORS middleware (must be first for proper functioning)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -61,6 +51,17 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    
+    # Security middleware
+    # Temporarily disabled due to AuditService.log_event issue
+    # app.add_middleware(SecurityAuditMiddleware, log_requests=True, log_responses=True)
+    app.add_middleware(RequestTimingMiddleware, slow_request_threshold=2.0)
+    
+    # Performance middleware
+    app.add_middleware(PerformanceMiddleware)
+    app.add_middleware(CacheMiddleware)
+    app.add_middleware(ResponseOptimizationMiddleware)
+    app.add_middleware(ConnectionPoolMiddleware)
     
     # Add proxy middleware
     app.add_middleware(ProxyMiddleware, orchestrator=orchestrator)

@@ -22,7 +22,7 @@ import json
 from wakedock.database.database import get_db_session
 from wakedock.database.models import User
 from wakedock.api.auth.dependencies import get_current_active_user
-from wakedock.security.audit import AuditLog, AuditEventType, AuditSeverity, get_audit_service
+from wakedock.security.audit import AuditLog, AuditEventType, AuditSeverity, AuditEventData, get_audit_service
 from wakedock.security.rbac import Permission, RequirePermission
 
 router = APIRouter()
@@ -137,28 +137,30 @@ async def get_audit_logs(
         
         # Log the audit query for security tracking
         audit_service = get_audit_service()
-        await audit_service.log_event(
-            event_type=AuditEventType.AUDIT_READ,
-            severity=AuditSeverity.LOW,
-            user_id=current_user.id,
-            username=current_user.username,
-            action="query_audit_logs",
-            description=f"User {current_user.username} queried audit logs (returned {len(logs)} records)",
-            metadata={
-                "filters": {
-                    "event_type": event_type,
-                    "severity": severity,
-                    "user_id": user_id,
-                    "username": username,
-                    "ip_address": ip_address,
-                    "resource_type": resource_type,
-                    "success": success,
-                    "start_date": start_date.isoformat() if start_date else None,
-                    "end_date": end_date.isoformat() if end_date else None
-                },
-                "pagination": {"limit": limit, "offset": offset},
-                "total_results": total
-            }
+        await audit_service.audit_logger.log_event(
+            AuditEventData(
+                event_type=AuditEventType.AUDIT_READ,
+                severity=AuditSeverity.LOW,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="query_audit_logs",
+                description=f"User {current_user.username} queried audit logs (returned {len(logs)} records)",
+                event_metadata={
+                    "filters": {
+                        "event_type": event_type,
+                        "severity": severity,
+                        "user_id": user_id,
+                        "username": username,
+                        "ip_address": ip_address,
+                        "resource_type": resource_type,
+                        "success": success,
+                        "start_date": start_date.isoformat() if start_date else None,
+                        "end_date": end_date.isoformat() if end_date else None
+                    },
+                    "pagination": {"limit": limit, "offset": offset},
+                    "total_results": total
+                }
+            )
         )
         
         return logs
@@ -191,14 +193,16 @@ async def get_audit_log(
     
     # Log the access for security tracking
     audit_service = get_audit_service()
-    await audit_service.log_event(
-        event_type=AuditEventType.AUDIT_READ,
-        severity=AuditSeverity.LOW,
-        user_id=current_user.id,
-        username=current_user.username,
-        action="view_audit_log",
-        description=f"User {current_user.username} viewed audit log entry {log_id}",
-        metadata={"audit_log_id": log_id}
+    await audit_service.audit_logger.log_event(
+        AuditEventData(
+            event_type=AuditEventType.AUDIT_READ,
+            severity=AuditSeverity.LOW,
+            user_id=current_user.id,
+            username=current_user.username,
+            action="view_audit_log",
+            description=f"User {current_user.username} viewed audit log entry {log_id}",
+            event_metadata={"audit_log_id": log_id}
+        )
     )
     
     return log_entry
@@ -293,14 +297,16 @@ async def get_audit_statistics(
         
         # Log the statistics query
         audit_service = get_audit_service()
-        await audit_service.log_event(
-            event_type=AuditEventType.AUDIT_READ,
-            severity=AuditSeverity.LOW,
-            user_id=current_user.id,
-            username=current_user.username,
-            action="view_audit_stats",
-            description=f"User {current_user.username} viewed audit statistics",
-            metadata={"period_days": days}
+        await audit_service.audit_logger.log_event(
+            AuditEventData(
+                event_type=AuditEventType.AUDIT_READ,
+                severity=AuditSeverity.LOW,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="view_audit_stats",
+                description=f"User {current_user.username} viewed audit statistics",
+                event_metadata={"period_days": days}
+            )
         )
         
         return stats
@@ -366,23 +372,25 @@ async def export_audit_logs_csv(
         
         # Log the export
         audit_service = get_audit_service()
-        await audit_service.log_event(
-            event_type=AuditEventType.AUDIT_EXPORT,
-            severity=AuditSeverity.MEDIUM,
-            user_id=current_user.id,
-            username=current_user.username,
-            action="export_audit_logs_csv",
-            description=f"User {current_user.username} exported {len(logs)} audit logs to CSV",
-            metadata={
-                "export_format": "csv",
-                "record_count": len(logs),
-                "filters": {
-                    "event_type": event_type,
-                    "severity": severity,
-                    "start_date": start_date.isoformat() if start_date else None,
-                    "end_date": end_date.isoformat() if end_date else None
+        await audit_service.audit_logger.log_event(
+            AuditEventData(
+                event_type=AuditEventType.AUDIT_EXPORT,
+                severity=AuditSeverity.MEDIUM,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="export_audit_logs_csv",
+                description=f"User {current_user.username} exported {len(logs)} audit logs to CSV",
+                event_metadata={
+                    "export_format": "csv",
+                    "record_count": len(logs),
+                    "filters": {
+                        "event_type": event_type,
+                        "severity": severity,
+                        "start_date": start_date.isoformat() if start_date else None,
+                        "end_date": end_date.isoformat() if end_date else None
+                    }
                 }
-            }
+            )
         )
         
         # Create filename with timestamp
@@ -471,18 +479,20 @@ async def export_audit_logs_json(
         
         # Log the export
         audit_service = get_audit_service()
-        await audit_service.log_event(
-            event_type=AuditEventType.AUDIT_EXPORT,
-            severity=AuditSeverity.MEDIUM,
-            user_id=current_user.id,
-            username=current_user.username,
-            action="export_audit_logs_json",
-            description=f"User {current_user.username} exported {len(logs)} audit logs to JSON",
-            metadata={
-                "export_format": "json",
-                "record_count": len(logs),
-                "filters": export_data["export_info"]["filters"]
-            }
+        await audit_service.audit_logger.log_event(
+            AuditEventData(
+                event_type=AuditEventType.AUDIT_EXPORT,
+                severity=AuditSeverity.MEDIUM,
+                user_id=current_user.id,
+                username=current_user.username,
+                action="export_audit_logs_json",
+                description=f"User {current_user.username} exported {len(logs)} audit logs to JSON",
+                event_metadata={
+                    "export_format": "json",
+                    "record_count": len(logs),
+                    "filters": export_data["export_info"]["filters"]
+                }
+            )
         )
         
         # Create filename with timestamp
