@@ -33,7 +33,7 @@ export class ApiMonitor {
     }> = new Map();
 
     private networkStatus = {
-        isOnline: navigator.onLine,
+        isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
         lastCheck: Date.now()
     };
 

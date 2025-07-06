@@ -109,7 +109,7 @@ class AuditLog(Base):
     description = Column(Text, nullable=False)
     
     # Additional data
-    metadata = Column(JSON, nullable=True)
+    event_metadata = Column(JSON, nullable=True)
     old_values = Column(JSON, nullable=True)
     new_values = Column(JSON, nullable=True)
     
@@ -156,7 +156,7 @@ class AuditEventData(BaseModel):
     description: str
     
     # Additional data
-    metadata: Optional[Dict[str, Any]] = None
+    event_metadata: Optional[Dict[str, Any]] = None
     old_values: Optional[Dict[str, Any]] = None
     new_values: Optional[Dict[str, Any]] = None
     
@@ -190,7 +190,7 @@ class AuditLogger:
                 resource_id=event_data.resource_id,
                 action=event_data.action,
                 description=event_data.description,
-                metadata=event_data.metadata,
+                event_metadata=event_data.event_metadata,
                 old_values=event_data.old_values,
                 new_values=event_data.new_values,
                 success=event_data.success,
@@ -307,7 +307,7 @@ class AuditService:
     
     async def log_service_action(self, user_id: int, username: str, service_id: str,
                                service_name: str, action: str, success: bool = True,
-                               error: str = None, metadata: Dict = None):
+                               error: str = None, event_metadata: Dict = None):
         """Log service management actions"""
         action_types = {
             "create": AuditEventType.SERVICE_CREATED,
@@ -327,7 +327,7 @@ class AuditService:
             resource_id=service_id,
             action=action,
             description=f"Service {service_name} {action} by {username}",
-            metadata=metadata,
+            event_metadata=event_metadata,
             success=success,
             error_message=error
         )
@@ -352,7 +352,7 @@ class AuditService:
     
     async def log_security_violation(self, event_type: str, description: str,
                                    user_id: int = None, username: str = None,
-                                   ip_address: str = None, metadata: Dict = None):
+                                   ip_address: str = None, event_metadata: Dict = None):
         """Log security violations"""
         event_data = AuditEventData(
             event_type=AuditEventType.SECURITY_VIOLATION,
@@ -362,7 +362,7 @@ class AuditService:
             ip_address=ip_address,
             action=event_type,
             description=description,
-            metadata=metadata,
+            event_metadata=event_metadata,
             success=False
         )
         return await self.audit_logger.log_event(event_data)

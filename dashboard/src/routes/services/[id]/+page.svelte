@@ -607,14 +607,22 @@
     {#if showLogs}
       <div
         class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logs-modal-title"
+        tabindex="-1"
         on:click={() => (showLogs = false)}
+        on:keydown={(e) => e.key === 'Escape' && (showLogs = false)}
       >
         <div
           class="relative top-20 mx-auto p-5 border w-11/12 max-w-4xl shadow-lg rounded-md bg-white"
+          role="document"
+          tabindex="-1"
           on:click|stopPropagation
+          on:keydown|stopPropagation
         >
           <div class="flex items-center justify-between mb-4">
-            <h3 class="text-lg font-bold text-gray-900">Service Logs</h3>
+            <h3 id="logs-modal-title" class="text-lg font-bold text-gray-900">Service Logs</h3>
             <div class="flex items-center space-x-2">
               <select
                 class="text-sm border-gray-300 rounded-md"

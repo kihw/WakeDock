@@ -319,7 +319,7 @@ class RBACService:
                     f"Permission {permission.value} granted to user {user_id}",
                     user_id=granted_by.id,
                     username=granted_by.username,
-                    metadata={
+                    event_metadata={
                         "target_user_id": user_id,
                         "permission": permission.value,
                         "resource_type": resource_type.value if resource_type else None,
@@ -345,7 +345,7 @@ class RBACService:
                     f"Permission {permission.value} revoked from user {user_id}",
                     user_id=revoked_by.id,
                     username=revoked_by.username,
-                    metadata={
+                    event_metadata={
                         "target_user_id": user_id,
                         "permission": permission.value,
                         "resource_type": resource_type.value if resource_type else None,

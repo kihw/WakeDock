@@ -147,19 +147,19 @@ class ApiClient {
   private retryDelay: number = 1000; // Base delay in ms
   private timeout: number = 30000; // 30 seconds - reasonable timeout
 
-  // Configurable timeouts per endpoint
+  // Optimized timeouts per endpoint
   private endpointTimeouts: Record<string, number> = {
-    '/auth/login': 10000,     // 10s pour auth
-    '/auth/register': 10000,  // 10s pour auth
-    '/auth/refresh': 5000,    // 5s pour refresh
-    '/services': 20000,       // 20s pour services
-    '/services/create': 30000, // 30s pour création
-    '/services/update': 25000, // 25s pour mise à jour
-    '/services/logs': 15000,  // 15s pour logs
-    '/system': 30000,         // 30s pour system
-    '/system/overview': 15000, // 15s pour overview
-    '/health': 5000,          // 5s pour health check
-    default: 15000            // 15s par défaut
+    '/auth/login': 8000,      // 8s pour auth (optimisé)
+    '/auth/register': 8000,   // 8s pour auth (optimisé)
+    '/auth/refresh': 3000,    // 3s pour refresh (optimisé)
+    '/services': 15000,       // 15s pour services (optimisé)
+    '/services/create': 25000, // 25s pour création
+    '/services/update': 20000, // 20s pour mise à jour (optimisé)
+    '/services/logs': 10000,  // 10s pour logs (optimisé)
+    '/system': 25000,         // 25s pour system (optimisé)
+    '/system/overview': 12000, // 12s pour overview (optimisé)
+    '/health': 3000,          // 3s pour health check (optimisé)
+    default: 10000            // 10s par défaut (optimisé)
   };
 
   // Circuit breaker implementation
@@ -203,7 +203,7 @@ class ApiClient {
 
     updateStatus: (): void => {
       const wasOnline = this.networkStatus.isOnline;
-      this.networkStatus.isOnline = navigator.onLine;
+      this.networkStatus.isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
       this.networkStatus.lastOnlineCheck = Date.now();
 
       if (!wasOnline && this.networkStatus.isOnline) {
@@ -352,9 +352,11 @@ class ApiClient {
       headers.Authorization = `Bearer ${this.token}`;
     }
 
-    // Validate request origin
-    headers.Origin = window.location.origin;
-    headers.Referer = window.location.href;
+    // Validate request origin (only in browser)
+    if (typeof window !== 'undefined') {
+      headers.Origin = window.location.origin;
+      headers.Referer = window.location.href;
+    }
 
     // Create timeout controller with endpoint-specific timeout
     const endpointTimeout = options.timeout || this.getTimeout(path);
@@ -413,10 +415,12 @@ class ApiClient {
         console.warn('Security warnings for response:', securityWarnings);
       }
 
-      // Validate response origin if applicable
-      const responseOrigin = response.headers.get('Access-Control-Allow-Origin');
-      if (responseOrigin && responseOrigin !== '*' && responseOrigin !== window.location.origin) {
-        console.warn('Response origin mismatch:', responseOrigin);
+      // Validate response origin if applicable (only in browser)
+      if (typeof window !== 'undefined') {
+        const responseOrigin = response.headers.get('Access-Control-Allow-Origin');
+        if (responseOrigin && responseOrigin !== '*' && responseOrigin !== window.location.origin) {
+          console.warn('Response origin mismatch:', responseOrigin);
+        }
       }
 
       if (!response.ok) {

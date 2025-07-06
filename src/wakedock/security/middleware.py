@@ -83,7 +83,7 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
                 user_id=user_info.get('user_id') if user_info else None,
                 username=user_info.get('username') if user_info else None,
                 ip_address=client_ip,
-                metadata={
+                event_metadata={
                     "endpoint": str(request.url.path),
                     "method": request.method,
                     "user_agent": user_agent
@@ -231,7 +231,7 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
                 user_id=user_info.get('user_id') if user_info else None,
                 username=user_info.get('username') if user_info else None,
                 ip_address=client_ip,
-                metadata={
+                event_metadata={
                     "endpoint": str(request.url.path),
                     "query_string": query_string,
                     "user_agent": request.headers.get('user-agent', ''),
@@ -324,7 +324,7 @@ class SecurityAuditMiddleware(BaseHTTPMiddleware):
                 user_id=user_info.get('user_id') if user_info else None,
                 username=user_info.get('username') if user_info else None,
                 ip_address=client_ip,
-                metadata={
+                event_metadata={
                     "failure_count": len(self.failed_login_attempts[client_ip]),
                     "time_window_minutes": self.login_failure_window.total_seconds() / 60
                 }
@@ -431,7 +431,7 @@ class CORSSecurityMiddleware(BaseHTTPMiddleware):
                     "cors_violation",
                     f"CORS violation: Unauthorized origin {origin}",
                     ip_address=request.client.host if request.client else 'unknown',
-                    metadata={
+                    event_metadata={
                         "origin": origin,
                         "endpoint": str(request.url.path),
                         "method": request.method

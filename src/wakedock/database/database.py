@@ -182,6 +182,13 @@ def get_db_session() -> Generator[Session, None, None]:
         yield session
 
 
+async def get_async_db_session() -> Generator[Session, None, None]:
+    """FastAPI dependency for async database sessions (wrapper for compatibility)."""
+    db_manager = get_db_manager()
+    with db_manager.get_session() as session:
+        yield session
+
+
 def init_database() -> None:
     """Initialize the database for the application."""
     db_manager = get_db_manager()

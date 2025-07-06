@@ -185,7 +185,7 @@ class SecurityConfig(BaseModel):
     features: SecurityFeatures = SecurityFeatures()
     
     # Environment-specific settings
-    environment: str = Field("production", regex="^(development|testing|staging|production)$")
+    environment: str = Field("production", pattern="^(development|testing|staging|production)$")
     debug_mode: bool = False
     
     @validator('debug_mode')

@@ -75,7 +75,7 @@ async def cache_stats(
 
 @router.get("/metrics", summary="Cache Metrics Export")
 async def cache_metrics(
-    format: str = Query("prometheus", regex="^(prometheus|json)$"),
+    format: str = Query("prometheus", pattern="^(prometheus|json)$"),
     cache_service: CacheService = Depends(get_cache_service_dep),
     current_user = Depends(get_current_user)
 ):

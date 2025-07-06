@@ -3,10 +3,10 @@ Optimisations de performance pour la base de données
 Implémente le monitoring et l'optimisation des requêtes
 """
 
-from sqlalchemy import event, text, create_async_engine, select
+from sqlalchemy import event, text, select
 from sqlalchemy.orm import selectinload, joinedload
 from sqlalchemy.pool import QueuePool
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from typing import List, Dict, Any
 import time
 import logging

@@ -54,7 +54,7 @@
       <input
         id="usernameOrEmail"
         name="usernameOrEmail"
-        type={fieldType}
+        type="text"
         bind:value={usernameOrEmail}
         on:blur={handleUsernameOrEmailBlur}
         placeholder={fieldPlaceholder}
@@ -84,22 +84,41 @@
       Password
     </label>
     <div class="input-container">
-      <input
-        id="password"
-        name="password"
-        type={showPassword ? 'text' : 'password'}
-        bind:value={password}
-        on:blur={handlePasswordBlur}
-        placeholder="Enter your password"
-        class="form-input pr-12"
-        class:error={passwordErrors.length > 0 && passwordTouched}
-        class:disabled={loading || rateLimited}
-        disabled={loading || rateLimited}
-        autocomplete="current-password"
-        aria-describedby={passwordErrors.length > 0 ? 'password-error' : undefined}
-        aria-invalid={passwordErrors.length > 0}
-        required
-      />
+      {#if showPassword}
+        <input
+          id="password"
+          name="password"
+          type="text"
+          bind:value={password}
+          on:blur={handlePasswordBlur}
+          placeholder="Enter your password"
+          class="form-input pr-12"
+          class:error={passwordErrors.length > 0 && passwordTouched}
+          class:disabled={loading || rateLimited}
+          disabled={loading || rateLimited}
+          required
+          minlength="8"
+          aria-describedby="password-error"
+          autocomplete="current-password"
+        />
+      {:else}
+        <input
+          id="password"
+          name="password"
+          type="password"
+          bind:value={password}
+          on:blur={handlePasswordBlur}
+          placeholder="Enter your password"
+          class="form-input pr-12"
+          class:error={passwordErrors.length > 0 && passwordTouched}
+          class:disabled={loading || rateLimited}
+          disabled={loading || rateLimited}
+          required
+          minlength="8"
+          aria-describedby="password-error"
+          autocomplete="current-password"
+        />
+      {/if}
       <button
         type="button"
         on:click={togglePasswordVisibility}
