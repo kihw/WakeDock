@@ -8,22 +8,34 @@
     local_certs
 }
 
-# WakeDock Dashboard - HTTP
+# WakeDock Unified Service - HTTP
 :80 {
+    # API routes
+    route /api/* {
+        reverse_proxy wakedock-core:8000
+    }
+    
+    # Dashboard (everything else)
     reverse_proxy wakedock-dashboard:3000
 }
 
-# WakeDock Dashboard - HTTPS  
+# WakeDock Unified Service - HTTPS  
 :443 {
+    # API routes
+    route /api/* {
+        reverse_proxy wakedock-core:8000
+    }
+    
+    # Dashboard (everything else)
     reverse_proxy wakedock-dashboard:3000
 }
 
-# WakeDock API - HTTP
+# Direct API access (for backward compatibility)
 :8000 {
     reverse_proxy wakedock-core:8000
 }
 
-# WakeDock API - HTTPS
+# Direct API access - HTTPS (for backward compatibility)
 :8443 {
     reverse_proxy wakedock-core:8000
 }

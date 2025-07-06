@@ -4,7 +4,7 @@ Main application entry point
 
 import asyncio
 import logging
-import uvicorn
+import uvicorn # type: ignore
 from pathlib import Path
 
 from wakedock.config import get_settings

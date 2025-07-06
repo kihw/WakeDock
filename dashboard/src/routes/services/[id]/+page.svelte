@@ -4,7 +4,7 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import { services, ui, isAuthenticated } from '$lib/stores';
-  import { websocket } from '$lib/websocket';
+  import { websocketClient as websocket } from '$lib/websocket';
   import { api } from '$lib/api';
   import type { Service, UpdateServiceRequest } from '$lib/api';
 

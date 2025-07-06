@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { goto } from '$app/navigation';
   import { services, serviceStats, ui, isAuthenticated } from '$lib/stores';
-  import { websocket } from '$lib/websocket';
+  import { websocketClient as websocket } from '$lib/websocket';
   import type { Service } from '$lib/api';
 
   let searchTerm = '';

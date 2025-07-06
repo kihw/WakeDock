@@ -58,10 +58,15 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   // CSP header for dashboard
   const isDevelopment = process.env.NODE_ENV === 'development';
-  const wakedockApiUrl = process.env.WAKEDOCK_API_URL || process.env.PUBLIC_API_URL || 'http://195.201.199.226:8000';
+  // Use environment-based API URL configuration
+  const wakedockApiUrl = isDevelopment
+    ? (process.env.PUBLIC_API_URL || process.env.WAKEDOCK_API_URL || 'http://195.201.199.226:8000')
+    : '/api/v1';  // Production: use relative URL through proxy
 
   // Extract WebSocket URL from API URL
-  const wsUrl = wakedockApiUrl.replace(/^https?:/, 'ws:');
+  const wsUrl = isDevelopment
+    ? wakedockApiUrl.replace(/^https?:/, 'ws:') + '/ws'
+    : '/api/v1/ws';  // Production: use relative URL through proxy
 
   const cspDirectives = [
     "default-src 'self'",
@@ -69,8 +74,10 @@ const securityHandle: Handle = async ({ event, resolve }) => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    // Allow connections to Docker containers and localhost
-    `connect-src 'self' ${wakedockApiUrl} ${wsUrl} http://localhost:* https://localhost:* http://195.201.199.226:* https://195.201.199.226:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://195.201.199.226:* wss://195.201.199.226:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`,
+    // Allow connections based on environment
+    isDevelopment
+      ? `connect-src 'self' ${wakedockApiUrl} http://localhost:* https://localhost:* http://195.201.199.226:* https://195.201.199.226:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://195.201.199.226:* wss://195.201.199.226:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`
+      : "connect-src 'self'",  // Production: only allow same-origin connections
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

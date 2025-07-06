@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { api } from '$lib/api';
-  import { websocket } from '$lib/websocket';
+  import { websocketClient } from '$lib/websocket';
   import { isAuthenticated } from '$lib/stores';
   import { goto } from '$app/navigation';
 
@@ -60,12 +60,12 @@
     await loadAnalytics();
 
     // Setup WebSocket for real-time metrics
-    websocket.connect();
-    websocket.subscribe('system_metrics', (data) => {
+    websocketClient.connect();
+    websocketClient.subscribe('system_metrics', (data) => {
       updateSystemMetrics(data);
     });
 
-    websocket.subscribe('request_metrics', (data) => {
+    websocketClient.subscribe('request_metrics', (data) => {
       updateRequestMetrics(data);
     });
 
@@ -79,7 +79,7 @@
     if (refreshInterval) {
       clearInterval(refreshInterval);
     }
-    websocket.disconnect();
+    websocketClient.disconnect();
   });
 
   const loadAnalytics = async () => {

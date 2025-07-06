@@ -10,8 +10,8 @@ import logging
 import os
 from typing import Optional, Dict, Any
 try:
-    import redis
-    from redis import Redis
+    import redis # type: ignore
+    from redis import Redis # type: ignore
 except ImportError:
     redis = None
     Redis = None

@@ -83,10 +83,10 @@ export const API_ENDPOINTS = {
  * WebSocket Endpoints
  */
 export const WS_ENDPOINTS = {
-  SERVICES: '/ws/services',
-  SYSTEM: '/ws/system',
-  LOGS: '/ws/logs',
-  NOTIFICATIONS: '/ws/notifications',
+  SERVICES: '/api/v1/ws/services',
+  SYSTEM: '/api/v1/ws/system',
+  LOGS: '/api/v1/ws/logs',
+  NOTIFICATIONS: '/api/v1/ws/notifications',
 } as const;
 
 /**

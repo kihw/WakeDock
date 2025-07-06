@@ -36,16 +36,20 @@ export interface EnvironmentConfig {
 
 // Default configuration
 const defaultConfig: EnvironmentConfig = {
-  // API Configuration
-  apiUrl: 'http://195.201.199.226:8000',
+  // API Configuration - use relative URLs in production, absolute in development
+  apiUrl: typeof window !== 'undefined' && window.location.port === '3001'
+    ? 'http://195.201.199.226:8000'  // Development: direct to backend base URL
+    : '',  // Production: use relative URLs (handled by proxy)
   apiTimeout: 30000, // 30 seconds
 
   // Authentication
   tokenKey: 'wakedock_token',
   sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
 
-  // WebSocket
-  wsUrl: 'ws://195.201.199.226:8000/ws',
+  // WebSocket - adapt based on environment
+  wsUrl: typeof window !== 'undefined' && window.location.port === '3001'
+    ? 'ws://195.201.199.226:8000'  // Development: direct to backend base
+    : '',  // Production: relative WebSocket through proxy
   wsReconnectInterval: 5000, // 5 seconds
   wsMaxReconnectAttempts: 10,
 

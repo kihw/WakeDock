@@ -100,10 +100,18 @@ class WebSocketClient {
   });
 
   constructor() {
-    // Only initialize in browser environment
-    if (typeof window !== 'undefined') {
+    // Only initialize in browser environment if not on login page
+    if (typeof window !== 'undefined' && !this.isOnLoginPage()) {
       this.connect();
     }
+  }
+
+  /**
+   * Check if we're on the login page
+   */
+  private isOnLoginPage(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.location.pathname.includes('/login') || window.location.pathname.includes('/auth');
   }
 
   /**
@@ -433,38 +441,59 @@ class WebSocketClient {
   clearNotifications(): void {
     this.notifications.set([]);
   }
+
+  /**
+   * Start WebSocket connection manually
+   */
+  public startConnection(): void {
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      return;
+    }
+    this.connect();
+  }
+
+  /**
+   * Stop WebSocket connection manually
+   */
+  public stopConnection(): void {
+    this.disconnect();
+  }
 }
 
-// Export singleton instance
-export const wsClient = new WebSocketClient();
-export const websocketClient = wsClient;
-export const websocket = wsClient;
+// Create and export the WebSocket client
+export const websocketClient = new WebSocketClient();
+
+// Export for backward compatibility
+export default websocketClient;
+
+// Export with different names for compatibility
+export const websocket = websocketClient;
 
 // Export individual stores for easier access
 export const { connectionState, serviceUpdates, systemUpdates, logs, notifications, lastError } =
-  wsClient;
+  websocketClient;
 
 // Convenience functions
 export function subscribeToServices(): void {
-  wsClient.subscribe('service_updates');
+  websocketClient.subscribe('service_updates');
 }
 
 export function subscribeToSystem(): void {
-  wsClient.subscribe('system_updates');
+  websocketClient.subscribe('system_updates');
 }
 
 export function subscribeToLogs(): void {
-  wsClient.subscribe('log_entries');
+  websocketClient.subscribe('log_entries');
 }
 
 export function subscribeToNotifications(): void {
-  wsClient.subscribe('notifications');
+  websocketClient.subscribe('notifications');
 }
 
 export function connectWebSocket(): void {
-  wsClient.connect();
+  websocketClient.connect();
 }
 
 export function disconnectWebSocket(): void {
-  wsClient.disconnect();
+  websocketClient.disconnect();
 }

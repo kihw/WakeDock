@@ -371,20 +371,23 @@ class RequestTimingMiddleware(BaseHTTPMiddleware):
         if process_time > self.slow_request_threshold:
             user_info = await self._extract_user_info(request)
             
-            await self.audit_service.log_event(
-                event_type=AuditEventType.API_ACCESS,
-                severity=AuditSeverity.MEDIUM,
-                user_id=user_info.get('user_id') if user_info else None,
-                username=user_info.get('username') if user_info else None,
-                ip_address=request.client.host if request.client else 'unknown',
-                endpoint=str(request.url.path),
-                method=request.method,
-                action="slow_request",
-                description=f"Slow request: {request.method} {request.url.path} took {process_time:.2f}s",
-                metadata={
-                    "process_time_seconds": process_time,
-                    "threshold_seconds": self.slow_request_threshold
-                }
+            from wakedock.security.audit import AuditEventData
+            await self.audit_service.audit_logger.log_event(
+                AuditEventData(
+                    event_type=AuditEventType.API_ACCESS,
+                    severity=AuditSeverity.MEDIUM,
+                    user_id=user_info.get('user_id') if user_info else None,
+                    username=user_info.get('username') if user_info else None,
+                    ip_address=request.client.host if request.client else 'unknown',
+                    endpoint=str(request.url.path),
+                    method=request.method,
+                    action="slow_request",
+                    description=f"Slow request: {request.method} {request.url.path} took {process_time:.2f}s",
+                    event_metadata={
+                        "process_time_seconds": process_time,
+                        "threshold_seconds": self.slow_request_threshold
+                    }
+                )
             )
         
         return response

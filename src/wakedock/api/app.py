@@ -11,8 +11,8 @@ from fastapi.templating import Jinja2Templates
 import logging
 import asyncio
 
-from wakedock.api.routes import services, health, proxy, system, security, websocket, cache, vault, analytics, audit
-from wakedock.api.websocket import websocket_ping_task
+from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit
+from wakedock.api.websocket import websocket_ping_task, websocket_router
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
 from wakedock.core.orchestrator import DockerOrchestrator
@@ -46,7 +46,15 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     # CORS middleware (must be first for proper functioning)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=[
+            "http://localhost:3000",
+            "http://localhost:3001", 
+            "http://195.201.199.226:3000",
+            "http://195.201.199.226:3001",
+            "http://195.201.199.226",  # IP publique pour les requêtes browser
+            "http://wakedock-dashboard:3000",
+            "http://wakedock-dashboard:3001"
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -140,10 +148,10 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         tags=["audit"]
     )
     
-    # WebSocket router
+    # WebSocket router - no prefix to match client expectations
     app.include_router(
-        websocket.router,
-        prefix="/api/v1",
+        websocket_router,
+        prefix="",
         tags=["websocket"]
     )
     

@@ -6,6 +6,14 @@ import { writable, derived, get } from 'svelte/store';
 import { api, type ApiError } from '../api.js';
 import { type User, type LoginResponse as ApiLoginResponse } from '../types/user.js';
 
+// WebSocket integration
+let websocketClient: any = null;
+if (typeof window !== 'undefined') {
+  import('../websocket.ts').then((module) => {
+    websocketClient = module.websocketClient;
+  });
+}
+
 interface ExtendedLoginResponse extends ApiLoginResponse {
   refresh_token?: string;
   requiresTwoFactor?: boolean;
@@ -270,6 +278,15 @@ export const auth = {
 
       set(authState);
 
+      // Start WebSocket connection after successful login
+      if (websocketClient) {
+        try {
+          websocketClient.startConnection();
+        } catch (error) {
+          console.debug('WebSocket connection failed:', error);
+        }
+      }
+
       // Store refresh token if remember me is enabled
       if (options?.rememberMe && extendedResponse.refresh_token) {
         localStorage.setItem('wakedock_refresh_token', extendedResponse.refresh_token);
@@ -321,6 +338,16 @@ export const auth = {
     localStorage.removeItem('auth_expiry');
 
     await api.auth.logout();
+
+    // Stop WebSocket connection on logout
+    if (websocketClient) {
+      try {
+        websocketClient.stopConnection();
+      } catch (error) {
+        console.debug('WebSocket disconnection failed:', error);
+      }
+    }
+
     set(initialState);
   },
 

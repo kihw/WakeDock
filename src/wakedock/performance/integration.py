@@ -100,7 +100,7 @@ class PerformanceManager:
         logger.info("🔄 Setting up intelligent cache...")
         
         try:
-            import redis.asyncio as redis
+            import redis.asyncio as redis # type: ignore
             
             redis_client = redis.from_url(
                 self.performance_config["cache"]["redis_url"],

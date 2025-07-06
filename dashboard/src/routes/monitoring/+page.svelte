@@ -1,7 +1,7 @@
 <script lang="ts">
   // Monitoring Dashboard Page
   import { onMount, onDestroy } from 'svelte';
-  import { websocket } from '$lib/websocket';
+  import { websocketClient as websocket } from '$lib/websocket';
   import { uiLogger } from '$lib/utils/logger';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/Button.svelte';

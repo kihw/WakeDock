@@ -7,7 +7,7 @@ tout en utilisant la nouvelle architecture modulaire.
 
 import logging
 from typing import Optional, Dict, Any
-from fastapi import WebSocket, APIRouter
+from fastapi import WebSocket, APIRouter, WebSocketDisconnect
 
 from wakedock.database.models import User
 from .manager import WebSocketManager
@@ -42,21 +42,32 @@ async def websocket_endpoint(websocket: WebSocket):
     """Endpoint WebSocket principal - compatibilité"""
     connection_id = None
     try:
-        # Authentifier l'utilisateur
-        user = await get_websocket_user(websocket)
+        logger.info("New WebSocket connection attempt")
         
-        # Établir la connexion
+        # Authentifier l'utilisateur (optionnel)
+        user = await get_websocket_user(websocket)
+        if user:
+            logger.info(f"WebSocket user authenticated: {user.username}")
+        else:
+            logger.info("WebSocket connection without authentication")
+        
+        # Établir la connexion (includes accept)
         connection_id = await websocket_manager.connect(websocket, user)
         
         if not connection_id:
-            await websocket.close(code=1008, reason="Connection failed")
+            logger.error("Failed to establish WebSocket connection")
             return
+        
+        logger.info(f"WebSocket connection established with ID: {connection_id}")
         
         # Configurer les abonnements par défaut
         if user:
             await services_handler.handle_service_events(connection_id)
             await websocket_manager.subscribe(connection_id, "system:metrics")
             await websocket_manager.subscribe(connection_id, "notification")
+        
+        # Envoyer un message de bienvenue
+        await websocket.send_text('{"type": "welcome", "data": {"message": "WebSocket connected successfully"}}')
         
         # Boucle de traitement des messages
         while True:
@@ -75,6 +86,34 @@ async def websocket_endpoint(websocket: WebSocket):
             # Nettoyer les streams
             await services_handler.cleanup_connection_streams(connection_id)
             await system_handler.cleanup_connection_streams(connection_id)
+            logger.info(f"WebSocket connection {connection_id} cleaned up")
+
+
+@websocket_router.websocket("/ws-test")
+async def websocket_test_endpoint(websocket: WebSocket):
+    """Endpoint WebSocket de test simple"""
+    try:
+        await websocket.accept()
+        logger.info("WebSocket test connection accepted")
+        
+        # Envoyer un message de test
+        await websocket.send_text('{"type": "test", "data": {"message": "WebSocket test connection successful"}}')
+        
+        # Boucle simple pour maintenir la connexion
+        while True:
+            try:
+                data = await websocket.receive_text()
+                # Echo du message reçu
+                await websocket.send_text(f'{{"type": "echo", "data": {data}}}')
+            except WebSocketDisconnect:
+                logger.info("WebSocket test connection closed")
+                break
+            except Exception as e:
+                logger.error(f"Error in WebSocket test: {e}")
+                break
+                
+    except Exception as e:
+        logger.error(f"WebSocket test connection error: {e}")
 
 
 # Fonctions de compatibilité pour main.py
