@@ -58,15 +58,35 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   // CSP header for dashboard
   const isDevelopment = process.env.NODE_ENV === 'development';
-  // Use environment-based API URL configuration
-  const wakedockApiUrl = isDevelopment
-    ? (process.env.PUBLIC_API_URL || process.env.WAKEDOCK_API_URL || 'http://195.201.199.226:8000')
-    : '/api/v1';  // Production: use relative URL through proxy
-
-  // Extract WebSocket URL from API URL
-  const wsUrl = isDevelopment
-    ? wakedockApiUrl.replace(/^https?:/, 'ws:') + '/ws'
-    : '/api/v1/ws';  // Production: use relative URL through proxy
+  
+  // Get API URLs from environment variables
+  const publicApiUrl = process.env.PUBLIC_API_URL || process.env.WAKEDOCK_API_URL;
+  const publicWsUrl = process.env.PUBLIC_WS_URL;
+  
+  // Build connect-src directive based on configuration
+  let connectSrc = "'self'";
+  
+  if (isDevelopment) {
+    // Development: allow all common development URLs
+    connectSrc += ` http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`;
+    if (publicApiUrl) {
+      const apiHost = new URL(publicApiUrl).host;
+      connectSrc += ` http://${apiHost} https://${apiHost} ws://${apiHost} wss://${apiHost}`;
+    }
+  } else {
+    // Production: allow specific API URLs if configured
+    if (publicApiUrl) {
+      try {
+        const apiUrl = new URL(publicApiUrl);
+        connectSrc += ` ${apiUrl.protocol}//${apiUrl.host}`;
+        // Add WebSocket equivalent
+        const wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+        connectSrc += ` ${wsProtocol}//${apiUrl.host}`;
+      } catch (e) {
+        console.warn('Invalid PUBLIC_API_URL format:', publicApiUrl);
+      }
+    }
+  }
 
   const cspDirectives = [
     "default-src 'self'",
@@ -74,10 +94,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    // Allow connections based on environment
-    isDevelopment
-      ? `connect-src 'self' ${wakedockApiUrl} http://localhost:* https://localhost:* http://195.201.199.226:* https://195.201.199.226:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://195.201.199.226:* wss://195.201.199.226:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`
-      : "connect-src 'self'",  // Production: only allow same-origin connections
+    connectSrc,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

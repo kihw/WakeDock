@@ -10,72 +10,72 @@ import { config } from './environment.js';
 export const API_ENDPOINTS = {
   // Authentication
   AUTH: {
-    LOGIN: '/api/v1/auth/login',
-    LOGOUT: '/api/v1/auth/logout',
-    REFRESH: '/api/v1/auth/refresh',
-    ME: '/api/v1/auth/me',
-    REGISTER: '/api/v1/auth/register',
+    LOGIN: '/auth/login',
+    LOGOUT: '/auth/logout',
+    REFRESH: '/auth/refresh',
+    ME: '/auth/me',
+    REGISTER: '/auth/register',
   },
 
   // User Management
   USERS: {
-    BASE: '/api/v1/admin/users',
-    BY_ID: (id: number) => `/api/v1/admin/users/${id}`,
-    CREATE: '/api/v1/admin/users',
-    UPDATE: (id: number) => `/api/v1/admin/users/${id}`,
-    DELETE: (id: number) => `/api/v1/admin/users/${id}`,
+    BASE: '/admin/users',
+    BY_ID: (id: number) => `/admin/users/${id}`,
+    CREATE: '/admin/users',
+    UPDATE: (id: number) => `/admin/users/${id}`,
+    DELETE: (id: number) => `/admin/users/${id}`,
   },
 
   // Services
   SERVICES: {
-    BASE: '/api/v1/services',
-    BY_ID: (id: string) => `/api/v1/services/${id}`,
-    CREATE: '/api/v1/services',
-    UPDATE: (id: string) => `/api/v1/services/${id}`,
-    DELETE: (id: string) => `/api/v1/services/${id}`,
-    START: (id: string) => `/api/v1/services/${id}/start`,
-    STOP: (id: string) => `/api/v1/services/${id}/stop`,
-    RESTART: (id: string) => `/api/v1/services/${id}/restart`,
-    LOGS: (id: string, lines: number = 100) => `/api/v1/services/${id}/logs?lines=${lines}`,
-    STATS: (id: string) => `/api/v1/services/${id}/stats`,
+    BASE: '/services',
+    BY_ID: (id: string) => `/services/${id}`,
+    CREATE: '/services',
+    UPDATE: (id: string) => `/services/${id}`,
+    DELETE: (id: string) => `/services/${id}`,
+    START: (id: string) => `/services/${id}/start`,
+    STOP: (id: string) => `/services/${id}/stop`,
+    RESTART: (id: string) => `/services/${id}/restart`,
+    LOGS: (id: string, lines: number = 100) => `/services/${id}/logs?lines=${lines}`,
+    STATS: (id: string) => `/services/${id}/stats`,
   },
 
   // System
   SYSTEM: {
-    OVERVIEW: '/api/v1/system/overview',
-    HEALTH: '/api/v1/health',
-    STATS: '/api/v1/system/stats',
-    LOGS: '/api/v1/system/logs',
+    OVERVIEW: '/system/overview',
+    HEALTH: '/health',
+    STATS: '/system/stats',
+    LOGS: '/system/logs',
   },
 
   // Analytics
   ANALYTICS: {
-    OVERVIEW: '/api/v1/analytics/overview',
-    SERVICES: '/api/v1/analytics/services',
-    SYSTEM: '/api/v1/analytics/system',
-    EVENTS: '/api/v1/analytics/events',
+    OVERVIEW: '/analytics/overview',
+    SERVICES: '/analytics/services',
+    SYSTEM: '/analytics/system',
+    EVENTS: '/analytics/events',
   },
 
   // Security
   SECURITY: {
-    OVERVIEW: '/api/v1/security/overview',
-    LOGS: '/api/v1/security/logs',
-    ALERTS: '/api/v1/security/alerts',
-    SETTINGS: '/api/v1/security/settings',
+    OVERVIEW: '/security/overview',
+    LOGS: '/security/logs',
+    ALERTS: '/security/alerts',
+    SETTINGS: '/security/settings',
   },
 
   // Settings
   SETTINGS: {
-    BASE: '/api/v1/settings',
-    BY_KEY: (key: string) => `/api/v1/settings/${key}`,
-    UPDATE: '/api/v1/settings',
+    BASE: '/settings',
+    BY_KEY: (key: string) => `/settings/${key}`,
+    UPDATE: '/settings',
   },
 
   // Monitoring
   MONITORING: {
-    METRICS: '/api/v1/monitoring/metrics',
-    ALERTS: '/api/v1/monitoring/alerts',
-    HEALTH_CHECKS: '/api/v1/monitoring/health-checks',
+    METRICS: '/monitoring/metrics',
+    ALERTS: '/monitoring/alerts',
+    HEALTH_CHECKS: '/monitoring/health-checks',
   },
 } as const;
 
@@ -83,10 +83,10 @@ export const API_ENDPOINTS = {
  * WebSocket Endpoints
  */
 export const WS_ENDPOINTS = {
-  SERVICES: '/api/v1/ws/services',
-  SYSTEM: '/api/v1/ws/system',
-  LOGS: '/api/v1/ws/logs',
-  NOTIFICATIONS: '/api/v1/ws/notifications',
+  SERVICES: '/ws/services',
+  SYSTEM: '/ws/system',
+  LOGS: '/ws/logs',
+  NOTIFICATIONS: '/ws/notifications',
 } as const;
 
 /**

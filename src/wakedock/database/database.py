@@ -189,6 +189,39 @@ async def get_async_db_session() -> Generator[Session, None, None]:
         yield session
 
 
+class AsyncDatabaseSession:
+    """Async context manager for database sessions."""
+    
+    def __init__(self):
+        self.db_manager = get_db_manager()
+        self.session = None
+    
+    async def __aenter__(self):
+        if not self.db_manager._initialized:
+            self.db_manager.initialize()
+        
+        if not self.db_manager.SessionLocal:
+            raise RuntimeError("Database not initialized")
+        
+        self.session = self.db_manager.SessionLocal()
+        return self.session
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.session:
+            try:
+                if exc_type is None:
+                    self.session.commit()
+                else:
+                    self.session.rollback()
+            finally:
+                self.session.close()
+
+
+def get_async_db_session_context() -> AsyncDatabaseSession:
+    """Get an async database session context manager."""
+    return AsyncDatabaseSession()
+
+
 def init_database() -> None:
     """Initialize the database for the application."""
     db_manager = get_db_manager()

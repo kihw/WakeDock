@@ -35,6 +35,17 @@ export default defineConfig(({ mode }) => {
                             console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
                         });
                     },
+                },
+                '/ws': {
+                    target: 'ws://195.201.199.226:8000',
+                    ws: true,
+                    changeOrigin: true,
+                    secure: false,
+                    configure: (proxy, _options) => {
+                        proxy.on('error', (err, _req, _res) => {
+                            console.log('websocket proxy error', err);
+                        });
+                    },
                 }
             }
         },

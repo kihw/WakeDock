@@ -19,7 +19,7 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, JSON, Boolean, I
 from sqlalchemy.sql import func
 from pydantic import BaseModel
 
-from wakedock.database.database import Base, get_db_session
+from wakedock.database.database import Base, get_db_session, get_async_db_session_context
 from wakedock.database.models import UserRole
 
 logger = logging.getLogger(__name__)
@@ -198,10 +198,10 @@ class AuditLogger:
             )
             
             # Save to database
-            async with get_db_session() as db:
+            async with get_async_db_session_context() as db:
                 db.add(audit_entry)
-                await db.commit()
-                await db.refresh(audit_entry)
+                db.commit()
+                db.refresh(audit_entry)
             
             # Log to system logs
             log_level = self._get_log_level(event_data.severity)
@@ -374,7 +374,7 @@ class AuditService:
                            limit: int = 100) -> List[AuditLog]:
         """Retrieve audit logs with filtering"""
         try:
-            async with get_db_session() as db:
+            async with get_async_db_session_context() as db:
                 query = db.query(AuditLog).order_by(AuditLog.timestamp.desc())
                 
                 if user_id:
