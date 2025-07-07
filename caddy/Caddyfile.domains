@@ -1,0 +1,130 @@
+# WakeDock Domain-based Caddyfile
+# Configuration automatique avec domaines
+
+{
+    admin 0.0.0.0:2019
+    email admin@{$HOST_URL}
+}
+
+# API subdomain
+{$API_URL} {
+    # CORS handled by FastAPI backend
+    
+    # WebSocket support
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websocket {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # API routes
+    handle /api/* {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # WebSocket endpoint
+    handle /ws* {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Health check
+    handle /health {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Fallback for other routes
+    handle {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}
+
+# Dashboard subdomain
+{$DASHBOARD_URL} {
+    # CORS handled by FastAPI backend for API requests
+    
+    # WebSocket support for dashboard
+    @websocket {
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websocket {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # WebSocket endpoint
+    handle /ws* {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # API routes - handle dashboard config endpoint first
+    handle /api/config {
+        reverse_proxy wakedock_dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # API routes - proxy other API requests to backend
+    handle /api/* {
+        reverse_proxy wakedock_wakedock:8000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Dashboard
+    handle {
+        reverse_proxy wakedock_dashboard:3000 {
+            header_up Host {upstream_hostport}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+}
+
+# Main domain - redirect to dashboard
+{$HOST_URL} {
+    redir https://{$DASHBOARD_URL}{uri} permanent
+}

@@ -1,0 +1,93 @@
+# Configuration Caddy pour WakeDock avec domaines
+# Ce fichier utilise les variables d'environnement définies dans .env
+
+# Dashboard - Interface d'administration
+{$DASHBOARD_URL} {
+    reverse_proxy dashboard:3000
+    
+    # Headers de sécurité
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+    
+    # Compression
+    encode gzip
+    
+    # Logs
+    log {
+        output file /var/log/caddy/dashboard.log
+        level INFO
+    }
+}
+
+# API - Interface pour les services
+{$API_URL} {
+    reverse_proxy wakedock:8000
+    
+    # Headers CORS pour l'API
+    header {
+        Access-Control-Allow-Origin "https://{$DASHBOARD_URL}"
+        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers "Content-Type, Authorization"
+        Access-Control-Allow-Credentials "true"
+    }
+    
+    # Headers de sécurité
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+    }
+    
+    # Compression
+    encode gzip
+    
+    # Logs
+    log {
+        output file /var/log/caddy/api.log
+        level INFO
+    }
+}
+
+# Site principal (optionnel - peut rediriger vers le dashboard)
+{$HOST_URL} {
+    # Redirection vers le dashboard d'administration
+    redir https://{$DASHBOARD_URL}{uri} permanent
+    
+    # Ou servir du contenu statique si vous préférez
+    # root * /var/www/html
+    # file_server
+    
+    # Headers de sécurité
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+    }
+    
+    # Logs
+    log {
+        output file /var/log/caddy/main.log
+        level INFO
+    }
+}
+
+# Configuration globale
+{
+    # Certificats HTTPS automatiques avec Let's Encrypt
+    auto_https on
+    
+    # Email pour Let's Encrypt (remplacez par votre email)
+    email admin@{$HOST_URL}
+    
+    # Stockage des certificats
+    storage file_system {
+        root /data/caddy
+    }
+}

@@ -10,34 +10,44 @@
 
 # WakeDock Unified Service - HTTP
 :80 {
-    # API routes
+    # API routes - route to backend service
     route /api/* {
-        reverse_proxy wakedock-core:8000
+        reverse_proxy wakedock:8000
+    }
+    
+    # WebSocket routes - route to backend service
+    route /ws {
+        reverse_proxy wakedock:8000
     }
     
     # Dashboard (everything else)
-    reverse_proxy wakedock-dashboard:3000
+    reverse_proxy dashboard:3000
 }
 
 # WakeDock Unified Service - HTTPS  
 :443 {
-    # API routes
+    # API routes - route to backend service
     route /api/* {
-        reverse_proxy wakedock-core:8000
+        reverse_proxy wakedock:8000
+    }
+    
+    # WebSocket routes - route to backend service
+    route /ws {
+        reverse_proxy wakedock:8000
     }
     
     # Dashboard (everything else)
-    reverse_proxy wakedock-dashboard:3000
+    reverse_proxy dashboard:3000
 }
 
 # Direct API access (for backward compatibility)
 :8000 {
-    reverse_proxy wakedock-core:8000
+    reverse_proxy wakedock:8000
 }
 
 # Direct API access - HTTPS (for backward compatibility)
 :8443 {
-    reverse_proxy wakedock-core:8000
+    reverse_proxy wakedock:8000
 }
 
 # Dynamic service configurations will be appended below this line

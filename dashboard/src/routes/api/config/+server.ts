@@ -8,26 +8,28 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async () => {
   // Get environment variables at runtime
   const isDevelopment = process.env.NODE_ENV === 'development';
-  
-  // Get API URLs from environment or use relative URLs as fallback
+
+  // Get API URLs from environment (for debugging only)
   const publicApiUrl = process.env.PUBLIC_API_URL;
   const publicWsUrl = process.env.PUBLIC_WS_URL;
 
-  // Configuration adapts to deployment environment
-  const config = isDevelopment
-    ? {
-      apiUrl: '/api/v1',  // Development: use proxy from dev server
-      wsUrl: '/ws',       // Development: use proxy from dev server
-      isDevelopment: true,
-      enableDebug: process.env.PUBLIC_ENABLE_DEBUG === 'true' || true,
-    }
-    : {
-      // Production: prefer environment variables, fallback to relative URLs
-      apiUrl: publicApiUrl ? `${publicApiUrl}/api/v1` : '/api/v1',
-      wsUrl: publicWsUrl ? publicWsUrl.replace('http', 'ws') + '/ws' : '/ws',
-      isDevelopment: false,
-      enableDebug: process.env.PUBLIC_ENABLE_DEBUG === 'true' || false,
-    };
+  console.log('📡 Config endpoint called:', { 
+    isDevelopment, 
+    publicApiUrl, 
+    publicWsUrl,
+    timestamp: new Date().toISOString()
+  });
+
+  // ALWAYS use relative URLs for internal Docker routing
+  // This ensures proper internal service communication
+  const config = {
+    apiUrl: '/api/v1',  // Always use relative URL for internal routing
+    wsUrl: '/ws',       // Always use relative URL for internal routing  
+    isDevelopment: isDevelopment,
+    enableDebug: process.env.PUBLIC_ENABLE_DEBUG === 'true' || isDevelopment,
+  };
+
+  console.log('✅ Returning config:', config);
 
   return json(config);
 };

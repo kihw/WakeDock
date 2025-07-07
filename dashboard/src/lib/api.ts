@@ -146,6 +146,7 @@ class ApiClient {
   private maxRetries: number = 3;
   private retryDelay: number = 1000; // Base delay in ms
   private timeout: number = 30000; // 30 seconds - reasonable timeout
+  private _initialized: boolean = false;
 
   // Optimized timeouts per endpoint
   private endpointTimeouts: Record<string, number> = {
@@ -215,7 +216,7 @@ class ApiClient {
   };
 
   constructor(baseUrl: string = '') {
-    // Use configuration from environment
+    // Initialize with default config (always relative URLs)
     this.baseUrl = baseUrl || config.apiUrl;
     this.baseUrl = this.baseUrl.replace(/\/$/, ''); // Remove trailing slash
 
@@ -227,20 +228,41 @@ class ApiClient {
       window.addEventListener('online', this.networkStatus.updateStatus);
       window.addEventListener('offline', this.networkStatus.updateStatus);
       this.networkStatus.updateStatus();
-
-      // Update configuration from runtime API if available
-      this.updateConfigFromRuntime();
     }
+
+    console.log('🔧 ApiClient initialized with baseUrl:', this.baseUrl);
   }
 
-  private async updateConfigFromRuntime(): Promise<void> {
-    try {
-      await updateConfigFromRuntime();
-      // Update baseUrl with new configuration
-      this.baseUrl = config.apiUrl.replace(/\/$/, '');
-    } catch (error) {
-      console.debug('Failed to update runtime configuration:', error);
+  /**
+   * Ensure the API client is properly initialized with runtime config
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this._initialized) {
+      return;
     }
+
+    console.log('🚀 Initializing ApiClient with runtime configuration...');
+    
+    // Update configuration from runtime API if available
+    await updateConfigFromRuntime();
+    
+    // Update baseUrl with new configuration
+    const newBaseUrl = config.apiUrl.replace(/\/$/, '');
+    if (newBaseUrl !== this.baseUrl) {
+      console.log('🔄 Updating ApiClient baseUrl from', this.baseUrl, 'to', newBaseUrl);
+      this.baseUrl = newBaseUrl;
+    }
+
+    this._initialized = true;
+    console.log('✅ ApiClient initialized successfully with baseUrl:', this.baseUrl);
+  }
+
+  /**
+   * Force re-initialization of the API client
+   */
+  public async reinitialize(): Promise<void> {
+    this._initialized = false;
+    await this.ensureInitialized();
   }
 
   private async sleep(ms: number): Promise<void> {
@@ -300,7 +322,18 @@ class ApiClient {
     options: SecureRequestOptions = {},
     retryAttempt: number = 0
   ): Promise<T> {
+    // Ensure API client is initialized before making requests
+    await this.ensureInitialized();
+
     const url = `${this.baseUrl}${path}`;
+
+    console.log('📡 Making API request:', {
+      url,
+      method: options.method || 'GET',
+      baseUrl: this.baseUrl,
+      path,
+      initialized: this._initialized
+    });
 
     // Check circuit breaker
     if (this.circuitBreaker.isOpen(path)) {

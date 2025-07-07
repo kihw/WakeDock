@@ -36,16 +36,16 @@ export interface EnvironmentConfig {
 
 // Default configuration
 const defaultConfig: EnvironmentConfig = {
-  // API Configuration - use relative URLs in both development and production
-  apiUrl: '/api/v1',  // Relative URL handled by proxy in dev, and by reverse proxy in prod
+  // API Configuration - use relative URLs for internal routing
+  apiUrl: '/api/v1',  // Always use relative URL for internal routing
   apiTimeout: 30000, // 30 seconds
 
   // Authentication
   tokenKey: 'wakedock_token',
   sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
 
-  // WebSocket - relative URL handled by proxy
-  wsUrl: '/ws',  // Relative WebSocket URL handled by proxy
+  // WebSocket - use relative URLs for internal routing
+  wsUrl: '/ws',  // Always use relative WebSocket URL for internal routing
   wsReconnectInterval: 5000, // 5 seconds
   wsMaxReconnectAttempts: 10,
 
@@ -100,85 +100,69 @@ function getNumberEnvVar(key: string, fallback: number = 0): number {
 async function loadRuntimeConfig(): Promise<EnvironmentConfig | null> {
   if (browser) {
     try {
+      console.log('🔄 Fetching runtime configuration from /api/config...');
       const response = await fetch('/api/config');
       if (response.ok) {
         const runtimeConfig = await response.json();
+        console.log('✅ Runtime config received:', runtimeConfig);
         return {
           ...defaultConfig,
-          apiUrl: runtimeConfig.apiUrl,
-          wsUrl: runtimeConfig.wsUrl,
-          isDevelopment: runtimeConfig.isDevelopment,
-          enableDebug: runtimeConfig.enableDebug,
+          apiUrl: runtimeConfig.apiUrl || defaultConfig.apiUrl,
+          wsUrl: runtimeConfig.wsUrl || defaultConfig.wsUrl,
+          isDevelopment: runtimeConfig.isDevelopment ?? defaultConfig.isDevelopment,
+          enableDebug: runtimeConfig.enableDebug ?? defaultConfig.enableDebug,
         };
+      } else {
+        console.warn('⚠️ Runtime config endpoint returned:', response.status, response.statusText);
       }
     } catch (error) {
-      console.debug('Runtime config not available, using build-time config:', error);
+      console.warn('⚠️ Runtime config not available, using defaults:', error);
     }
   }
   return null;
 }
 
 /**
- * Load configuration from environment variables
+ * Load configuration from environment variables (DEPRECATED - use loadRuntimeConfig instead)
  */
 function loadConfig(): EnvironmentConfig {
+  // Force relative URLs - ignore build-time environment variables
   return {
-    // API Configuration
-    apiUrl: getEnvVar('PUBLIC_API_URL', defaultConfig.apiUrl),
-    apiTimeout: getNumberEnvVar('PUBLIC_API_TIMEOUT', defaultConfig.apiTimeout),
-
-    // Authentication
-    tokenKey: getEnvVar('PUBLIC_TOKEN_KEY', defaultConfig.tokenKey),
-    sessionTimeout: getNumberEnvVar('PUBLIC_SESSION_TIMEOUT', defaultConfig.sessionTimeout),
-
-    // WebSocket
-    wsUrl: getEnvVar('PUBLIC_WS_URL', defaultConfig.wsUrl),
-    wsReconnectInterval: getNumberEnvVar(
-      'PUBLIC_WS_RECONNECT_INTERVAL',
-      defaultConfig.wsReconnectInterval
-    ),
-    wsMaxReconnectAttempts: getNumberEnvVar(
-      'PUBLIC_WS_MAX_RECONNECT_ATTEMPTS',
-      defaultConfig.wsMaxReconnectAttempts
-    ),
-
-    // UI Configuration
-    theme: (getEnvVar('PUBLIC_THEME', defaultConfig.theme) as any) || defaultConfig.theme,
-    refreshInterval: getNumberEnvVar('PUBLIC_REFRESH_INTERVAL', defaultConfig.refreshInterval),
-
-    // Development
-    isDevelopment:
-      getBooleanEnvVar('NODE_ENV') !== false
-        ? getEnvVar('NODE_ENV', 'development') === 'development'
-        : defaultConfig.isDevelopment,
+    ...defaultConfig,
+    // Force relative URLs for internal routing
+    apiUrl: defaultConfig.apiUrl,
+    wsUrl: defaultConfig.wsUrl,
+    
+    // Keep non-URL configuration from environment
+    isDevelopment: getBooleanEnvVar('NODE_ENV') !== false
+      ? getEnvVar('NODE_ENV', 'development') === 'development'
+      : defaultConfig.isDevelopment,
     enableDebug: getBooleanEnvVar('PUBLIC_ENABLE_DEBUG', defaultConfig.enableDebug),
-
-    // Feature Flags
-    features: {
-      analytics: getBooleanEnvVar('PUBLIC_FEATURE_ANALYTICS', defaultConfig.features.analytics),
-      notifications: getBooleanEnvVar(
-        'PUBLIC_FEATURE_NOTIFICATIONS',
-        defaultConfig.features.notifications
-      ),
-      realTimeUpdates: getBooleanEnvVar(
-        'PUBLIC_FEATURE_REALTIME',
-        defaultConfig.features.realTimeUpdates
-      ),
-    },
   };
 }
 
-// Export the configuration
-export let config = loadConfig();
+// Initialize with default config that always uses relative URLs
+export let config = defaultConfig;
 
 /**
  * Update configuration at runtime
  */
 export async function updateConfigFromRuntime(): Promise<void> {
+  console.log('🔄 Updating configuration from runtime...');
   const runtimeConfig = await loadRuntimeConfig();
   if (runtimeConfig) {
     config = runtimeConfig;
-    console.log('Configuration updated from runtime:', config);
+    console.log('✅ Configuration updated from runtime:', {
+      apiUrl: config.apiUrl,
+      wsUrl: config.wsUrl,
+      isDevelopment: config.isDevelopment
+    });
+  } else {
+    console.log('⚠️ Runtime config not available, using defaults:', {
+      apiUrl: config.apiUrl,
+      wsUrl: config.wsUrl,
+      isDevelopment: config.isDevelopment
+    });
   }
 }
 

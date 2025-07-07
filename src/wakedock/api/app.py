@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 import logging
 import asyncio
 
-from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit
+from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit, config
 from wakedock.api.websocket import websocket_ping_task, websocket_router
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
@@ -53,7 +53,11 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
             "http://195.201.199.226:3001",
             "http://195.201.199.226",  # IP publique pour les requêtes browser
             "http://wakedock-dashboard:3000",
-            "http://wakedock-dashboard:3001"
+            "http://wakedock-dashboard:3001",
+            # Production domains
+            "https://admin.mtool.ovh",
+            "https://api.mtool.ovh",
+            "https://mtool.ovh"
         ],
         allow_credentials=True,
         allow_methods=["*"],
@@ -146,6 +150,12 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         audit.router,
         prefix="/api/v1/audit",
         tags=["audit"]
+    )
+    
+    app.include_router(
+        config.router,
+        prefix="/api",
+        tags=["config"]
     )
     
     # WebSocket router - no prefix to match client expectations

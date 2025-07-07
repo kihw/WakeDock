@@ -58,14 +58,14 @@ const securityHandle: Handle = async ({ event, resolve }) => {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   // CSP header for dashboard
   const isDevelopment = process.env.NODE_ENV === 'development';
-  
+
   // Get API URLs from environment variables
   const publicApiUrl = process.env.PUBLIC_API_URL || process.env.WAKEDOCK_API_URL;
   const publicWsUrl = process.env.PUBLIC_WS_URL;
-  
+
   // Build connect-src directive based on configuration
   let connectSrc = "'self'";
-  
+
   if (isDevelopment) {
     // Development: allow all common development URLs
     connectSrc += ` http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock:* https://wakedock:* ws://localhost:* wss://localhost:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock:* wss://wakedock:*`;
@@ -94,7 +94,7 @@ const securityHandle: Handle = async ({ event, resolve }) => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    connectSrc,
+    `connect-src ${connectSrc}`,
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

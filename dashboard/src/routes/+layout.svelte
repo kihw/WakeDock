@@ -6,6 +6,7 @@
   import { page } from '$app/stores';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Header from '$lib/components/Header.svelte';
+  import { initializeConfig } from '$lib/config/loader.js';
 
   export let data: any = {};
 
@@ -19,7 +20,12 @@
     }
   }
 
-  onMount(() => {
+  onMount(async () => {
+    console.log('🚀 Layout mounting - initializing configuration...');
+    
+    // Initialize configuration FIRST before anything else
+    await initializeConfig();
+    
     mounted = true;
 
     // Handle escape key for sidebar
