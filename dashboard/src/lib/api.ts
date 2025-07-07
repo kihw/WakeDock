@@ -332,7 +332,8 @@ class ApiClient {
       method: options.method || 'GET',
       baseUrl: this.baseUrl,
       path,
-      initialized: this._initialized
+      initialized: this._initialized,
+      credentials: this.token ? 'Bearer token present' : 'No token'
     });
 
     // Check circuit breaker

@@ -19,7 +19,7 @@ async def create_test_user():
     """Create a test user for authentication testing"""
     
     # Initialize database
-    await init_database()
+    init_database()
     
     # Get database session
     db: Session = next(get_db_session())
