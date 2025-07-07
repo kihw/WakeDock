@@ -89,8 +89,9 @@ def login_user(
             detail="Inactive user"
         )
     
-    # Update last login
+    # Update last login - use merge to handle detached objects
     user.last_login = datetime.utcnow()
+    user = db.merge(user)
     db.commit()
     
     # Create access token

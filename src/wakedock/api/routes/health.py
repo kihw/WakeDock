@@ -28,9 +28,9 @@ async def health_check():
     """Health check endpoint"""
     settings = get_settings()
     
-    # System metrics
+    # System metrics - optimized for health check speed
     system_info = {
-        "cpu_percent": psutil.cpu_percent(interval=1),
+        "cpu_percent": psutil.cpu_percent(interval=None),  # Non-blocking CPU check
         "memory": {
             "total": psutil.virtual_memory().total,
             "available": psutil.virtual_memory().available,
@@ -63,7 +63,7 @@ async def metrics(request: Request):
             return Response(content=metrics_data, media_type=CONTENT_TYPE_LATEST)
     
     # Fallback to basic metrics if Prometheus exporter is not available
-    cpu_percent = psutil.cpu_percent(interval=1)
+    cpu_percent = psutil.cpu_percent(interval=None)
     memory = psutil.virtual_memory()
     disk = psutil.disk_usage('/')
     

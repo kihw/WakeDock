@@ -22,10 +22,10 @@
 
   onMount(async () => {
     console.log('🚀 Layout mounting - initializing configuration...');
-    
+
     // Initialize configuration FIRST before anything else
     await initializeConfig();
-    
+
     mounted = true;
 
     // Handle escape key for sidebar

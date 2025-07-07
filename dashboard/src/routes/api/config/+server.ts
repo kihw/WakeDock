@@ -13,9 +13,9 @@ export const GET: RequestHandler = async () => {
   const publicApiUrl = process.env.PUBLIC_API_URL;
   const publicWsUrl = process.env.PUBLIC_WS_URL;
 
-  console.log('📡 Config endpoint called:', { 
-    isDevelopment, 
-    publicApiUrl, 
+  console.log('📡 Config endpoint called:', {
+    isDevelopment,
+    publicApiUrl,
     publicWsUrl,
     timestamp: new Date().toISOString()
   });

@@ -56,7 +56,7 @@ services:
       - DASHBOARD_URL=${DASHBOARD_URL}
       - API_URL=${API_URL}
 
-    user: "0:0" # Run as root to handle shared volume
+    user: "65534:65534" # Run as nobody:nobody for security
     command: >
       sh -c "
         # Ensure the config directory exists and has proper permissions

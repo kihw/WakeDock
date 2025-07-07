@@ -76,8 +76,14 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and chrome-extension requests
-  if (request.method !== 'GET' || url.protocol === 'chrome-extension:') {
+  // Skip chrome-extension requests
+  if (url.protocol === 'chrome-extension:') {
+    return;
+  }
+
+  // For non-GET requests (POST, PUT, DELETE, etc.), let them pass through normally
+  if (request.method !== 'GET') {
+    event.respondWith(fetch(request));
     return;
   }
 

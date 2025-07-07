@@ -132,7 +132,7 @@ function loadConfig(): EnvironmentConfig {
     // Force relative URLs for internal routing
     apiUrl: defaultConfig.apiUrl,
     wsUrl: defaultConfig.wsUrl,
-    
+
     // Keep non-URL configuration from environment
     isDevelopment: getBooleanEnvVar('NODE_ENV') !== false
       ? getEnvVar('NODE_ENV', 'development') === 'development'

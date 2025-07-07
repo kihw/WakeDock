@@ -242,10 +242,10 @@ class ApiClient {
     }
 
     console.log('🚀 Initializing ApiClient with runtime configuration...');
-    
+
     // Update configuration from runtime API if available
     await updateConfigFromRuntime();
-    
+
     // Update baseUrl with new configuration
     const newBaseUrl = config.apiUrl.replace(/\/$/, '');
     if (newBaseUrl !== this.baseUrl) {

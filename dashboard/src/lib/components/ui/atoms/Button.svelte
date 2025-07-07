@@ -31,6 +31,36 @@
   export let animatePress = true;
   export let pulse = false;
   export let loadingText = 'Loading...';
+  export let autoFocus = false;
+  export let className: string | undefined = undefined;
+
+  // TypeScript interface export for external usage
+  export interface ButtonProps {
+    variant?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'ghost';
+    size?: 'sm' | 'md' | 'lg' | 'xl';
+    disabled?: boolean;
+    loading?: boolean;
+    fullWidth?: boolean;
+    type?: 'button' | 'submit' | 'reset';
+    href?: string;
+    target?: string;
+    rel?: string;
+    download?: string | boolean;
+    ariaLabel?: string;
+    ariaDescribedBy?: string;
+    testId?: string;
+    leftIcon?: string;
+    rightIcon?: string;
+    iconOnly?: boolean;
+    rounded?: boolean;
+    elevated?: boolean;
+    outline?: boolean;
+    animatePress?: boolean;
+    pulse?: boolean;
+    loadingText?: string;
+    autoFocus?: boolean;
+    className?: string;
+  }
 
   // Events
   const dispatch = createEventDispatcher<{

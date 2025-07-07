@@ -289,27 +289,6 @@ def get_cache_invalidator() -> CacheInvalidator:
     return _cache_invalidator
 
 
-# Global cache manager instance (lazy initialization)
-_cache_manager: Optional[CacheManager] = None
-_cache_invalidator: Optional[CacheInvalidator] = None
-
-
-def get_cache_manager() -> CacheManager:
-    """Get the global cache manager instance."""
-    global _cache_manager
-    if _cache_manager is None:
-        _cache_manager = CacheManager()
-    return _cache_manager
-
-
-def get_cache_invalidator() -> CacheInvalidator:
-    """Get the global cache invalidator instance."""
-    global _cache_invalidator
-    if _cache_invalidator is None:
-        _cache_invalidator = CacheInvalidator(get_cache_manager())
-    return _cache_invalidator
-
-
 # Convenience functions
 async def get_cached(key: str, backend: Optional[str] = None) -> Optional[Any]:
     """Get value from global cache manager."""

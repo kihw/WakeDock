@@ -85,6 +85,10 @@ class CaddyManager:
         """Mettre à jour un service"""
         return await self.routes_manager.update_service_route(service)
     
+    async def update_service_config(self, services: List[Service]) -> bool:
+        """Mettre à jour la configuration avec tous les services"""
+        return await self.routes_manager.sync_routes_with_services(services)
+    
     async def sync_services(self, services: List[Service]) -> Dict[str, bool]:
         """Synchroniser toutes les routes avec la liste des services"""
         return await self.routes_manager.sync_routes_with_services(services)

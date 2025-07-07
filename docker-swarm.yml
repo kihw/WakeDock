@@ -9,19 +9,21 @@ services:
       - WAKEDOCK_LOG_LEVEL=${WAKEDOCK_LOG_LEVEL}
       - WAKEDOCK_DEBUG=${WAKEDOCK_DEBUG}
       - CADDY_CONFIG_VOLUME_PATH=${CADDY_CONFIG_VOLUME}
-      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      - REDIS_URL=redis://:${REDIS_PASSWORD}@redis:6379/0
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@wakedock_postgres:5432/${POSTGRES_DB}
+      - REDIS_URL=redis://:${REDIS_PASSWORD}@wakedock_redis:6379/0
     volumes:
       - ${DOCKER_SOCKET_PATH}:/var/run/docker.sock
       - ${WAKEDOCK_CONFIG_DIR}:/app/config
       - wakedock_data:/app/data
       - caddy_config_shared:/etc/caddy:z
+    ports:
+      - "${WAKEDOCK_CORE_PORT}:8000"
     healthcheck:
       test: ["CMD", "python", "/app/health_check.py"]
-      interval: 15s
+      interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 45s
+      start_period: 60s
     depends_on:
       - postgres
       - redis
@@ -36,7 +38,7 @@ services:
         order: start-first
       restart_policy:
         condition: on-failure
-        delay: 5s
+        delay: 10s
         max_attempts: 3
         window: 120s
 
@@ -57,7 +59,7 @@ services:
       - HOST_URL=${HOST_URL}
       - DASHBOARD_URL=${DASHBOARD_URL}
       - API_URL=${API_URL}
-    user: "0:0"
+    user: "65534:65534"
     command: >
       sh -c "
         mkdir -p /etc/caddy
@@ -95,6 +97,8 @@ services:
       - VITE_API_BASE_URL=/api/v1
       - PUBLIC_API_URL=${PUBLIC_API_URL}
       - PUBLIC_WS_URL=/ws
+    ports:
+      - "${DASHBOARD_PORT}:3000"
     networks:
       - wakedock_network
     depends_on:
@@ -121,6 +125,7 @@ services:
       - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     ports:
       - "${POSTGRES_PORT}:5432"
     networks:

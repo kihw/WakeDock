@@ -113,22 +113,22 @@ class PerformanceManager:
             self.cache = IntelligentCache(redis_client)
             
             # Configure cache strategies
-            self.cache.configure_cache_type("user_sessions", CacheConfig(
+            await self.cache.configure_cache_type("user_sessions", CacheConfig(
                 ttl=3600,
                 strategy=CacheStrategy.WRITE_THROUGH
             ))
             
-            self.cache.configure_cache_type("service_status", CacheConfig(
+            await self.cache.configure_cache_type("service_status", CacheConfig(
                 ttl=60,
                 strategy=CacheStrategy.READ_THROUGH
             ))
             
-            self.cache.configure_cache_type("system_metrics", CacheConfig(
+            await self.cache.configure_cache_type("system_metrics", CacheConfig(
                 ttl=30,
                 strategy=CacheStrategy.WRITE_BEHIND
             ))
             
-            self.cache.configure_cache_type("dashboard_data", CacheConfig(
+            await self.cache.configure_cache_type("dashboard_data", CacheConfig(
                 ttl=300,
                 strategy=CacheStrategy.REFRESH_AHEAD,
                 refresh_threshold=0.7
