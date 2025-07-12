@@ -50,13 +50,14 @@ class CaddySettings(BaseSettings):
 
 
 class DatabaseSettings(BaseSettings):
-    url: str = "sqlite:///./data/wakedock.db"
+    url: str = Field(default="sqlite:///./data/wakedock.db", env="DATABASE_URL")
 
     class Config:
         extra = "ignore"
 
 
 class RedisSettings(BaseSettings):
+    url: str = Field(default="redis://redis:6379/0", env="REDIS_URL")
     host: str = "redis"
     port: int = 6379
     db: int = 0
@@ -135,6 +136,16 @@ class Settings(BaseSettings):
     monitoring: MonitoringSettings = MonitoringSettings()
     logging: LoggingSettings = LoggingSettings()
     services: List[ServiceSettings] = []
+
+    @property
+    def database_url(self) -> str:
+        """Get database URL from environment or settings."""
+        return self.database.url
+
+    @property
+    def redis_url(self) -> str:
+        """Get Redis URL from environment or settings."""
+        return self.redis.url
 
     class Config:
         env_file = ".env"

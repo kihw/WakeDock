@@ -6,7 +6,7 @@
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { writable } from 'svelte/store';
   import Icon from '../Icon.svelte';
-  import Button from '../forms/Button.svelte';
+  import Button from '../ui/atoms/Button.svelte';
   import Select from '../forms/Select.svelte';
 
   // Props

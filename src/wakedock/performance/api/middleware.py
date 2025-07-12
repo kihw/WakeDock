@@ -316,7 +316,7 @@ class PerformanceAPI:
         # Ajouter stats de cache si disponible
         try:
             cache = await get_cache()
-            cache_stats = cache.get_stats()
+            cache_stats = await cache.get_stats()
         except Exception:
             cache_stats = {"error": "Cache not available"}
         

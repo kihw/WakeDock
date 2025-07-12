@@ -1,143 +1,92 @@
-# Production Caddyfile for WakeDock
 {
-    # Global options
     admin 0.0.0.0:2019
-    log {
-        output file /var/log/caddy/access.log
-        format json
-    }
-    
-    # Security headers
-    header /* {
-        # Security headers
-        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-        X-XSS-Protection "1; mode=block"
-        Referrer-Policy "strict-origin-when-cross-origin"
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ws: wss:; frame-ancestors 'none'"
-        
-        # Remove server info
-        -Server
-    }
+    email admin@mtool.ovh
+    # Enable automatic HTTPS for production
+    auto_https on
 }
 
-# Main domain
-{$DOMAIN:localhost} {
-    # Dashboard (frontend)
-    handle /* {
-        reverse_proxy {$DASHBOARD_UPSTREAM:dashboard:3000} {
-            health_uri /health
-            health_interval 30s
-            health_timeout 10s
-        }
+# Production: HTTPS with automatic SSL certificates
+admin.mtool.ovh {
+    # Dashboard API config endpoint (must be before /api/v1/*)
+    reverse_proxy /api/config wakedock-dashboard:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
     }
     
-    # API routes
-    handle /api/* {
-        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
-            health_uri /api/v1/health
-            health_interval 30s
-            health_timeout 10s
-        }
+    # WakeDock API routes
+    reverse_proxy /api/v1/* wakedock-core:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
     }
     
-    # WebSocket support for real-time updates
-    handle /ws/* {
-        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
-            header_up Upgrade {http.request.header.upgrade}
-            header_up Connection {http.request.header.connection}
-        }
+    # WebSocket support
+    reverse_proxy /ws wakedock-core:8000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+        header_up Upgrade {>Upgrade}
+        header_up Connection {>Connection}
     }
     
-    # Health check endpoint
-    handle /health {
-        respond "OK" 200
+    # Dashboard (default route)
+    reverse_proxy /* wakedock-dashboard:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
     }
     
-    # Security and performance
-    encode gzip zstd
+    # Enable compression
+    encode gzip
     
-    # Request logging
-    log {
-        output file /var/log/caddy/wakedock-access.log {
-            roll_size 100mb
-            roll_keep 5
-            roll_keep_for 30d
-        }
-        format json
+    # Enhanced security headers for production
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://admin.mtool.ovh wss://admin.mtool.ovh; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
     
     # Rate limiting
     rate_limit {
-        zone dynamic {
-            key {remote_host}
+        zone static {
+            key {remote}
             events 100
             window 1m
         }
-    }
-}
-
-# API-only subdomain (optional)
-api.{$DOMAIN:localhost} {
-    handle /* {
-        reverse_proxy {$API_UPSTREAM:wakedock:8000} {
-            health_uri /api/v1/health
-            health_interval 30s
-            health_timeout 10s
+        zone api {
+            key {remote}
+            events 50
+            window 1m
         }
     }
     
-    # CORS headers for API access
-    header /* {
-        Access-Control-Allow-Origin "*"
-        Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-        Access-Control-Allow-Headers "Content-Type, Authorization"
-        Access-Control-Max-Age "86400"
-    }
+    # Apply rate limiting
+    @api path /api/v1/*
+    rate_limit @api api
+    rate_limit static
     
-    # Handle preflight requests
-    handle_path /api/* {
-        method OPTIONS
-        respond "" 204
-    }
-    
-    encode gzip zstd
-    
+    # Logging with structured format
     log {
-        output file /var/log/caddy/api-access.log {
-            roll_size 100mb
+        output file /var/log/caddy/admin.mtool.ovh.log {
+            roll_size 100MB
             roll_keep 5
-            roll_keep_for 30d
+            roll_keep_for 720h
         }
         format json
+        level INFO
     }
 }
 
-# Monitoring endpoints (if enabled)
-monitoring.{$DOMAIN:localhost} {
-    handle /prometheus/* {
-        reverse_proxy prometheus:9090 {
-            health_uri /-/healthy
-            health_interval 30s
-            health_timeout 10s
-        }
-    }
-    
-    handle /grafana/* {
-        reverse_proxy grafana:3000 {
-            health_uri /api/health
-            health_interval 30s
-            health_timeout 10s
-        }
-    }
-    
-    handle /* {
-        redir /grafana/
-    }
-    
-    # Basic auth for monitoring (configure in environment)
-    basicauth /* {
-        {$MONITORING_USER:admin} {$MONITORING_PASSWORD_HASH:$2a$14$example}
-    }
+# Redirect HTTP to HTTPS
+http://admin.mtool.ovh {
+    redir https://admin.mtool.ovh{uri} permanent
 }

@@ -4,7 +4,7 @@
  */
 import { writable, derived, get } from 'svelte/store';
 import { api, type ApiError } from '../api.js';
-import { type User, type LoginResponse as ApiLoginResponse } from '../types/user.js';
+import { type User, type LoginResponse as ApiLoginResponse, type LoginRequest } from '../types/user.js';
 
 // WebSocket integration
 let websocketClient: any = null;
@@ -21,9 +21,11 @@ interface ExtendedLoginResponse extends ApiLoginResponse {
 }
 
 interface LoginOptions {
-  twoFactorCode?: string;
   rememberMe?: boolean;
+  device?: string;
+  fingerprint?: string;
 }
+
 
 interface AuthState {
   user: User | null;
@@ -202,11 +204,11 @@ export const auth = {
     update((state: AuthState) => ({ ...state, isLoading: true, error: null }));
 
     try {
-      const loginRequest = {
-        username: emailOrUsername,
+      // Create clean login request with only required fields for API
+      // Map usernameOrEmail to username for API compatibility
+      const loginRequest: LoginRequest = {
+        username: emailOrUsername, // Dashboard uses usernameOrEmail, API expects username
         password,
-        twoFactorCode: options?.twoFactorCode,
-        rememberMe: options?.rememberMe,
       };
 
       // Debug information for development
@@ -214,28 +216,17 @@ export const auth = {
         console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
       }
 
-      // For debugging: always throw an error to test error handling
-      if (emailOrUsername === 'test@error.com') {
-        throw new Error('Test error for debugging error display');
-      }
+      // Debug: log exactly what we're sending to API
+      console.log('[AUTH_DEBUG] Sending loginRequest to API:', loginRequest);
+      console.log('[AUTH_DEBUG] loginRequest JSON:', JSON.stringify(loginRequest));
 
       const response: ApiLoginResponse = await api.auth.login(loginRequest);
 
-      // Check if 2FA is required based on API response
+      // No 2FA support in backend, continue with normal flow
       const extendedResponse: ExtendedLoginResponse = {
         ...response,
-        requiresTwoFactor: response.user?.twoFactorEnabled && !options?.twoFactorCode,
+        requiresTwoFactor: false,
       };
-
-      // If 2FA is required and not provided, return the response without setting auth state
-      if (extendedResponse.requiresTwoFactor && !options?.twoFactorCode) {
-        update((state: AuthState) => ({
-          ...state,
-          isLoading: false,
-          error: null,
-        }));
-        return extendedResponse;
-      }
 
       // Get current user with retry logic
       let user;
@@ -287,8 +278,8 @@ export const auth = {
         }
       }
 
-      // Store refresh token if remember me is enabled
-      if (options?.rememberMe && extendedResponse.refresh_token) {
+      // Store refresh token if available (basic refresh token support)
+      if (extendedResponse.refresh_token) {
         localStorage.setItem('wakedock_refresh_token', extendedResponse.refresh_token);
       }
 
@@ -296,7 +287,7 @@ export const auth = {
       scheduleTokenRefresh(response.access_token);
 
       // Schedule session timeout if applicable
-      if (sessionExpiry && !options?.rememberMe) {
+      if (sessionExpiry) {
         scheduleSessionTimeout(sessionExpiry);
       }
 

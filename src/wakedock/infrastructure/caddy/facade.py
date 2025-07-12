@@ -34,8 +34,23 @@ class CaddyManager:
         self.api_client = CaddyApiClient()
         self.routes_manager = RoutesManager(self.api_client)
         self.health_monitor = CaddyHealthMonitor(self.api_client)
+        self._initialized = False
         
         logger.info("Caddy Manager initialized with modular architecture")
+    
+    async def initialize(self):
+        """Initialize the Caddy manager asynchronously"""
+        if self._initialized:
+            return
+        
+        try:
+            # Initialize components that might need async setup
+            await self.api_client.initialize()
+            self._initialized = True
+            logger.info("Caddy Manager async initialization completed")
+        except Exception as e:
+            logger.error(f"Failed to initialize Caddy Manager: {e}")
+            raise
     
     # === Configuration Methods ===
     

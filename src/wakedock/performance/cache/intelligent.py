@@ -228,7 +228,7 @@ class IntelligentCache:
         
         logger.debug(f"Cleaned up {len(expired_keys)} expired cache entries")
     
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """Retourne les statistiques du cache"""
         total_requests = self.hit_stats["hits"] + self.hit_stats["misses"]
         hit_rate = (self.hit_stats["hits"] / total_requests * 100) if total_requests > 0 else 0

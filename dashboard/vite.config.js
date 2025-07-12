@@ -4,6 +4,8 @@ import { visualizer } from 'rollup-plugin-visualizer';
 
 export default defineConfig(({ mode }) => {
     const isProduction = mode === 'production';
+    const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const wsBaseUrl = process.env.VITE_WS_BASE_URL || 'ws://localhost:8000';
 
     return {
         plugins: [
@@ -21,7 +23,7 @@ export default defineConfig(({ mode }) => {
             port: 3000,
             proxy: {
                 '/api': {
-                    target: 'http://195.201.199.226:8000',
+                    target: apiBaseUrl,
                     changeOrigin: true,
                     secure: false,
                     configure: (proxy, _options) => {
@@ -37,7 +39,7 @@ export default defineConfig(({ mode }) => {
                     },
                 },
                 '/ws': {
-                    target: 'ws://195.201.199.226:8000',
+                    target: wsBaseUrl,
                     ws: true,
                     changeOrigin: true,
                     secure: false,

@@ -72,7 +72,7 @@ jobs:
 
     - name: 🔒 Security check with bandit
       run: |
-        bandit -r src/ -f json -o bandit-report.json || true
+        bandit -r src/ -f json -o bandit-report.json
 
     - name: 🧪 Run tests with pytest
       env:
@@ -127,11 +127,11 @@ jobs:
 
     - name: 🎨 Check code formatting
       working-directory: dashboard
-      run: npm run format:check || true
+      run: npm run format:check
 
     - name: 🧪 Run tests
       working-directory: dashboard
-      run: npm run test || true
+      run: npm run test
 
     - name: 🏗️ Build dashboard
       working-directory: dashboard

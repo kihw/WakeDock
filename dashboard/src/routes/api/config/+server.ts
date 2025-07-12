@@ -20,11 +20,11 @@ export const GET: RequestHandler = async () => {
     timestamp: new Date().toISOString()
   });
 
-  // ALWAYS use relative URLs for internal Docker routing
-  // This ensures proper internal service communication
+  // Use relative URLs to work with Caddy proxy and avoid CSP issues
+  // This ensures all requests go through Caddy which properly routes them
   const config = {
-    apiUrl: '/api/v1',  // Always use relative URL for internal routing
-    wsUrl: '/ws',       // Always use relative URL for internal routing  
+    apiUrl: `/api/v1`,  // Relative URL - routed by Caddy to WakeDock API
+    wsUrl: `/ws`,       // Relative URL - routed by Caddy to WakeDock WebSocket
     isDevelopment: isDevelopment,
     enableDebug: process.env.PUBLIC_ENABLE_DEBUG === 'true' || isDevelopment,
   };

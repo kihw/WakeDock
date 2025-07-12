@@ -79,6 +79,33 @@ class UserLogin(BaseModel):
     """User login model."""
     username: str
     password: str
+    
+    class Config:
+        extra = "ignore"  # Ignore extra fields
+    
+    @classmethod
+    def from_dict(cls, data: dict):
+        """Create UserLogin from dict, handling usernameOrEmail field."""
+        # Map usernameOrEmail to username if present
+        if "usernameOrEmail" in data and "username" not in data:
+            data = data.copy()
+            data["username"] = data.pop("usernameOrEmail")
+        return cls(**data)
+
+
+class UserLoginRequest(BaseModel):
+    """User login request model that accepts usernameOrEmail."""
+    usernameOrEmail: str
+    password: str
+    rememberMe: Optional[bool] = False
+    csrfToken: Optional[str] = None
+    
+    class Config:
+        extra = "ignore"
+    
+    def to_user_login(self) -> UserLogin:
+        """Convert to UserLogin model."""
+        return UserLogin(username=self.usernameOrEmail, password=self.password)
 
 
 class Token(BaseModel):

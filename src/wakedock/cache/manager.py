@@ -100,12 +100,12 @@ class CacheManager:
         cache_backend = self.get_backend(backend)
         return await cache_backend.size()
     
-    def get_stats(self) -> Dict[str, Any]:
+    async def get_stats(self) -> Dict[str, Any]:
         """Get statistics for all backends."""
         stats = {}
         for name, backend in self.backends.items():
             if hasattr(backend, 'get_stats'):
-                stats[name] = backend.get_stats()
+                stats[name] = await backend.get_stats()
             else:
                 stats[name] = {"backend_type": type(backend).__name__}
         return stats

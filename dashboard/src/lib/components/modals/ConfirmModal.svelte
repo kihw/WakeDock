@@ -2,7 +2,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import Modal from './Modal.svelte';
-  import { Button } from '../forms';
+  import Button from '../ui/atoms/Button.svelte';
   import { sanitizeInput, generateCSRFToken, checkRateLimit } from '../../utils/validation';
   import { announceToScreenReader, manageFocus } from '../../utils/accessibility';
 

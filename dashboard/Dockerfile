@@ -14,9 +14,17 @@ RUN npm install --legacy-peer-deps
 # Copy source code
 COPY . .
 
+# Set build-time environment variables for development
+ENV PUBLIC_API_URL=http://195.201.199.226
+ENV VITE_API_BASE_URL=/api/v1
+ENV VITE_WS_BASE_URL=ws://195.201.199.226
+ENV PUBLIC_WS_URL=/ws
+
 # Build the application with comprehensive error handling  
 RUN echo "Building SvelteKit application..." && \
-    echo "Using relative URLs for internal routing" && \
+    echo "Using local development URLs for internal routing" && \
+    echo "PUBLIC_API_URL=${PUBLIC_API_URL}" && \
+    echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}" && \
     npm run build && \
     echo "Build completed, checking output..." && \
     ls -la build/ && \

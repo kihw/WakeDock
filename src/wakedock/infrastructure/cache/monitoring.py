@@ -159,7 +159,22 @@ class CacheMonitor:
         """Collecter métriques actuelles"""
         
         # Stats cache manager
-        global_stats = await self.cache_manager.get_global_stats()
+        try:
+            # Check if get_global_stats method exists and is async
+            if hasattr(self.cache_manager, 'get_global_stats'):
+                get_stats_method = getattr(self.cache_manager, 'get_global_stats')
+                if asyncio.iscoroutinefunction(get_stats_method):
+                    global_stats = await self.cache_manager.get_global_stats()
+                else:
+                    # If not async, call it directly
+                    global_stats = self.cache_manager.get_global_stats()
+            else:
+                # Fallback to empty stats if method doesn't exist
+                global_stats = {}
+        except Exception as e:
+            logger.error(f"Error getting global stats: {e}")
+            # Fallback to empty stats
+            global_stats = {}
         
         # Calculer métriques depuis buffer
         metrics = self._calculate_metrics_from_buffer()

@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from wakedock.database.database import get_db_session, get_async_db_session
 from wakedock.database.models import User, UserRole
 from .models import (
-    UserCreate, UserUpdate, UserResponse, UserLogin, 
+    UserCreate, UserUpdate, UserResponse, UserLogin, UserLoginRequest,
     Token, PasswordChange, PasswordReset, PasswordResetConfirm
 )
 from .password import hash_password, verify_password
@@ -64,19 +64,105 @@ def register_user(
     return db_user
 
 
+@router.post("/login_debug")
+async def login_user_debug(
+    request: Request,
+    db: Session = Depends(get_db_session)
+):
+    """DEBUG endpoint to see raw request."""
+    try:
+        body = await request.body()
+        print(f"[DEBUG] Raw body bytes: {body}")
+        print(f"[DEBUG] Headers: {dict(request.headers)}")
+        print(f"[DEBUG] Method: {request.method}")
+        print(f"[DEBUG] URL: {request.url}")
+        
+        import json
+        data = json.loads(body.decode('utf-8'))
+        print(f"[DEBUG] Raw JSON received: {data}")
+        print(f"[DEBUG] Keys in data: {list(data.keys())}")
+        print(f"[DEBUG] Data types: {[(k, type(v)) for k, v in data.items()]}")
+        
+        # Test parsing with UserLogin model
+        try:
+            from .models import UserLogin
+            parsed = UserLogin(**data)
+            print(f"[DEBUG] UserLogin parsing SUCCESS: {parsed}")
+            print(f"[DEBUG] UserLogin dict: {parsed.dict()}")
+        except Exception as parse_error:
+            print(f"[DEBUG] UserLogin parsing FAILED: {parse_error}")
+            
+        return {"debug": "ok", "received": data}
+    except Exception as e:
+        print(f"[DEBUG] Error parsing body: {e}")
+        return {"debug": "error", "message": str(e)}
+
+
 @router.post("/login", response_model=Token)
-def login_user(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+async def login_user(
+    request: Request,
     db: Session = Depends(get_db_session)
 ):
     """Authenticate user and return access token."""
+    try:
+        # Parse raw body manually to handle any format
+        body = await request.body()
+        import json
+        raw_data = json.loads(body.decode('utf-8'))
+        print(f"[LOGIN_DEBUG] Raw data received: {raw_data}")
+        print(f"[LOGIN_DEBUG] Keys in data: {list(raw_data.keys())}")
+        
+        # Extract username/email and password from various possible formats
+        username = None
+        password = raw_data.get('password')
+        
+        # Try different field names for username
+        if 'usernameOrEmail' in raw_data:
+            username = raw_data['usernameOrEmail']
+            print(f"[LOGIN_DEBUG] Found usernameOrEmail: {username}")
+        elif 'username' in raw_data:
+            username = raw_data['username']
+            print(f"[LOGIN_DEBUG] Found username: {username}")
+        elif 'email' in raw_data:
+            username = raw_data['email']
+            print(f"[LOGIN_DEBUG] Found email: {username}")
+        
+        if not username or not password:
+            print(f"[LOGIN_DEBUG] Missing credentials - username: {bool(username)}, password: {bool(password)}")
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Username/email and password are required"
+            )
+        
+        print(f"[LOGIN_DEBUG] Processing login for user: {username}")
+        
+    except json.JSONDecodeError as e:
+        print(f"[LOGIN_DEBUG] JSON decode error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Invalid JSON format"
+        )
+    except Exception as e:
+        print(f"[LOGIN_DEBUG] Error parsing request: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Request parsing error: {str(e)}"
+        )
+    
+    print(f"[LOGIN_DEBUG] Received login request with username: {username}")
+    print(f"[LOGIN_DEBUG] Raw headers: {dict(request.headers)}")
+    print(f"[LOGIN_DEBUG] Content-Type: {request.headers.get('content-type')}")
+    print(f"[LOGIN_DEBUG] User-Agent: {request.headers.get('user-agent')}")
+    print(f"[LOGIN_DEBUG] Origin: {request.headers.get('origin')}")
+    
     # Find user by username or email
     user = db.query(User).filter(
-        (User.username == form_data.username) | 
-        (User.email == form_data.username)
+        (User.username == username) | 
+        (User.email == username)
     ).first()
     
-    if not user or not verify_password(form_data.password, user.hashed_password):
+    if not user or not verify_password(password, user.hashed_password):
+        print(f"[LOGIN_DEBUG] Auth failed - user found: {bool(user)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -89,23 +175,44 @@ def login_user(
             detail="Inactive user"
         )
     
-    # Update last login - use merge to handle detached objects
-    user.last_login = datetime.utcnow()
-    user = db.merge(user)
-    db.commit()
+    # Store user data before any modifications
+    user_data = {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "is_active": user.is_active,
+        "is_verified": user.is_verified,
+        "created_at": user.created_at,
+        "updated_at": user.updated_at,
+        "last_login": user.last_login
+    }
     
-    # Create access token
+    # Update last login in a new transaction
+    try:
+        db.query(User).filter(User.id == user.id).update({
+            'last_login': datetime.utcnow()
+        })
+        db.commit()
+        user_data["last_login"] = datetime.utcnow()
+    except Exception as e:
+        print(f"[LOGIN_DEBUG] Failed to update last_login: {e}")
+        db.rollback()
+    
+    # Create access token using stored data to avoid ObjectDeletedError
     access_token = create_access_token(
-        user_id=user.id,
-        username=user.username,
-        role=user.role
+        user_id=user_data["id"],
+        username=user_data["username"],
+        role=user_data["role"]
     )
     
+    # Return user data as dict instead of SQLAlchemy object to avoid ObjectDeletedError
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "expires_in": int(jwt_manager.access_token_expires.total_seconds()),
-        "user": user
+        "user": user_data
     }
 
 
@@ -577,3 +684,35 @@ async def extend_current_session(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token d'authentification requis"
     )
+
+
+@router.api_route("/login_raw_debug", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
+async def login_raw_debug(request: Request):
+    """Endpoint de debug pour capturer toutes les requêtes vers login."""
+    try:
+        method = request.method
+        headers = dict(request.headers)
+        body = await request.body()
+        
+        print(f"[RAW_DEBUG] === REQUÊTE {method} VERS /login_raw_debug ===")
+        print(f"[RAW_DEBUG] Headers: {headers}")
+        print(f"[RAW_DEBUG] Body raw: {body}")
+        
+        if body:
+            try:
+                import json
+                parsed_body = json.loads(body.decode('utf-8'))
+                print(f"[RAW_DEBUG] Body parsed: {parsed_body}")
+                print(f"[RAW_DEBUG] Keys in body: {list(parsed_body.keys())}")
+            except Exception as parse_error:
+                print(f"[RAW_DEBUG] Impossible de parser le body JSON: {parse_error}")
+        
+        return {
+            "debug": "raw_intercepted",
+            "method": method,
+            "body_length": len(body) if body else 0,
+            "headers": headers
+        }
+    except Exception as e:
+        print(f"[RAW_DEBUG] Erreur dans le debug: {e}")
+        return {"debug": "error", "message": str(e)}

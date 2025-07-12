@@ -1,6 +1,6 @@
 """
-Système de Détection d'Intrusion (IDS) pour WakeDock
-Détecte les activités suspectes et les tentatives d'intrusion
+Intrusion Detection System (IDS) for WakeDock
+Detects suspicious activities and intrusion attempts
 """
 
 import asyncio
@@ -51,7 +51,7 @@ class AttackType(str, Enum):
 
 @dataclass
 class SecurityEvent:
-    """Événement de sécurité détecté"""
+    """Security event detected"""
     timestamp: datetime
     ip_address: str
     user_id: Optional[int]
@@ -81,7 +81,7 @@ class SecurityEvent:
 
 @dataclass
 class IPProfile:
-    """Profile comportemental d'une adresse IP"""
+    """Behavioral profile of an IP address"""
     ip_address: str
     first_seen: datetime
     last_seen: datetime
@@ -96,7 +96,7 @@ class IPProfile:
     is_whitelisted: bool = False
     
     def update_activity(self, endpoint: str, user_agent: str, success: bool = True):
-        """Met à jour l'activité de l'IP"""
+        """Updates the IP activity"""
         self.last_seen = datetime.now(timezone.utc)
         self.request_count += 1
         self.endpoints_accessed.add(endpoint)
@@ -109,10 +109,10 @@ class IPProfile:
                 self.failed_auth_count += 1
 
 class IntrusionDetectionSystem:
-    """Système de détection d'intrusion"""
+    """Intrusion detection system"""
     
     def __init__(self):
-        # Patterns de détection
+        # Detection patterns
         self.sql_injection_patterns = [
             r"union\s+select",
             r"drop\s+table",

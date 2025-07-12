@@ -105,9 +105,15 @@ class CacheManager:
         key = self.cache.get_cache_key("dashboard", user_id)
         
         async def fetch_overview():
-            # Agrégation de données coûteuse
-            services = await self.get_services_summary()
-            metrics = await self.get_system_metrics()
+            # Agrégation de données coûteuse - avoid recursion
+            try:
+                services = await self.get_services_summary()
+                metrics = await self.get_system_metrics()
+            except RecursionError:
+                # Fallback en cas de récursion
+                logger.warning("Recursion detected in dashboard overview, using fallback data")
+                services = {"total": 0, "running": 0, "stopped": 0, "error": 0}
+                metrics = {"cpu_usage": 0, "memory_usage": 0, "disk_usage": 0}
             
             return {
                 "services": services,
@@ -194,14 +200,14 @@ class CacheManager:
         for key in keys:
             pipe.exists(key)
         
-        exists_results = await pipe.execute()
+        exists_results = pipe.execute()
         pipe = self.redis.pipeline()
         
         # Pipeline pour récupération
         for key in keys:
             pipe.get(key)
         
-        cached_results = await pipe.execute()
+        cached_results = pipe.execute()
         
         results = {}
         fetch_tasks = []
@@ -326,7 +332,7 @@ class CacheManager:
         await self.cache.cleanup_background_tasks()
         
         # Stats Redis pour monitoring
-        redis_info = await self.redis.info('memory')
+        redis_info = self.redis.info('memory')
         used_memory = redis_info.get('used_memory', 0)
         
         if used_memory > 200 * 1024 * 1024:  # Si > 200MB
@@ -359,13 +365,13 @@ class CacheManager:
         """Health check du cache"""
         try:
             # Test Redis connectivité
-            await self.redis.ping()
+            self.redis.ping()
             
             # Test opération cache
             test_key = "health_check_test"
-            await self.redis.setex(test_key, 10, "test")
-            result = await self.redis.get(test_key)
-            await self.redis.delete(test_key)
+            self.redis.setex(test_key, 10, "test")
+            result = self.redis.get(test_key)
+            self.redis.delete(test_key)
             
             if result != b"test":
                 raise Exception("Cache read/write test failed")

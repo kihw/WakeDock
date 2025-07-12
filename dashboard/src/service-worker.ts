@@ -81,9 +81,30 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return;
   }
 
+  // Skip auth requests entirely - let them pass through without interception
+  if (url.pathname.includes('/auth/') || url.pathname.includes('/api/config')) {
+    console.log('[SW] Skipping auth/config request:', request.method, url.pathname);
+    // Don't intercept at all - let browser handle it natively
+    return;
+  }
+
   // For non-GET requests (POST, PUT, DELETE, etc.), let them pass through normally
   if (request.method !== 'GET') {
-    event.respondWith(fetch(request));
+    console.log('[SW] Handling non-GET request:', request.method, url.pathname);
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          console.log('[SW] Non-GET response:', response.status, url.pathname);
+          return response;
+        })
+        .catch((error: any) => {
+          console.error('[SW] Network error for non-GET request:', error);
+          return new Response(JSON.stringify({ error: 'Network Error', message: error?.message || 'Unknown error' }), {
+            status: 503,
+            headers: { 'Content-Type': 'application/json' }
+          });
+        })
+    );
     return;
   }
 
@@ -117,6 +138,8 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 async function handleApiRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
 
+  console.log('[SW] Handling API request:', request.method, url.pathname);
+
   // GET requests to certain endpoints can be cached
   if (
     request.method === 'GET' &&
@@ -126,6 +149,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
   ) {
     const cachedResponse = await caches.match(request);
     if (cachedResponse) {
+      console.log('[SW] Serving from cache:', url.pathname);
       // Update cache in background
       fetch(request)
         .then((response) => {
@@ -143,6 +167,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
 
   // Network first for all API requests
   try {
+    console.log('[SW] Fetching from network:', url.pathname);
     const response = await fetch(request);
 
     // Cache successful GET responses
@@ -151,17 +176,24 @@ async function handleApiRequest(request: Request): Promise<Response> {
       cache.put(request, response.clone());
     }
 
+    console.log('[SW] Network response:', response.status, url.pathname);
     return response;
   } catch (error) {
+    console.error('[SW] Network error for API request:', error, url.pathname);
+
     // Fallback to cache for GET requests
     if (request.method === 'GET') {
       const cachedResponse = await caches.match(request);
       if (cachedResponse) {
+        console.log('[SW] Serving from cache fallback:', url.pathname);
         return cachedResponse;
       }
     }
 
-    return new Response('Network Error', { status: 503 });
+    return new Response(JSON.stringify({ error: 'Network Error', message: (error as Error)?.message || 'Unknown error' }), {
+      status: 503,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 }
 

@@ -12,9 +12,9 @@ from wakedock.performance.integration import initialize_performance, get_perform
 from wakedock.database.database import init_database
 from wakedock.infrastructure.cache.service import init_cache_service
 from wakedock.core.docker_events import initialize_docker_events
-from wakedock.core.system_metrics import initialize_system_metrics
+from wakedock.core.system_metrics import initialize_system_metrics, SystemMetricsHandler
 from wakedock.core.log_streaming import initialize_log_streaming
-from wakedock.core.notifications import initialize_notifications
+from wakedock.core.notifications import initialize_notifications, NotificationManager
 from wakedock.infrastructure.caddy import caddy_manager
 from wakedock.monitoring.prometheus import init_prometheus_exporter
 from wakedock.core.monitoring import MonitoringService
@@ -58,15 +58,26 @@ async def init_performance_services() -> Optional[Any]:
 
 
 def init_database_service() -> bool:
-    """Initialize database service."""
-    try:
-        init_database()
-        logger.info("Database initialized successfully")
-        return True
-    except Exception as e:
-        logger.warning(f"Database initialization failed: {e}")
-        logger.warning("Application will continue but database features may not work properly")
-        return False
+    """Initialize database service with retry logic."""
+    import time
+    max_retries = 5
+    retry_delay = 2  # Start with 2 seconds
+    
+    for attempt in range(max_retries):
+        try:
+            init_database()
+            logger.info("Database initialized successfully")
+            return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Database initialization attempt {attempt + 1} failed: {e}")
+                logger.info(f"Retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+            else:
+                logger.warning(f"Database initialization failed after {max_retries} attempts: {e}")
+                logger.warning("Application will continue but database features may not work properly")
+                return False
 
 
 async def init_cache_services() -> bool:
@@ -123,16 +134,29 @@ async def init_core_services() -> Tuple[bool, bool, bool, bool]:
     logs_success = False
     notifications_success = False
     
+    # Initialize Docker client for services that need it
+    docker_client = None
     try:
-        await initialize_docker_events()
-        logger.info("Docker events service initialized successfully")
-        docker_events_success = True
+        import docker
+        docker_client = docker.from_env()
+    except Exception as e:
+        logger.warning(f"Failed to initialize Docker client: {e}")
+    
+    try:
+        if docker_client:
+            initialize_docker_events(docker_client)
+            logger.info("Docker events service initialized successfully")
+            docker_events_success = True
+        else:
+            logger.warning("Docker client not available for events initialization")
     except Exception as e:
         logger.warning(f"Docker events initialization failed: {e}")
         logger.warning("Docker event monitoring will not be available")
     
     try:
-        await initialize_system_metrics()
+        # Initialize system metrics handler
+        handler = initialize_system_metrics()
+        await handler.start_monitoring()
         logger.info("System metrics service initialized successfully")
         metrics_success = True
     except Exception as e:
@@ -140,15 +164,19 @@ async def init_core_services() -> Tuple[bool, bool, bool, bool]:
         logger.warning("System metrics collection will not be available")
     
     try:
-        await initialize_log_streaming()
-        logger.info("Log streaming service initialized successfully")
-        logs_success = True
+        if docker_client:
+            initialize_log_streaming(docker_client)
+            logger.info("Log streaming service initialized successfully")
+            logs_success = True
+        else:
+            logger.warning("Docker client not available for log streaming initialization")
     except Exception as e:
         logger.warning(f"Log streaming initialization failed: {e}")
         logger.warning("Log streaming will not be available")
     
     try:
-        await initialize_notifications()
+        # Initialize notification manager
+        manager = initialize_notifications()
         logger.info("Notification service initialized successfully")
         notifications_success = True
     except Exception as e:

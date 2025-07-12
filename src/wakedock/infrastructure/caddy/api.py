@@ -31,6 +31,22 @@ class CaddyApiClient:
         self.timeout = httpx.Timeout(10.0, connect=5.0)
         self.retry_attempts = 3
         self.retry_delay = 1.0
+        self._initialized = False
+    
+    async def initialize(self):
+        """Initialize the API client"""
+        if self._initialized:
+            return
+        
+        try:
+            # Test connectivity to Caddy admin API
+            await self.is_healthy()
+            self._initialized = True
+            logger.info(f"Caddy API client initialized - connected to {self.base_url}")
+        except Exception as e:
+            logger.warning(f"Caddy API client initialization failed: {e}")
+            # Don't raise, allow graceful degradation
+            self._initialized = False
     
     async def _make_request(
         self, 

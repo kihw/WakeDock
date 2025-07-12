@@ -101,11 +101,11 @@ loggers:
   
   sqlalchemy:
     level: WARNING
-    handlers: [console, file]
+    handlers: [file]
     propagate: false
   
   sqlalchemy.engine:
-    level: INFO
+    level: WARNING
     handlers: [file]
     propagate: false
   

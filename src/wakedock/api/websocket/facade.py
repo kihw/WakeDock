@@ -74,6 +74,15 @@ async def websocket_endpoint(websocket: WebSocket):
             try:
                 data = await websocket.receive_text()
                 await websocket_manager.handle_message(connection_id, data)
+            except WebSocketDisconnect as e:
+                # Normal disconnection - don't log as error
+                if e.code == 1001:  # Going away (browser tab closing)
+                    logger.info(f"WebSocket client disconnected normally (going away): {connection_id}")
+                elif e.code == 1000:  # Normal closure
+                    logger.info(f"WebSocket client disconnected normally: {connection_id}")
+                else:
+                    logger.warning(f"WebSocket disconnected with code {e.code}: {connection_id}")
+                break
             except Exception as e:
                 logger.error(f"Error handling WebSocket message: {e}")
                 break

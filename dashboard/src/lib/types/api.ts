@@ -47,8 +47,6 @@ export interface PaginatedResponse<T> {
 export interface LoginRequest {
   username: string;
   password: string;
-  rememberMe?: boolean;
-  twoFactorCode?: string;
 }
 
 // Add type alias for backward compatibility

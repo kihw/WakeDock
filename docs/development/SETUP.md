@@ -263,7 +263,7 @@ docker build -t wakedock-dashboard .
 Create `docker-compose.override.yml` for local customizations:
 
 ```yaml
-version: '3.8'
+ 
 services:
   wakedock:
     environment:

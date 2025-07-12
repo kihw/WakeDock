@@ -36,16 +36,16 @@ export interface EnvironmentConfig {
 
 // Default configuration
 const defaultConfig: EnvironmentConfig = {
-  // API Configuration - use relative URLs for internal routing
-  apiUrl: '/api/v1',  // Always use relative URL for internal routing
+  // API Configuration - use relative URLs for reverse proxy
+  apiUrl: '/api/v1',  // Use relative URL for reverse proxy
   apiTimeout: 30000, // 30 seconds
 
   // Authentication
   tokenKey: 'wakedock_token',
   sessionTimeout: 24 * 60 * 60 * 1000, // 24 hours
 
-  // WebSocket - use relative URLs for internal routing
-  wsUrl: '/ws',  // Always use relative WebSocket URL for internal routing
+  // WebSocket - use relative URLs for reverse proxy
+  wsUrl: '/ws',  // Use relative URL for reverse proxy
   wsReconnectInterval: 5000, // 5 seconds
   wsMaxReconnectAttempts: 10,
 
@@ -101,7 +101,17 @@ async function loadRuntimeConfig(): Promise<EnvironmentConfig | null> {
   if (browser) {
     try {
       console.log('🔄 Fetching runtime configuration from /api/config...');
-      const response = await fetch('/api/config');
+      // Use native fetch directly to avoid circular dependency with API client
+      const response = await fetch('/api/config', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin', // Include cookies if needed
+        cache: 'no-cache' // Always get fresh config
+      });
+      
       if (response.ok) {
         const runtimeConfig = await response.json();
         console.log('✅ Runtime config received:', runtimeConfig);
@@ -126,12 +136,12 @@ async function loadRuntimeConfig(): Promise<EnvironmentConfig | null> {
  * Load configuration from environment variables (DEPRECATED - use loadRuntimeConfig instead)
  */
 function loadConfig(): EnvironmentConfig {
-  // Force relative URLs - ignore build-time environment variables
+  // Use relative URLs for reverse proxy setup
   return {
     ...defaultConfig,
-    // Force relative URLs for internal routing
-    apiUrl: defaultConfig.apiUrl,
-    wsUrl: defaultConfig.wsUrl,
+    // Use relative URLs for internal routing
+    apiUrl: '/api/v1',
+    wsUrl: '/ws',
 
     // Keep non-URL configuration from environment
     isDevelopment: getBooleanEnvVar('NODE_ENV') !== false

@@ -4,7 +4,7 @@
   import type { CreateUserRequest } from '$lib/types/user';
   import { auth } from '$lib/stores/auth';
   import { api } from '$lib/api';
-  import Button from '$lib/components/forms/Button.svelte';
+  import Button from '$lib/components/ui/atoms/Button.svelte';
   import { toast } from '$lib/stores/toastStore';
 
   let formData: CreateUserRequest = {

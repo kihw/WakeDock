@@ -5,7 +5,7 @@
   import { userStore } from '$lib/stores/userStore';
   import { auth } from '$lib/stores/auth';
   import { api } from '$lib/api';
-  import Button from '$lib/components/forms/Button.svelte';
+  import Button from '$lib/components/ui/atoms/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/modals/Modal.svelte';
   import ConfirmModal from '$lib/components/modals/ConfirmModal.svelte';

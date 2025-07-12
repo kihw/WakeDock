@@ -6,7 +6,7 @@ Handles logging configuration, Docker validation, and app creation.
 import logging
 import logging.config
 from pathlib import Path
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 
 import docker
 

@@ -3,7 +3,7 @@
   import { onMount } from 'svelte';
   import { push } from 'svelte-spa-router';
   import { auth } from '$lib/stores/auth';
-  import Button from '$lib/components/Button.svelte';
+  import Button from '$lib/components/ui/atoms/Button.svelte';
   import Input from '$lib/components/forms/Input.svelte';
   import { generateCSRFToken } from '$lib/utils/validation';
 

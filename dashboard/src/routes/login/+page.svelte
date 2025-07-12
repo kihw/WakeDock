@@ -13,8 +13,6 @@
   // Login state
   let loading = false;
   let error = '';
-  let requiresTwoFactor = false;
-  let showTwoFactorInput = false;
   let csrfToken = '';
   let attemptCount = 0;
   let rateLimited = false;
@@ -95,15 +93,6 @@
         }
         break;
 
-      case 'twoFactorCode':
-        if (requiresTwoFactor) {
-          if (!value) {
-            errors.push('Two-factor authentication code is required');
-          } else if (!/^\d{6}$/.test(value)) {
-            errors.push('Please enter a valid 6-digit code');
-          }
-        }
-        break;
     }
 
     return errors;
@@ -144,7 +133,7 @@
 
   // Handle form submission
   async function handleSubmit(event) {
-    const { usernameOrEmail, password, twoFactorCode, rememberMe } = event.detail;
+    const { usernameOrEmail, password } = event.detail;
 
     // Reset state
     error = '';
@@ -153,9 +142,8 @@
     // Validate fields
     const usernameErrors = validateField('usernameOrEmail', usernameOrEmail);
     const passwordErrors = validateField('password', password);
-    const twoFactorErrors = validateField('twoFactorCode', twoFactorCode || '');
 
-    if (usernameErrors.length > 0 || passwordErrors.length > 0 || twoFactorErrors.length > 0) {
+    if (usernameErrors.length > 0 || passwordErrors.length > 0) {
       error = 'Please correct the errors above';
       loading = false;
       return;
@@ -178,31 +166,12 @@
     try {
       attemptCount++;
       
-      const result = await auth.login(usernameOrEmail, password, {
-        twoFactorCode,
-        rememberMe,
-        fingerprint: await generateFingerprint(),
-      });
+      const result = await auth.login(usernameOrEmail, password);
 
-      if (result.requiresTwoFactor && !requiresTwoFactor) {
-        requiresTwoFactor = true;
-        showTwoFactorInput = true;
-        
-        // Clear sensitive data and focus on 2FA
-        if (loginFormRef) {
-          loginFormRef.clearSensitiveData();
-          loginFormRef.focusTwoFactor();
-        }
-        
-        secureAccessibility.form.announceChange(
-          'Two-factor authentication required. Please enter your 6-digit code.'
-        );
-      } else {
-        // Success - redirect
-        secureAccessibility.form.announceChange('Login successful. Redirecting...');
-        const redirectTo = $page.url.searchParams.get('redirect') || '/';
-        goto(redirectTo);
-      }
+      // Success - redirect
+      secureAccessibility.form.announceChange('Login successful. Redirecting...');
+      const redirectTo = $page.url.searchParams.get('redirect') || '/';
+      goto(redirectTo);
 
     } catch (err) {
       console.error('Login error:', err);
@@ -246,8 +215,6 @@
   bind:this={loginFormRef}
   {loading}
   {error}
-  {requiresTwoFactor}
-  {showTwoFactorInput}
   {csrfToken}
   {rateLimited}
   {attemptCount}

@@ -1,0 +1,72 @@
+{
+    admin 0.0.0.0:2019
+    email admin@mtool.ovh
+    # Disable automatic HTTPS for development
+    auto_https off
+}
+
+# Development: HTTP only with IP access
+:80 {
+    # Dashboard API config endpoint (must be before /api/v1/*)
+    reverse_proxy /api/config wakedock-dashboard:3000
+    
+    # WakeDock API routes
+    reverse_proxy /api/v1/* wakedock-core:8000
+    
+    # WebSocket support
+    reverse_proxy /ws wakedock-core:8000
+    
+    # Dashboard (default route)
+    reverse_proxy /* wakedock-dashboard:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+    }
+    
+    # Logging
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Production: HTTPS with domain (will be overridden in production config)
+admin.mtool.ovh {
+    # Dashboard API config endpoint (must be before /api/v1/*)
+    reverse_proxy /api/config wakedock-dashboard:3000
+    
+    # WakeDock API routes
+    reverse_proxy /api/v1/* wakedock-core:8000
+    
+    # WebSocket support
+    reverse_proxy /ws wakedock-core:8000
+    
+    # Dashboard (default route)
+    reverse_proxy /* wakedock-dashboard:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Security headers (enhanced for HTTPS)
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy strict-origin-when-cross-origin
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' http://localhost:* https://localhost:* http://wakedock-core:* https://wakedock-core:* http://wakedock-core:* https://wakedock-core:* ws://localhost:* wss://localhost:* ws://wakedock-core:* wss://wakedock-core:* ws://wakedock-core:* wss://wakedock-core:*; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+    
+    # Logging
+    log {
+        output file /var/log/caddy/admin.mtool.ovh.log
+        format json
+    }
+}

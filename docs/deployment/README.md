@@ -207,7 +207,7 @@ docker-compose restart caddy
 
 ```yaml
 # docker-compose.ha.yml
-version: '3.8'
+ 
 
 services:
   # Multiple WakeDock instances
@@ -278,7 +278,7 @@ docker swarm join --token <token> <manager-ip>:2377
 
 ```yaml
 # docker-stack.yml
-version: '3.8'
+ 
 
 services:
   wakedock:
@@ -419,7 +419,7 @@ spec:
 
 ```yaml
 # monitoring/docker-compose.yml
-version: '3.8'
+ 
 
 services:
   prometheus:
@@ -571,7 +571,7 @@ sudo ufw enable
 
 ```yaml
 # docker-compose.security.yml
-version: '3.8'
+ 
 
 services:
   wakedock:

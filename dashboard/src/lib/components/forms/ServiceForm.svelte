@@ -5,7 +5,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { writable, get } from 'svelte/store';
-  import Button from './Button.svelte';
+  import Button from '../ui/atoms/Button.svelte';
   import Input from './Input.svelte';
   import Textarea from './Textarea.svelte';
   import Select from './Select.svelte';

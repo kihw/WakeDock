@@ -6,7 +6,7 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { writable, get } from 'svelte/store';
   import Modal from './Modal.svelte';
-  import Button from '../forms/Button.svelte';
+  import Button from '../ui/atoms/Button.svelte';
   import Input from '../forms/Input.svelte';
   import Select from '../forms/Select.svelte';
   import Icon from '../Icon.svelte';

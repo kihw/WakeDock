@@ -34,43 +34,48 @@ class CorrelationFilter(logging.Filter):
         return True
 
 
-class StructuredFormatter(jsonlogger.JsonFormatter):
-    """Custom JSON formatter with additional fields."""
+class SensitiveDataFilter(logging.Filter):
+    """Filter to reduce sensitive data and repetitive logs."""
     
-    def add_fields(self, log_record: Dict[str, Any], record: logging.LogRecord, message_dict: Dict[str, Any]) -> None:
-        super().add_fields(log_record, record, message_dict)
+    def __init__(self, name=''):
+        super().__init__(name)
+        self.login_cache = {}  # Cache pour éviter les logs de login répétitifs
+        self.cache_timeout = 300  # 5 minutes
         
-        # Add timestamp in ISO format
-        log_record['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
         
-        # Add standard fields
-        log_record['level'] = record.levelname
-        log_record['logger'] = record.name
-        log_record['service'] = getattr(record, 'service', 'wakedock')
-        log_record['version'] = getattr(record, 'version', 'unknown')
+        # Filtrer les logs SQLAlchemy répétitifs
+        if 'sqlalchemy' in record.name.lower():
+            # Bloquer les logs de requêtes répétitives
+            if any(phrase in message.lower() for phrase in [
+                'begin (implicit)',
+                'commit',
+                'select users.id as users_id',
+                'where users.id = %(pk_1)s',
+                'cached since'
+            ]):
+                return False
         
-        # Add correlation ID if present
-        if hasattr(record, 'correlation_id') and record.correlation_id:
-            log_record['correlation_id'] = record.correlation_id
+        # Filtrer les logs de login répétitifs
+        if any(phrase in message.lower() for phrase in [
+            'login', 'authentication', 'auth'
+        ]):
+            current_time = time.time()
+            
+            # Créer une clé unique pour le type de log
+            log_key = f"{record.name}:{message[:50]}"
+            
+            # Vérifier si on a déjà loggé ce message récemment
+            if log_key in self.login_cache:
+                last_time = self.login_cache[log_key]
+                if current_time - last_time < self.cache_timeout:
+                    return False  # Skip duplicate login logs
+            
+            # Store this login attempt
+            self.login_cache[log_key] = current_time
         
-        # Add file information
-        log_record['file'] = {
-            'name': record.filename,
-            'line': record.lineno,
-            'function': record.funcName
-        }
-        
-        # Add process information
-        log_record['process'] = {
-            'id': os.getpid(),
-            'name': record.processName,
-            'thread': record.threadName
-        }
-        
-        # Add custom fields from extra
-        for key, value in message_dict.items():
-            if key not in log_record:
-                log_record[key] = value
+        return True
 
 
 class ColoredConsoleFormatter(logging.Formatter):
@@ -137,7 +142,7 @@ def setup_logging(
                 'datefmt': '%Y-%m-%d %H:%M:%S'
             },
             'json': {
-                '()': StructuredFormatter,
+                '()': jsonlogger.JsonFormatter,
                 'format': '%(asctime)s %(name)s %(levelname)s %(message)s'
             },
             'plain': {

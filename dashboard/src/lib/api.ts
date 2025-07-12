@@ -10,7 +10,7 @@ import type {
   LoginRequest,
   LoginResponse,
 } from './types/user';
-import { config, updateConfigFromRuntime } from './config/environment.js';
+import { config } from './config/environment.js';
 import { API_ENDPOINTS, getApiUrl } from './config/api.js';
 import { csrf, rateLimit, securityValidate } from './utils/validation.js';
 import { memoryUtils } from './utils/storage.js';
@@ -243,14 +243,33 @@ class ApiClient {
 
     console.log('🚀 Initializing ApiClient with runtime configuration...');
 
-    // Update configuration from runtime API if available
-    await updateConfigFromRuntime();
+    // Load config directly without causing circular dependency
+    try {
+      // Use window.fetch directly to avoid using this API client for config
+      const configResponse = await window.fetch('/api/config', {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        },
+        credentials: 'same-origin',
+        cache: 'no-cache'
+      });
 
-    // Update baseUrl with new configuration
-    const newBaseUrl = config.apiUrl.replace(/\/$/, '');
-    if (newBaseUrl !== this.baseUrl) {
-      console.log('🔄 Updating ApiClient baseUrl from', this.baseUrl, 'to', newBaseUrl);
-      this.baseUrl = newBaseUrl;
+      if (configResponse.ok) {
+        const runtimeConfig = await configResponse.json();
+        console.log('✅ Runtime config loaded directly:', runtimeConfig);
+        // Update baseUrl directly from config
+        const newBaseUrl = (runtimeConfig.apiUrl || '/api/v1').replace(/\/$/, '');
+        if (newBaseUrl !== this.baseUrl) {
+          console.log('🔄 Updating ApiClient baseUrl from', this.baseUrl, 'to', newBaseUrl);
+          this.baseUrl = newBaseUrl;
+        }
+      } else {
+        console.warn('⚠️ Runtime config not available, using default baseUrl:', this.baseUrl);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to load runtime config, using defaults:', error);
     }
 
     this._initialized = true;
@@ -322,6 +341,13 @@ class ApiClient {
     options: SecureRequestOptions = {},
     retryAttempt: number = 0
   ): Promise<T> {
+    console.error('🔥 [REQUEST_START] Starting API request:', {
+      path,
+      method: options.method || 'GET',
+      retryAttempt,
+      timestamp: new Date().toISOString()
+    });
+
     // Ensure API client is initialized before making requests
     await this.ensureInitialized();
 
@@ -411,7 +437,7 @@ class ApiClient {
 
     try {
       // DEBUG: Log request start only in development mode
-      if (config.enableDebug || process.env.NODE_ENV === 'development') {
+      if (config.enableDebug) {
         console.log('🚀 API Request START:', {
           url,
           method: options.method || 'GET',
@@ -422,21 +448,30 @@ class ApiClient {
       }
 
       const requestStart = Date.now();
-      const response = await fetch(url, {
+
+      console.error('🔄 About to make fetch request:', {
+        url,
+        headers,
+        body: options.body,
+        method: options.method
+      });
+
+      const response = await window.fetch(url, {
         ...options,
         headers,
         signal: combinedSignal,
       });
 
       const requestDuration = Date.now() - requestStart;
-      if (config.enableDebug || process.env.NODE_ENV === 'development') {
-        console.log('✅ API Response received:', {
-          url,
-          status: response.status,
-          duration: requestDuration + 'ms',
-          timestamp: new Date().toISOString()
-        });
-      }
+      console.error('✅ API Response received:', {
+        url,
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries()),
+        duration: requestDuration + 'ms',
+        timestamp: new Date().toISOString()
+      });
 
       // Clear timeout since request completed
       if (!timeoutController.signal.aborted) {
@@ -481,14 +516,42 @@ class ApiClient {
 
       // Handle empty responses
       const contentType = response.headers.get('content-type');
+      console.error('📄 Processing response:', {
+        contentType,
+        hasContent: !!contentType,
+        status: response.status,
+        statusText: response.statusText
+      });
+
       if (contentType && contentType.includes('application/json')) {
-        const responseData = await response.json();
+        console.error('📦 Parsing JSON response...');
+
+        let responseData;
+        try {
+          responseData = await response.json();
+          console.error('✅ JSON parsed successfully:', responseData);
+        } catch (parseError: any) {
+          console.error('❌ JSON parsing failed:', parseError);
+          // If JSON parsing fails, try to get the raw text for debugging
+          try {
+            const responseText = await response.text();
+            console.error('📄 Raw response text:', responseText);
+          } catch (textError) {
+            console.error('❌ Failed to get response text:', textError);
+          }
+          throw new Error(`Failed to parse JSON response: ${parseError?.message || 'Unknown parsing error'}`);
+        }
 
         // Basic response validation
         if (typeof responseData === 'object' && responseData !== null) {
-          // Remove any potentially dangerous properties
-          delete responseData.__proto__;
-          delete responseData.constructor;
+          try {
+            // Remove any potentially dangerous properties
+            delete responseData.__proto__;
+            delete responseData.constructor;
+            console.error('✅ Response validation passed');
+          } catch (validationError) {
+            console.error('❌ Response validation failed:', validationError);
+          }
         }
 
         // Record success in circuit breaker
@@ -498,8 +561,11 @@ class ApiClient {
         const requestDuration = Date.now() - requestStart;
         apiMonitor.recordSuccess(path, requestDuration);
 
+        console.error('🎉 Returning response data:', responseData);
         return responseData;
       } else {
+        console.error('📄 Non-JSON response, returning empty object');
+
         // Record success in circuit breaker
         this.circuitBreaker.recordSuccess(path);
 
@@ -517,7 +583,7 @@ class ApiClient {
       apiMonitor.recordError(path, error);
 
       // Add detailed error logging
-      console.error('API request failed:', {
+      console.error('❌ API request failed:', {
         url,
         error: error,
         errorName: error.name,
@@ -525,7 +591,9 @@ class ApiClient {
         errorStack: error.stack,
         timeout: endpointTimeout,
         retryAttempt,
-        circuitBreakerFailures: this.circuitBreaker.failures.get(path) || 0
+        circuitBreakerFailures: this.circuitBreaker.failures.get(path) || 0,
+        errorType: typeof error,
+        errorConstructor: error.constructor?.name
       });
 
       // Handle timeout specifically
@@ -546,6 +614,12 @@ class ApiClient {
 
       // Handle network errors
       if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('🌐 NETWORK ERROR DETECTED:', {
+          url,
+          originalError: error.message,
+          errorName: error.name,
+          errorStack: error.stack
+        });
         const networkError: ApiError = {
           message: 'Network error - please check your connection',
           code: 'NETWORK_ERROR',
@@ -607,25 +681,38 @@ class ApiClient {
   get auth() {
     return {
       login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-        const formData = new URLSearchParams();
-        formData.append('username', credentials.username);
-        formData.append('password', credentials.password);
+        // Debug: log what API client receives
+        console.error('🚀 [LOGIN_START] Starting login process...');
+        console.error('🚀 [LOGIN_DEBUG] Received credentials:', credentials);
+        console.error('🚀 [LOGIN_DEBUG] Credentials JSON:', JSON.stringify(credentials));
+        console.error('🚀 [LOGIN_DEBUG] Credentials keys:', Object.keys(credentials));
+        console.error('🚀 [LOGIN_DEBUG] API base URL:', this.baseUrl);
+        console.error('🚀 [LOGIN_DEBUG] Login endpoint:', API_ENDPOINTS.AUTH.LOGIN);
+        console.error('🚀 [LOGIN_DEBUG] Full URL will be:', `${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`);
 
-        const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: formData,
-        });
+        try {
+          console.error('🚀 [LOGIN_DEBUG] About to call this.request...');
+          const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+            method: 'POST',
+            body: JSON.stringify(credentials),
+          });
+          console.error('🚀 [LOGIN_SUCCESS] Login request completed successfully:', response);
 
-        this.token = response.access_token;
+          this.token = response.access_token;
 
-        if (typeof window !== 'undefined') {
-          localStorage.setItem(config.tokenKey, this.token);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(config.tokenKey, this.token);
+          }
+
+          return response;
+        } catch (error: any) {
+          console.error('🚨 [LOGIN_ERROR] Login request failed:', error);
+          console.error('🚨 [LOGIN_ERROR] Error type:', typeof error);
+          console.error('🚨 [LOGIN_ERROR] Error name:', error?.name);
+          console.error('🚨 [LOGIN_ERROR] Error message:', error?.message);
+          console.error('🚨 [LOGIN_ERROR] Error stack:', error?.stack);
+          throw error;
         }
-
-        return response;
       },
 
       logout: async (): Promise<void> => {

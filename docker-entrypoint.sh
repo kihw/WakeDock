@@ -25,7 +25,16 @@ if [ -S /var/run/docker.sock ]; then
     # Add wakedock user to docker group
     DOCKER_GROUP_NAME=$(getent group $DOCKER_GID | cut -d: -f1)
     echo "Adding wakedock user to group: $DOCKER_GROUP_NAME"
-    usermod -aG $DOCKER_GROUP_NAME wakedock
+    
+    # Use a more robust approach to avoid permission conflicts
+    if usermod -aG $DOCKER_GROUP_NAME wakedock 2>/dev/null; then
+        echo "✅ User added to $DOCKER_GROUP_NAME group successfully"
+    else
+        echo "⚠️ Failed to add user to group, trying alternative approach..."
+        # Alternative: run the application with appropriate group permissions
+        export DOCKER_GROUP_ID=$DOCKER_GID
+        echo "Using group ID $DOCKER_GROUP_ID for Docker socket access"
+    fi
     
     echo "✅ Docker socket permissions configured"
 else
@@ -44,4 +53,5 @@ fi
 echo "Switching to wakedock user and starting application..."
 
 # Switch to wakedock user and execute the main command
+# Just use the wakedock user for now, permissions will be handled by the socket
 exec gosu wakedock "$@"

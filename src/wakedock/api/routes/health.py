@@ -25,23 +25,32 @@ class HealthResponse(BaseModel):
 
 @router.get("/health", response_model=HealthResponse)
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - optimized for speed"""
     settings = get_settings()
     
-    # System metrics - optimized for health check speed
-    system_info = {
-        "cpu_percent": psutil.cpu_percent(interval=None),  # Non-blocking CPU check
-        "memory": {
-            "total": psutil.virtual_memory().total,
-            "available": psutil.virtual_memory().available,
-            "percent": psutil.virtual_memory().percent
-        },
-        "disk": {
-            "total": psutil.disk_usage('/').total,
-            "free": psutil.disk_usage('/').free,
-            "percent": psutil.disk_usage('/').percent
+    # Minimal system metrics for fast health check
+    try:
+        memory = psutil.virtual_memory()
+        system_info = {
+            "cpu_percent": 0,  # Skip CPU check for speed
+            "memory": {
+                "total": memory.total,
+                "available": memory.available,
+                "percent": memory.percent
+            },
+            "disk": {
+                "total": 0,  # Skip disk check for speed
+                "free": 0,
+                "percent": 0
+            }
         }
-    }
+    except Exception:
+        # Fallback if psutil fails
+        system_info = {
+            "cpu_percent": 0,
+            "memory": {"total": 0, "available": 0, "percent": 0},
+            "disk": {"total": 0, "free": 0, "percent": 0}
+        }
     
     return HealthResponse(
         status="healthy",

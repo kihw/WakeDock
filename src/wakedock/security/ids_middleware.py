@@ -77,7 +77,7 @@ class IntrusionDetectionMiddleware(BaseHTTPMiddleware):
                 status_code=status.HTTP_403_FORBIDDEN,
                 content={
                     "error": "access_denied",
-                    "message": "Votre adresse IP a été bloquée pour activité suspecte.",
+                    "message": "Your IP address has been blocked for suspicious activity.",
                     "ip": ip_address
                 }
             )
@@ -112,7 +112,7 @@ class IntrusionDetectionMiddleware(BaseHTTPMiddleware):
                     status_code=status.HTTP_403_FORBIDDEN,
                     content={
                         "error": "security_threat_detected",
-                        "message": "Activité suspecte détectée. Accès refusé.",
+                        "message": "Suspicious activity detected. Access denied.",
                         "threat_type": blocked_event.attack_type.value,
                         "threat_level": blocked_event.threat_level.value,
                         "ip": ip_address

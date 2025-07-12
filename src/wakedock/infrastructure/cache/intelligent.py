@@ -164,17 +164,17 @@ class IntelligentCache:
         
         if pattern:
             # Invalidation par pattern
-            keys = await self.redis.keys(pattern)
+            keys = self.redis.keys(pattern)
             if keys:
-                await self.redis.delete(*keys)
+                self.redis.delete(*keys)
                 logger.info(f"Invalidated {len(keys)} keys matching pattern: {pattern}")
         
         elif cache_type:
             # Invalidation par type
             prefix = f"{cache_type}:*"
-            keys = await self.redis.keys(prefix)
+            keys = self.redis.keys(prefix)
             if keys:
-                await self.redis.delete(*keys)
+                self.redis.delete(*keys)
                 logger.info(f"Invalidated {len(keys)} keys for cache type: {cache_type}")
     
     async def _check_refresh_ahead(
@@ -185,7 +185,7 @@ class IntelligentCache:
     ):
         """Vérification refresh proactif"""
         
-        ttl_remaining = await self.redis.ttl(key)
+        ttl_remaining = self.redis.ttl(key)
         if ttl_remaining > 0:
             ttl_ratio = ttl_remaining / config.ttl
             
@@ -224,7 +224,7 @@ class IntelligentCache:
         lock_key = f"lock:{key}"
         
         # Tenter acquisition lock
-        acquired = await self.redis.set(lock_key, "1", nx=True, ex=30)
+        acquired = self.redis.set(lock_key, "1", nx=True, ex=30)
         
         if acquired:
             try:
@@ -239,7 +239,7 @@ class IntelligentCache:
                 return data
                 
             finally:
-                await self.redis.delete(lock_key)
+                self.redis.delete(lock_key)
         else:
             # Attendre que l'autre thread termine
             for _ in range(50):  # Max 5 secondes
@@ -254,7 +254,7 @@ class IntelligentCache:
     async def _get_from_cache(self, key: str, config: CacheConfig) -> Any:
         """Récupération optimisée du cache"""
         
-        raw_data = await self.redis.get(key)
+        raw_data = self.redis.get(key)
         if not raw_data:
             return None
         
@@ -274,7 +274,7 @@ class IntelligentCache:
         except Exception as e:
             logger.warning(f"Failed to deserialize cached data for {key}: {e}")
             # Invalider cache corrompu
-            await self.redis.delete(key)
+            self.redis.delete(key)
             return None
     
     async def _set_to_cache(self, key: str, data: Any, config: CacheConfig):
@@ -306,7 +306,7 @@ class IntelligentCache:
                 return
             
             # Écriture avec TTL
-            await self.redis.setex(key, config.ttl, serialized)
+            self.redis.setex(key, config.ttl, serialized)
             
         except Exception as e:
             logger.error(f"Failed to cache data for {key}: {e}")
@@ -318,7 +318,7 @@ class IntelligentCache:
         hit_rate = (self._stats['hits'] / total_requests * 100) if total_requests > 0 else 0
         
         # Statistiques Redis
-        redis_info = await self.redis.info('memory')
+        redis_info = self.redis.info('memory')
         
         return {
             'hit_rate': round(hit_rate, 2),

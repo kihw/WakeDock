@@ -17,9 +17,9 @@ except ImportError:
     Redis = None
 
 from .manager import CacheManager
-from .monitoring import CacheMonitor
+from .monitoring import CacheMonitor  
+from .intelligent import IntelligentCache
 from wakedock.config import get_settings
-from wakedock.performance.cache.intelligent import IntelligentCache
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class CacheService:
         self.cache_manager: Optional[CacheManager] = None
         self.cache_monitor: Optional[CacheMonitor] = None
         self._initialized = False
+        self._initializing = False  # Guard against recursion
         self._startup_task = None
     
     async def initialize(self):
@@ -39,6 +40,11 @@ class CacheService:
         if self._initialized:
             return
         
+        if self._initializing:
+            logger.warning("Cache initialization already in progress, preventing recursion")
+            return
+        
+        self._initializing = True
         try:
             settings = get_settings()
             
@@ -93,8 +99,9 @@ class CacheService:
             self.cache_monitor = CacheMonitor(self.cache_manager)
             await self.cache_monitor.start_monitoring(collection_interval=60)
             
-            # Préchauffage cache en arrière-plan
-            self._startup_task = asyncio.create_task(self._startup_cache_warmup())
+            # Désactiver le préchauffage automatique pour éviter la récursion
+            # self._startup_task = asyncio.create_task(self._startup_cache_warmup())
+            logger.info("Cache warmup disabled to prevent recursion issues")
             
             self._initialized = True
             logger.info("Cache service initialized successfully")
@@ -102,12 +109,19 @@ class CacheService:
         except Exception as e:
             logger.error(f"Cache service initialization failed: {e}")
             raise
+        finally:
+            self._initializing = False
     
     async def _startup_cache_warmup(self):
         """Préchauffage du cache au démarrage"""
         try:
             # Attendre un peu que l'app soit prête
             await asyncio.sleep(5)
+            
+            # Vérifier que le cache manager est disponible avant warmup
+            if self.cache_manager is None:
+                logger.warning("Cache manager not available for warmup")
+                return
             
             # Préchauffer cache avec patterns courants
             await self.cache_manager.warm_cache([
@@ -144,7 +158,7 @@ class CacheService:
             
             # Fermer connexion Redis
             if self.redis_client:
-                await self.redis_client.aclose()
+                self.redis_client.close()
             
             self._initialized = False
             logger.info("Cache service shutdown completed")
@@ -322,7 +336,10 @@ def cached(cache_type: str = "default", key_generator=None):
 # Functions d'aide pour l'intégration
 async def init_cache_service():
     """Initialiser le service de cache"""
-    await cache_service.initialize()
+    # Temporarily disabled due to recursion issues
+    # Performance cache is available instead
+    logger.info("Infrastructure cache service disabled - using performance cache instead")
+    # await cache_service.initialize()
 
 
 async def shutdown_cache_service():

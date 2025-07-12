@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Card from '$lib/components/Card.svelte';
-  import Button from '$lib/components/Button.svelte';
+  import Button from '$lib/components/ui/atoms/Button.svelte';
 
   export let metrics: SecurityMetrics;
   export let loading = false;
