@@ -1,50 +1,84 @@
 # WakeDock Development Configuration
-# This configuration is optimized for local development
+# This configuration is optimized for Docker Compose development
 
 # Application Settings
 wakedock:
   # Basic application settings
   domain: "localhost"
-  app_name: "WakeDock"
+  app_name: "WakeDock Development"
   app_description: "Docker service wake-up and management system"
+  environment: "development"
   
   # Server Configuration
   host: "0.0.0.0"
   port: 8000
   debug: true
+  reload: true
   
-  # Use SQLite for development (no Docker required)
+  # PostgreSQL for development (containerized)
   database:
-    url: "sqlite:///./wakedock_dev.db"
+    url: "postgresql://wakedock_dev:dev_password_123@postgres:5432/wakedock_dev"
+    echo: true  # SQL query logging for development
+    pool_size: 5
+    max_overflow: 10
     
-  # Optional Redis for development
+  # Redis for development (containerized)
   redis:
-    url: "redis://localhost:6379/0"
-    enabled: false
+    url: "redis://:dev_redis_123@redis:6379/0"
+    enabled: true
+    decode_responses: true
     
-  # Docker Configuration for Windows
+  # Docker Configuration (Unix socket in container)
   docker:
-    host: "npipe:////./pipe/docker_engine"  # For Docker Desktop on Windows
+    socket_path: "/var/run/docker.sock"
+    api_timeout: 60
     
-  # Logging Configuration
+  # Logging Configuration for development
   logging:
     level: "DEBUG"
-    file: "logs/wakedock.log"
-    format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format: "console"
+    handlers:
+      console:
+        level: "DEBUG"
+      file:
+        level: "INFO"
+        filename: "logs/wakedock-dev.log"
 
-# Authentication Settings
+# Authentication Settings (development)
 auth:
-  secret_key: "dev-secret-key-change-me-in-production"
+  secret_key: "dev-jwt-secret-key-change-for-production"
   algorithm: "HS256"
-  access_token_expire_minutes: 30
+  access_token_expire_minutes: 1440  # 24 hours for dev convenience
   
-# CORS Settings for development
+# CORS Settings for development (permissive)
 cors:
-  allow_origins: ["http://localhost:3000", "http://127.0.0.1:3000"]
+  allow_origins: 
+    - "http://localhost:3000"
+    - "http://localhost:80"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:80"
   allow_credentials: true
   allow_methods: ["*"]
   allow_headers: ["*"]
 
-# Monitoring (disabled for development)
+# Security (relaxed for development)
+security:
+  csrf_protection: false
+  rate_limiting: false
+
+# Caddy integration
+caddy:
+  admin_api: "http://wakedock-caddy:2019"
+  config_reload_timeout: 10
+
+# Development features
+development:
+  hot_reload: true
+  debug_toolbar: true
+  mock_external_apis: true
+
+# Monitoring (basic for development)
 monitoring:
-  enabled: false
+  enabled: true
+  metrics_enabled: false
+  health_checks_interval: 30

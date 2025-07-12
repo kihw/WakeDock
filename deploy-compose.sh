@@ -26,20 +26,11 @@ log_error() { echo -e "${RED}❌ $1${NC}"; }
 log_step() { echo -e "${PURPLE}🚀 $1${NC}"; }
 
 # Parse command line arguments
-ENVIRONMENT="dev"
 CLEAN_BUILD=false
 SKIP_TESTS=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        --prod|--production)
-            ENVIRONMENT="prod"
-            shift
-            ;;
-        --dev|--development)
-            ENVIRONMENT="dev"
-            shift
-            ;;
         --clean)
             CLEAN_BUILD=true
             shift
@@ -54,16 +45,13 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --dev, --development    Deploy for development (HTTP only)"
-            echo "  --prod, --production    Deploy for production (HTTPS with SSL)"
             echo "  --clean                 Clean build (remove all containers and volumes)"
             echo "  --skip-tests           Skip endpoint testing"
             echo "  --help, -h             Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0                     # Development deployment"
-            echo "  $0 --prod             # Production deployment with SSL"
-            echo "  $0 --clean --dev      # Clean development deployment"
+            echo "  $0                     # Standard deployment"
+            echo "  $0 --clean            # Clean deployment"
             exit 0
             ;;
         *)
@@ -74,7 +62,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-log_step "Starting WakeDock Docker Compose deployment (${ENVIRONMENT} mode)..."
+log_step "Starting WakeDock Docker Compose deployment..."
 
 # Check prerequisites
 check_prerequisites() {
@@ -97,9 +85,15 @@ check_prerequisites() {
 load_environment() {
     log_info "Loading environment configuration..."
     
+    # Use single .env file
+    ENV_FILE="${SCRIPT_DIR}/.env"
+    
     if [ -f "${ENV_FILE}" ]; then
         log_info "Loading environment variables from ${ENV_FILE}..."
-        export $(cat "${ENV_FILE}" | grep -v '^#' | grep -v '^$' | xargs)
+        # Load environment variables, filtering out comments, empty lines, and invalid variable names
+        set -a
+        source <(grep -E '^[A-Za-z_][A-Za-z0-9_]*=' "${ENV_FILE}")
+        set +a
     else
         log_warning "No .env file found, creating from template..."
         if [ -f "${SCRIPT_DIR}/.env.example" ]; then
@@ -108,16 +102,7 @@ load_environment() {
         fi
     fi
     
-    # Set environment-specific variables
-    if [ "${ENVIRONMENT}" = "prod" ]; then
-        export CADDY_CONFIG_FILE="./caddy/Caddyfile.prod"
-        export CADDY_AUTO_HTTPS="on"
-    else
-        export CADDY_CONFIG_FILE="./caddy/Caddyfile.compose"
-        export CADDY_AUTO_HTTPS="off"
-    fi
-    
-    log_success "Environment loaded (${ENVIRONMENT})"
+    log_success "Environment loaded"
 }
 
 # Create required directories and networks
@@ -166,11 +151,7 @@ clean_deployment() {
 deploy_services() {
     log_step "Building and deploying services..."
     
-    # Update Caddy configuration based on environment
-    log_info "Configuring Caddy for ${ENVIRONMENT} environment..."
-    if [ "${ENVIRONMENT}" = "prod" ]; then
-        cp "./caddy/Caddyfile.prod" "./caddy/Caddyfile.compose"
-    fi
+    log_info "Configuring services..."
     
     # Build and start services
     if [ "${CLEAN_BUILD}" = true ]; then
@@ -219,13 +200,7 @@ test_endpoints() {
     
     # Get public IP
     PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
-    
-    # Determine protocol and port based on environment
-    if [ "${ENVIRONMENT}" = "prod" ]; then
-        BASE_URL="https://admin.mtool.ovh"
-    else
-        BASE_URL="http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
-    fi
+    BASE_URL="http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
     
     # Test endpoints with retries
     test_endpoint() {
@@ -254,18 +229,11 @@ show_summary() {
     echo ""
     echo "🌐 Services available at:"
     
-    if [ "${ENVIRONMENT}" = "prod" ]; then
-        echo "  - Dashboard: https://admin.mtool.ovh"
-        echo "  - API: https://admin.mtool.ovh/api/v1"
-        echo "  - Config: https://admin.mtool.ovh/api/config"
-        echo "  - Caddy Admin: http://${PUBLIC_IP:-localhost}:${CADDY_ADMIN_PORT:-2019}"
-    else
-        PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
-        echo "  - Dashboard: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
-        echo "  - API: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/v1"
-        echo "  - Config: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/config"
-        echo "  - Caddy Admin: http://${PUBLIC_IP}:${CADDY_ADMIN_PORT:-2019}"
-    fi
+    PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
+    echo "  - Dashboard: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
+    echo "  - API: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/v1"
+    echo "  - Config: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/config"
+    echo "  - Caddy Admin: http://${PUBLIC_IP}:${CADDY_ADMIN_PORT:-2019}"
     
     echo ""
     echo "📊 Service Status:"
@@ -278,9 +246,6 @@ show_summary() {
     echo "  - Stop services: docker-compose down"
     echo "  - Restart service: docker-compose restart <service>"
     echo "  - Access container: docker-compose exec <service> bash"
-    echo ""
-    echo "🔧 Environment: ${ENVIRONMENT}"
-    echo "🚀 Caddy automatic HTTPS: $([ "${ENVIRONMENT}" = "prod" ] && echo "ENABLED" || echo "DISABLED")"
 }
 
 # Main execution
