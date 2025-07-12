@@ -792,3 +792,350 @@ async def login_raw_debug(request: Request):
     except Exception as e:
         print(f"[RAW_DEBUG] Erreur dans le debug: {e}")
         return {"debug": "error", "message": str(e)}
+
+
+# === ENHANCED USER MANAGEMENT DASHBOARD ===
+
+@router.get("/users/stats")
+async def get_user_management_stats(
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Get comprehensive user management statistics (admin only)"""
+    try:
+        # Total users count
+        total_users = db.query(User).count()
+        
+        # Active users count
+        active_users = db.query(User).filter(User.is_active == True).count()
+        
+        # Users by role
+        admin_count = db.query(User).filter(User.role == UserRole.ADMIN).count()
+        user_count = db.query(User).filter(User.role == UserRole.USER).count()
+        viewer_count = db.query(User).filter(User.role == UserRole.VIEWER).count()
+        
+        # Recent registrations (last 7 days)
+        seven_days_ago = datetime.utcnow() - timedelta(days=7)
+        recent_registrations = db.query(User).filter(
+            User.created_at >= seven_days_ago
+        ).count()
+        
+        # Recent logins (last 24 hours)
+        one_day_ago = datetime.utcnow() - timedelta(days=1)
+        recent_logins = db.query(User).filter(
+            User.last_login >= one_day_ago
+        ).count()
+        
+        # Verified users
+        verified_users = db.query(User).filter(User.is_verified == True).count()
+        
+        # Inactive users (never logged in or not logged in for 30+ days)
+        thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+        inactive_users = db.query(User).filter(
+            (User.last_login == None) | (User.last_login < thirty_days_ago)
+        ).count()
+        
+        return {
+            "total_users": total_users,
+            "active_users": active_users,
+            "inactive_users": inactive_users,
+            "verified_users": verified_users,
+            "users_by_role": {
+                "admin": admin_count,
+                "user": user_count,
+                "viewer": viewer_count
+            },
+            "recent_activity": {
+                "registrations_last_7_days": recent_registrations,
+                "logins_last_24_hours": recent_logins
+            },
+            "timestamp": datetime.utcnow()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user stats: {str(e)}"
+        )
+
+
+@router.get("/users/recent-activity")
+async def get_recent_user_activity(
+    limit: int = 20,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Get recent user activity for admin dashboard"""
+    try:
+        # Recent registrations
+        recent_users = db.query(User).order_by(
+            User.created_at.desc()
+        ).limit(limit).all()
+        
+        activity_data = []
+        for user in recent_users:
+            activity_data.append({
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": user.role.value,
+                "is_active": user.is_active,
+                "is_verified": user.is_verified,
+                "created_at": user.created_at,
+                "last_login": user.last_login,
+                "activity_type": "registration"
+            })
+        
+        return {
+            "recent_activity": activity_data,
+            "total_items": len(activity_data),
+            "timestamp": datetime.utcnow()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get recent activity: {str(e)}"
+        )
+
+
+@router.post("/users/{user_id}/toggle-status")
+async def toggle_user_status(
+    user_id: int,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Toggle user active/inactive status (admin only)"""
+    try:
+        # Prevent admin from deactivating themselves
+        if user_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change your own status"
+            )
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Toggle status
+        user.is_active = not user.is_active
+        user.updated_at = datetime.utcnow()
+        db.commit()
+        
+        action = "activated" if user.is_active else "deactivated"
+        
+        return {
+            "success": True,
+            "message": f"User {user.username} {action} successfully",
+            "user_id": user_id,
+            "new_status": user.is_active,
+            "timestamp": datetime.utcnow()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to toggle user status: {str(e)}"
+        )
+
+
+@router.post("/users/{user_id}/change-role")
+async def change_user_role(
+    user_id: int,
+    new_role: UserRole,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Change user role (admin only)"""
+    try:
+        # Prevent admin from changing their own role
+        if user_id == current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot change your own role"
+            )
+        
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        old_role = user.role
+        user.role = new_role
+        user.updated_at = datetime.utcnow()
+        db.commit()
+        
+        return {
+            "success": True,
+            "message": f"User {user.username} role changed from {old_role.value} to {new_role.value}",
+            "user_id": user_id,
+            "old_role": old_role.value,
+            "new_role": new_role.value,
+            "timestamp": datetime.utcnow()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to change user role: {str(e)}"
+        )
+
+
+@router.get("/users/search")
+async def search_users(
+    q: str = "",
+    role: Optional[UserRole] = None,
+    is_active: Optional[bool] = None,
+    is_verified: Optional[bool] = None,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Search and filter users (admin only)"""
+    try:
+        query = db.query(User)
+        
+        # Text search in username, email, or full_name
+        if q:
+            search_term = f"%{q}%"
+            query = query.filter(
+                (User.username.ilike(search_term)) |
+                (User.email.ilike(search_term)) |
+                (User.full_name.ilike(search_term))
+            )
+        
+        # Filter by role
+        if role:
+            query = query.filter(User.role == role)
+        
+        # Filter by active status
+        if is_active is not None:
+            query = query.filter(User.is_active == is_active)
+        
+        # Filter by verified status
+        if is_verified is not None:
+            query = query.filter(User.is_verified == is_verified)
+        
+        # Get total count for pagination
+        total_count = query.count()
+        
+        # Apply pagination
+        users = query.offset(offset).limit(limit).all()
+        
+        # Convert to response format
+        user_data = []
+        for user in users:
+            user_data.append({
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "full_name": user.full_name,
+                "role": user.role.value,
+                "is_active": user.is_active,
+                "is_verified": user.is_verified,
+                "created_at": user.created_at,
+                "updated_at": user.updated_at,
+                "last_login": user.last_login
+            })
+        
+        return {
+            "users": user_data,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+            "filters": {
+                "search_query": q,
+                "role": role.value if role else None,
+                "is_active": is_active,
+                "is_verified": is_verified
+            },
+            "timestamp": datetime.utcnow()
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to search users: {str(e)}"
+        )
+
+
+@router.post("/users/bulk-actions")
+async def bulk_user_actions(
+    user_ids: List[int],
+    action: str,  # "activate", "deactivate", "delete"
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db_session)
+):
+    """Perform bulk actions on multiple users (admin only)"""
+    try:
+        # Prevent admin from affecting themselves
+        if current_user.id in user_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot perform bulk actions on your own account"
+            )
+        
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        
+        if not users:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No users found with provided IDs"
+            )
+        
+        results = []
+        
+        for user in users:
+            try:
+                if action == "activate":
+                    user.is_active = True
+                    user.updated_at = datetime.utcnow()
+                    results.append({"user_id": user.id, "username": user.username, "action": "activated", "success": True})
+                    
+                elif action == "deactivate":
+                    user.is_active = False
+                    user.updated_at = datetime.utcnow()
+                    results.append({"user_id": user.id, "username": user.username, "action": "deactivated", "success": True})
+                    
+                elif action == "delete":
+                    db.delete(user)
+                    results.append({"user_id": user.id, "username": user.username, "action": "deleted", "success": True})
+                    
+                else:
+                    results.append({"user_id": user.id, "username": user.username, "action": action, "success": False, "error": "Invalid action"})
+                    
+            except Exception as e:
+                results.append({"user_id": user.id, "username": user.username, "action": action, "success": False, "error": str(e)})
+        
+        db.commit()
+        
+        successful_actions = len([r for r in results if r["success"]])
+        
+        return {
+            "success": True,
+            "message": f"Bulk action '{action}' completed on {successful_actions}/{len(user_ids)} users",
+            "results": results,
+            "total_processed": len(user_ids),
+            "successful": successful_actions,
+            "timestamp": datetime.utcnow()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to perform bulk action: {str(e)}"
+        )
