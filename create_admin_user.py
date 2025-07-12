@@ -41,8 +41,8 @@ def create_admin_user():
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         
         # Import after database is ready
-        from wakedock.api.auth.models import User
-        from wakedock.api.auth.password import get_password_hash
+        from wakedock.database.models import User
+        from wakedock.api.auth.password import hash_password
         
         db = SessionLocal()
         
@@ -57,7 +57,7 @@ def create_admin_user():
             print("🔧 No users found, creating default admin user...")
             
             # Create admin user
-            hashed_password = get_password_hash('admin123')
+            hashed_password = hash_password('admin123')
             admin_user = User(
                 username='admin',
                 email='admin@wakedock.local',

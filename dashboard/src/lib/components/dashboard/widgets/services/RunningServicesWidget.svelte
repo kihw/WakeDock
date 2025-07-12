@@ -95,10 +95,10 @@
               {#if service.resource_usage}
                 <div class="resource-usage">
                   <span class="usage-item">
-                    CPU: {service.resource_usage.cpu_usage.toFixed(1)}%
+                    CPU: {(typeof service.resource_usage.cpu_usage === 'number' ? service.resource_usage.cpu_usage : 0).toFixed(1)}%
                   </span>
                   <span class="usage-item">
-                    RAM: {service.resource_usage.memory_usage.toFixed(1)}%
+                    RAM: {(typeof service.resource_usage.memory_usage === 'number' ? service.resource_usage.memory_usage : 0).toFixed(1)}%
                   </span>
                 </div>
               {/if}

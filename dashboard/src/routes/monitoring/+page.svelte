@@ -62,26 +62,26 @@
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
     <Card title="CPU Usage">
       <div class="text-3xl font-bold text-blue-600">
-        {systemMetrics.cpu.toFixed(1)}%
+        {(typeof systemMetrics.cpu === 'number' ? systemMetrics.cpu : 0).toFixed(1)}%
       </div>
     </Card>
 
     <Card title="Memory Usage">
       <div class="text-3xl font-bold text-green-600">
-        {systemMetrics.memory.toFixed(1)}%
+        {(typeof systemMetrics.memory === 'number' ? systemMetrics.memory : 0).toFixed(1)}%
       </div>
     </Card>
 
     <Card title="Disk Usage">
       <div class="text-3xl font-bold text-yellow-600">
-        {systemMetrics.disk.toFixed(1)}%
+        {(typeof systemMetrics.disk === 'number' ? systemMetrics.disk : 0).toFixed(1)}%
       </div>
     </Card>
 
     <Card title="Network">
       <div class="text-sm text-gray-600">
-        <div>↓ {(systemMetrics.network.rx / 1024 / 1024).toFixed(2)} MB/s</div>
-        <div>↑ {(systemMetrics.network.tx / 1024 / 1024).toFixed(2)} MB/s</div>
+        <div>↓ {((systemMetrics.network?.rx || 0) / 1024 / 1024).toFixed(2)} MB/s</div>
+        <div>↑ {((systemMetrics.network?.tx || 0) / 1024 / 1024).toFixed(2)} MB/s</div>
       </div>
     </Card>
   </div>

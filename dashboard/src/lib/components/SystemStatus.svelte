@@ -86,7 +86,7 @@
       unitIndex++;
     }
 
-    return `${size.toFixed(1)}${units[unitIndex]}`;
+    return `${(typeof size === 'number' ? size : 0).toFixed(1)}${units[unitIndex]}`;
   }
 
   onMount(() => {
@@ -155,7 +155,7 @@
         ></div>
       </div>
       <span class="metric-value" aria-label="CPU usage value">
-        {($systemStore.metrics?.cpu || 0).toFixed(1)}%
+        {(typeof $systemStore.metrics?.cpu === 'number' ? $systemStore.metrics.cpu : 0).toFixed(1)}%
       </span>
     </div>
 
@@ -182,7 +182,7 @@
         ></div>
       </div>
       <span class="metric-value" aria-label="Memory usage value">
-        {($systemStore.metrics?.memory || 0).toFixed(1)}%
+        {(typeof $systemStore.metrics?.memory === 'number' ? $systemStore.metrics.memory : 0).toFixed(1)}%
       </span>
     </div>
 
@@ -209,7 +209,7 @@
         ></div>
       </div>
       <span class="metric-value" aria-label="Disk usage value">
-        {($systemStore.metrics?.disk || 0).toFixed(1)}%
+        {(typeof $systemStore.metrics?.disk === 'number' ? $systemStore.metrics.disk : 0).toFixed(1)}%
       </span>
     </div>
   </div>

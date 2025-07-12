@@ -1,24 +1,49 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XHR Login Test</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
-        #result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; white-space: pre-wrap; }
-        .error { background: #ffebee; border-color: #f44336; }
-        .success { background: #e8f5e8; border-color: #4caf50; }
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background: #f9f9f9;
+            white-space: pre-wrap;
+        }
+
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .success {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
     </style>
 </head>
+
 <body>
     <h1>XHR Login Test (Alternative to Fetch)</h1>
     <p>Testing login using XMLHttpRequest instead of fetch API</p>
-    
+
     <button onclick="testXHRLogin()">Test XHR Login</button>
     <button onclick="testFetchLogin()">Test Fetch Login (for comparison)</button>
-    
+
     <div id="result">Click a button to test...</div>
 
     <script>
@@ -32,13 +57,13 @@
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.setRequestHeader('Accept', 'application/json');
             xhr.withCredentials = true; // Include credentials
-            
-            xhr.onreadystatechange = function() {
+
+            xhr.onreadystatechange = function () {
                 if (xhr.readyState === XMLHttpRequest.DONE) {
                     console.log('XHR Status:', xhr.status);
                     console.log('XHR Response:', xhr.responseText);
                     console.log('XHR Headers:', xhr.getAllResponseHeaders());
-                    
+
                     if (xhr.status === 200) {
                         resultDiv.className = 'success';
                         resultDiv.textContent = `XHR SUCCESS!\nStatus: ${xhr.status}\nResponse: ${xhr.responseText}`;
@@ -48,26 +73,26 @@
                     }
                 }
             };
-            
-            xhr.onerror = function(error) {
+
+            xhr.onerror = function (error) {
                 console.error('XHR Error:', error);
                 resultDiv.className = 'error';
                 resultDiv.textContent = `XHR NETWORK ERROR!\nError: ${error}\nStatus: ${xhr.status}\nResponse: ${xhr.responseText}`;
             };
-            
-            xhr.ontimeout = function() {
+
+            xhr.ontimeout = function () {
                 console.error('XHR Timeout');
                 resultDiv.className = 'error';
                 resultDiv.textContent = 'XHR TIMEOUT!';
             };
-            
+
             xhr.timeout = 30000; // 30 second timeout
-            
+
             const requestData = JSON.stringify({
                 username: 'admin',
                 password: 'admin123'
             });
-            
+
             console.log('Sending XHR request:', requestData);
             xhr.send(requestData);
         }
@@ -89,21 +114,22 @@
                 }),
                 credentials: 'same-origin'
             })
-            .then(response => {
-                console.log('Fetch Response:', response);
-                return response.json();
-            })
-            .then(data => {
-                console.log('Fetch Data:', data);
-                resultDiv.className = 'success';
-                resultDiv.textContent = `FETCH SUCCESS!\nData: ${JSON.stringify(data, null, 2)}`;
-            })
-            .catch(error => {
-                console.error('Fetch Error:', error);
-                resultDiv.className = 'error';
-                resultDiv.textContent = `FETCH ERROR!\nName: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`;
-            });
+                .then(response => {
+                    console.log('Fetch Response:', response);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Fetch Data:', data);
+                    resultDiv.className = 'success';
+                    resultDiv.textContent = `FETCH SUCCESS!\nData: ${JSON.stringify(data, null, 2)}`;
+                })
+                .catch(error => {
+                    console.error('Fetch Error:', error);
+                    resultDiv.className = 'error';
+                    resultDiv.textContent = `FETCH ERROR!\nName: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`;
+                });
         }
     </script>
 </body>
+
 </html>

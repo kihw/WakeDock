@@ -362,18 +362,21 @@ class ApiClient {
       credentials: this.token ? 'Bearer token present' : 'No token'
     });
 
-    // Check circuit breaker
-    if (this.circuitBreaker.isOpen(path)) {
+    // Skip complex validation for auth endpoints
+    const isAuthEndpoint = path.startsWith('/auth/');
+    
+    // Check circuit breaker (skip for auth endpoints)
+    if (!isAuthEndpoint && this.circuitBreaker.isOpen(path)) {
       throw new Error(`Circuit breaker open for ${path} - too many recent failures`);
     }
 
-    // Check network status
-    if (!this.networkStatus.isOnline) {
+    // Check network status (skip for auth endpoints)
+    if (!isAuthEndpoint && !this.networkStatus.isOnline) {
       throw new Error('Network offline - check your connection');
     }
 
     // Rate limiting check
-    if (!options.skipRateLimit) {
+    if (!options.skipRateLimit && !isAuthEndpoint) {
       const rateLimitKey = `api_${path}_${this.token ? 'auth' : 'anon'}`;
       if (rateLimit.isLimited(rateLimitKey)) {
         throw new Error('Rate limit exceeded. Please try again later.');
@@ -397,9 +400,10 @@ class ApiClient {
       headers['Content-Type'] = 'application/json';
     }
 
-    // Add CSRF token for state-changing operations
+    // Add CSRF token for state-changing operations (skip for auth endpoints)
     if (
       !options.skipCSRF &&
+      !isAuthEndpoint &&
       ['POST', 'PUT', 'DELETE', 'PATCH'].includes(options.method?.toUpperCase() || 'GET')
     ) {
       const csrfToken = csrf.getToken();
@@ -628,8 +632,9 @@ class ApiClient {
         error = networkError;
       }
 
-      // Retry logic
-      if (this.shouldRetry(error, retryAttempt, path)) {
+      // Retry logic (skip for auth endpoints to avoid token conflicts)
+      const isAuthEndpoint = path.startsWith('/auth/');
+      if (!isAuthEndpoint && this.shouldRetry(error, retryAttempt, path)) {
         const delay = this.retryDelay * Math.pow(2, retryAttempt); // Exponential backoff
         console.warn(
           `API request failed (attempt ${retryAttempt + 1}/${this.maxRetries}), retrying in ${delay}ms:`,
@@ -681,69 +686,72 @@ class ApiClient {
   get auth() {
     return {
       login: async (credentials: LoginRequest): Promise<LoginResponse> => {
-        // Debug: log what API client receives
-        console.error('🚀 [LOGIN_START] Starting login process...');
-        console.error('🚀 [LOGIN_DEBUG] Received credentials:', credentials);
-        console.error('🚀 [LOGIN_DEBUG] Credentials JSON:', JSON.stringify(credentials));
-        console.error('🚀 [LOGIN_DEBUG] Credentials keys:', Object.keys(credentials));
-        console.error('🚀 [LOGIN_DEBUG] API base URL:', this.baseUrl);
-        console.error('🚀 [LOGIN_DEBUG] Login endpoint:', API_ENDPOINTS.AUTH.LOGIN);
-        console.error('🚀 [LOGIN_DEBUG] Full URL will be:', `${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`);
+        // Use direct fetch for auth to avoid service worker and complex validation
+        await this.ensureInitialized();
+        
+        const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify(credentials),
+          credentials: 'same-origin'
+        });
 
-        try {
-          console.error('🚀 [LOGIN_DEBUG] About to use direct fetch instead of this.request...');
-          
-          // Use the exact same approach that works in debug page
-          const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json'
-            },
-            body: JSON.stringify(credentials),
-            credentials: 'same-origin'
-          });
-          
-          console.error('🚀 [LOGIN_DEBUG] Direct fetch response:', response.status, response.ok);
-          
-          if (!response.ok) {
-            throw new Error(`Login failed: ${response.status} ${response.statusText}`);
-          }
-          
-          const loginResponse = await response.json();
-          console.error('🚀 [LOGIN_SUCCESS] Login request completed successfully:', loginResponse);
-
-          this.token = loginResponse.access_token;
-
-          if (typeof window !== 'undefined' && this.token) {
-            localStorage.setItem(config.tokenKey, this.token);
-          }
-
-          return loginResponse;
-        } catch (error: any) {
-          console.error('🚨 [LOGIN_ERROR] Login request failed:', error);
-          console.error('🚨 [LOGIN_ERROR] Error type:', typeof error);
-          console.error('🚨 [LOGIN_ERROR] Error name:', error?.name);
-          console.error('🚨 [LOGIN_ERROR] Error message:', error?.message);
-          console.error('🚨 [LOGIN_ERROR] Error stack:', error?.stack);
-          throw error;
+        if (!response.ok) {
+          throw new Error(`Login failed: ${response.status} ${response.statusText}`);
         }
+
+        const loginResponse = await response.json();
+        this.token = loginResponse.access_token;
+
+        if (typeof window !== 'undefined' && this.token) {
+          localStorage.setItem(config.tokenKey, this.token);
+        }
+
+        return loginResponse;
       },
 
       logout: async (): Promise<void> => {
         this.token = null;
         if (typeof window !== 'undefined') {
           localStorage.removeItem(config.tokenKey);
+          
+          // Clear auth cache in service worker
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.controller.postMessage({
+              type: 'CLEAR_AUTH_CACHE'
+            });
+          }
         }
       },
 
-      getCurrentUser: (): Promise<User> => {
-        return this.request<User>(API_ENDPOINTS.AUTH.ME);
+      getCurrentUser: async (): Promise<User> => {
+        // Use direct fetch for auth to avoid service worker issues
+        await this.ensureInitialized();
+        
+        const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.AUTH.ME}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': this.token ? `Bearer ${this.token}` : ''
+          },
+          credentials: 'same-origin'
+        });
+
+        if (!response.ok) {
+          throw new Error(`Get current user failed: ${response.status} ${response.statusText}`);
+        }
+
+        return await response.json();
       },
 
       refreshToken: (): Promise<LoginResponse> => {
         return this.request<LoginResponse>(API_ENDPOINTS.AUTH.REFRESH, {
           method: 'POST',
+          skipCSRF: true,
+          timeout: 5000
         });
       },
     };
@@ -751,7 +759,23 @@ class ApiClient {
 
   // System methods
   async getSystemOverview(): Promise<SystemOverview> {
-    return this.request<SystemOverview>(API_ENDPOINTS.SYSTEM.OVERVIEW);
+    // Use direct fetch to avoid service worker issues
+    await this.ensureInitialized();
+    
+    const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.SYSTEM.OVERVIEW}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': this.token ? `Bearer ${this.token}` : ''
+      },
+      credentials: 'same-origin'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Get system overview failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
   }
 
   async getHealth(): Promise<Record<string, any>> {
@@ -760,7 +784,23 @@ class ApiClient {
 
   // Service methods
   async getServices(): Promise<Service[]> {
-    return this.request<Service[]>(API_ENDPOINTS.SERVICES.BASE);
+    // Use direct fetch to avoid service worker issues
+    await this.ensureInitialized();
+    
+    const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.SERVICES.BASE}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': this.token ? `Bearer ${this.token}` : ''
+      },
+      credentials: 'same-origin'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Get services failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
   }
 
   async getService(id: string): Promise<Service> {
@@ -861,7 +901,21 @@ class ApiClient {
   }
 
   getToken(): string | null {
-    return this.token;
+    // Return cached token if available
+    if (this.token) {
+      return this.token;
+    }
+    
+    // Try to get token from localStorage
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('wakedock_token');
+      if (storedToken) {
+        this.token = storedToken;
+        return storedToken;
+      }
+    }
+    
+    return null;
   }
 }
 

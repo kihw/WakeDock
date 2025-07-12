@@ -61,13 +61,23 @@ def validate_docker_connection() -> bool:
 def create_fastapi_app(services: Dict[str, Any]) -> Any:
     """Create and configure the FastAPI application."""
     try:
-        app = create_app()
+        # Create orchestrator and monitoring service if not already provided
+        orchestrator = services.get("orchestrator")
+        if not orchestrator:
+            from wakedock.core.orchestrator import DockerOrchestrator
+            orchestrator = DockerOrchestrator()
+            logger.info("DockerOrchestrator created")
+        
+        monitoring_service = services.get("monitoring_service")
+        
+        app = create_app(orchestrator=orchestrator, monitoring=monitoring_service)
         logger.info("FastAPI application created successfully")
         
         # Store service references in app state for access in routes
         app.state.security_services = services.get("security_services")
         app.state.performance_manager = services.get("performance_manager")
-        app.state.monitoring_service = services.get("monitoring_service")
+        app.state.monitoring_service = monitoring_service
+        app.state.orchestrator = orchestrator
         
         return app
     except Exception as e:

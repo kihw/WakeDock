@@ -45,32 +45,21 @@ self.addEventListener('install', (event: ExtendableEvent) => {
   );
 });
 
-// Activate event - clean up old caches and clear auth cache
+// Activate event - clean up old caches
 self.addEventListener('activate', (event: ExtendableEvent) => {
   console.log('[SW] Activating service worker...');
   event.waitUntil(
     caches
       .keys()
       .then((cacheNames) => {
-        return Promise.all([
-          // Delete old caches
-          ...cacheNames
+        return Promise.all(
+          cacheNames
             .filter((name) => name !== STATIC_CACHE_NAME && name !== API_CACHE_NAME)
             .map((name) => {
               console.log('[SW] Deleting old cache:', name);
               return caches.delete(name);
-            }),
-          // Clear any cached auth responses
-          caches.open(API_CACHE_NAME).then(cache => {
-            return cache.keys().then(keys => {
-              const authKeys = keys.filter(key => key.url.includes('/auth/'));
-              return Promise.all(authKeys.map(key => {
-                console.log('[SW] Clearing cached auth response:', key.url);
-                return cache.delete(key);
-              }));
-            });
-          })
-        ]);
+            })
+        );
       })
       .then(() => {
         console.log('[SW] Activation complete');
@@ -90,13 +79,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   // Skip non-GET requests and let them pass through normally
   if (request.method !== 'GET') {
     console.log('[SW] Handling non-GET request:', request.method, url.pathname);
-    
-    // For auth requests, bypass service worker completely
-    if (url.pathname.includes('/auth/')) {
-      console.log('[SW] Auth non-GET request, bypassing service worker');
-      return; // Let the request go directly to network without service worker intervention
-    }
-    
     event.respondWith(
       fetch(request)
         .then((response) => {
@@ -140,39 +122,17 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
-// Handle API requests with proper caching strategy
+// Handle API requests with cache-first strategy for cacheable endpoints
 async function handleApiRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  
+
   console.log('[SW] Handling API request:', request.method, url.pathname);
 
-  // NEVER cache auth endpoints - always go to network
-  if (url.pathname.includes('/auth/')) {
-    console.log('[SW] Auth endpoint detected, bypassing cache');
-    try {
-      const response = await fetch(request);
-      console.log('[SW] Auth response:', response.status, url.pathname);
-      
-      // Clone the response to ensure it's consumable
-      const clonedResponse = response.clone();
-      return clonedResponse;
-    } catch (error) {
-      console.error('[SW] Auth request failed:', error);
-      return new Response(JSON.stringify({ 
-        error: 'Authentication Failed', 
-        message: (error as Error)?.message || 'Network error during authentication' 
-      }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' }
-      });
-    }
-  }
-
-  // Cache-first strategy for non-auth GET requests
+  // GET requests to certain endpoints can be cached
   if (
     request.method === 'GET' &&
     (url.pathname.includes('/services') ||
-      url.pathname.includes('/system') ||
+      url.pathname.includes('/status') ||
       url.pathname.includes('/health'))
   ) {
     const cachedResponse = await caches.match(request);
@@ -193,13 +153,13 @@ async function handleApiRequest(request: Request): Promise<Response> {
     }
   }
 
-  // Network first for all other API requests
+  // Network first for all API requests
   try {
     console.log('[SW] Fetching from network:', url.pathname);
     const response = await fetch(request);
 
-    // Cache successful GET responses (except auth)
-    if (response.ok && request.method === 'GET' && !url.pathname.includes('/auth/')) {
+    // Cache successful GET responses
+    if (response.ok && request.method === 'GET') {
       const cache = await caches.open(API_CACHE_NAME);
       cache.put(request, response.clone());
     }
@@ -209,8 +169,8 @@ async function handleApiRequest(request: Request): Promise<Response> {
   } catch (error) {
     console.error('[SW] Network error for API request:', error, url.pathname);
 
-    // Fallback to cache for GET requests (except auth)
-    if (request.method === 'GET' && !url.pathname.includes('/auth/')) {
+    // Fallback to cache for GET requests
+    if (request.method === 'GET') {
       const cachedResponse = await caches.match(request);
       if (cachedResponse) {
         console.log('[SW] Serving from cache fallback:', url.pathname);
@@ -218,10 +178,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
       }
     }
 
-    return new Response(JSON.stringify({ 
-      error: 'Network Error', 
-      message: (error as Error)?.message || 'Unknown error' 
-    }), {
+    return new Response(JSON.stringify({ error: 'Network Error', message: (error as Error)?.message || 'Unknown error' }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' }
     });
@@ -329,17 +286,6 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
-  }
-  
-  // Clear auth cache on logout
-  if (event.data?.type === 'CLEAR_AUTH_CACHE') {
-    console.log('[SW] Clearing auth cache on logout');
-    caches.open(API_CACHE_NAME).then(cache => {
-      cache.keys().then(keys => {
-        const authKeys = keys.filter(key => key.url.includes('/auth/'));
-        Promise.all(authKeys.map(key => cache.delete(key)));
-      });
-    });
   }
 });
 

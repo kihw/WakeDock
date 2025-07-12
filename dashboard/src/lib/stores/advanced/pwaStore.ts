@@ -34,9 +34,9 @@ class PWAStore {
 
     constructor() {
         if (browser) {
-            // Completely disable service worker for authentication debugging
-            console.log('[PWA] Service worker disabled - auth debugging mode');
-            this.unregisterAllServiceWorkers();
+            // Initialize service worker and PWA features
+            console.log('[PWA] Initializing PWA features');
+            this.initServiceWorker();
             this.initOnlineDetection();
             this.initInstallPrompt();
         }
@@ -62,19 +62,17 @@ class PWAStore {
     private async initServiceWorker(): Promise<void> {
         if ('serviceWorker' in navigator) {
             try {
-                // Temporarily disable service worker completely for debugging
-                console.log('[PWA] Service worker completely disabled for authentication debugging');
+                // Register service worker
+                console.log('[PWA] Registering service worker');
                 
-                // Unregister any existing service workers
+                // Unregister any existing service workers to ensure clean state
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (const registration of registrations) {
                     console.log('[PWA] Unregistering existing service worker');
                     await registration.unregister();
                 }
                 
-                return; // Don't register new service worker
-                
-                // Register new service worker (disabled for now)
+                // Register new service worker
                 this.swRegistration = await navigator.serviceWorker.register('/service-worker.js');
                 swRegistered.set(true);
 

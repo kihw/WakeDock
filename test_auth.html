@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Auth Test</title>
 </head>
+
 <body>
     <h1>Authentication Test</h1>
     <button onclick="testLogin()">Test Login</button>
@@ -15,7 +17,7 @@
 
             try {
                 console.log('Starting login test...');
-                
+
                 const response = await fetch('/api/v1/auth/login', {
                     method: 'POST',
                     headers: {
@@ -62,4 +64,5 @@
         }
     </script>
 </body>
+
 </html>

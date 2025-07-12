@@ -59,7 +59,7 @@
           <div class="metric-info">
             <h4 class="metric-title">CPU Usage</h4>
             <p class="metric-value {getUsageColor(data.cpu_usage)}">
-              {data.cpu_usage.toFixed(1)}%
+              {(typeof data.cpu_usage === 'number' ? data.cpu_usage : 0).toFixed(1)}%
             </p>
           </div>
         </div>
@@ -82,7 +82,7 @@
           <div class="metric-info">
             <h4 class="metric-title">Memory Usage</h4>
             <p class="metric-value {getUsageColor(data.memory_usage)}">
-              {data.memory_usage.toFixed(1)}%
+              {(typeof data.memory_usage === 'number' ? data.memory_usage : 0).toFixed(1)}%
             </p>
           </div>
         </div>
@@ -105,7 +105,7 @@
           <div class="metric-info">
             <h4 class="metric-title">Disk Usage</h4>
             <p class="metric-value {getUsageColor(data.disk_usage)}">
-              {data.disk_usage.toFixed(1)}%
+              {(typeof data.disk_usage === 'number' ? data.disk_usage : 0).toFixed(1)}%
             </p>
           </div>
         </div>
