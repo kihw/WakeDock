@@ -52,6 +52,13 @@ fi
 
 echo "Switching to wakedock user and starting application..."
 
+# Create default admin user if needed (run as wakedock user)
+echo "🔧 Checking for default admin user..."
+if gosu wakedock python /app/create_admin_user.py; then
+    echo "✅ Admin user setup completed"
+else
+    echo "⚠️ Admin user setup failed, continuing anyway..."
+fi
+
 # Switch to wakedock user and execute the main command
-# Just use the wakedock user for now, permissions will be handled by the socket
 exec gosu wakedock "$@"

@@ -252,7 +252,7 @@ class ApiClient {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
         },
-        credentials: 'same-origin',
+        credentials: 'same-origin', // Match backend allow_credentials=True
         cache: 'no-cache'
       });
 
@@ -691,20 +691,35 @@ class ApiClient {
         console.error('🚀 [LOGIN_DEBUG] Full URL will be:', `${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`);
 
         try {
-          console.error('🚀 [LOGIN_DEBUG] About to call this.request...');
-          const response = await this.request<LoginResponse>(API_ENDPOINTS.AUTH.LOGIN, {
+          console.error('🚀 [LOGIN_DEBUG] About to use direct fetch instead of this.request...');
+          
+          // Use the exact same approach that works in debug page
+          const response = await window.fetch(`${this.baseUrl}${API_ENDPOINTS.AUTH.LOGIN}`, {
             method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
             body: JSON.stringify(credentials),
+            credentials: 'same-origin'
           });
-          console.error('🚀 [LOGIN_SUCCESS] Login request completed successfully:', response);
+          
+          console.error('🚀 [LOGIN_DEBUG] Direct fetch response:', response.status, response.ok);
+          
+          if (!response.ok) {
+            throw new Error(`Login failed: ${response.status} ${response.statusText}`);
+          }
+          
+          const loginResponse = await response.json();
+          console.error('🚀 [LOGIN_SUCCESS] Login request completed successfully:', loginResponse);
 
-          this.token = response.access_token;
+          this.token = loginResponse.access_token;
 
-          if (typeof window !== 'undefined') {
+          if (typeof window !== 'undefined' && this.token) {
             localStorage.setItem(config.tokenKey, this.token);
           }
 
-          return response;
+          return loginResponse;
         } catch (error: any) {
           console.error('🚨 [LOGIN_ERROR] Login request failed:', error);
           console.error('🚨 [LOGIN_ERROR] Error type:', typeof error);

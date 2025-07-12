@@ -198,8 +198,8 @@ test_endpoints() {
     
     log_info "Testing endpoints..."
     
-    # Get public IP
-    PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
+    # Get public IP (prefer IPv4)
+    PUBLIC_IP=$(curl -s -4 ifconfig.me 2>/dev/null || curl -s ipv4.icanhazip.com 2>/dev/null || echo "localhost")
     BASE_URL="http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
     
     # Test endpoints with retries
@@ -229,7 +229,7 @@ show_summary() {
     echo ""
     echo "🌐 Services available at:"
     
-    PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "localhost")
+    PUBLIC_IP=$(curl -s -4 ifconfig.me 2>/dev/null || curl -s ipv4.icanhazip.com 2>/dev/null || echo "localhost")
     echo "  - Dashboard: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}"
     echo "  - API: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/v1"
     echo "  - Config: http://${PUBLIC_IP}:${CADDY_HTTP_PORT:-80}/api/config"

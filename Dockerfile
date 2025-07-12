@@ -65,12 +65,11 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY --chown=wakedock:wakedock src/ ./src/
 COPY --chown=wakedock:wakedock config/ ./config/
 COPY --chown=wakedock:wakedock health_check.py ./health_check.py
-COPY --chown=root:root wait-for-redis.sh /usr/local/bin/wait-for-redis.sh
+COPY --chown=wakedock:wakedock create_admin_user.py ./create_admin_user.py
 COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-COPY --chown=wakedock:wakedock start-app.sh ./start-app.sh
 
 # Make scripts executable
-RUN chmod +x /usr/local/bin/wait-for-redis.sh && chmod +x /usr/local/bin/docker-entrypoint.sh && chmod +x /app/start-app.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/data /app/logs && \

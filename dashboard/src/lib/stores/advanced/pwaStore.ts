@@ -34,9 +34,27 @@ class PWAStore {
 
     constructor() {
         if (browser) {
-            this.initServiceWorker();
+            // Completely disable service worker for authentication debugging
+            console.log('[PWA] Service worker disabled - auth debugging mode');
+            this.unregisterAllServiceWorkers();
             this.initOnlineDetection();
             this.initInstallPrompt();
+        }
+    }
+
+    // Unregister all service workers
+    private async unregisterAllServiceWorkers(): Promise<void> {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    console.log('[PWA] Force unregistering service worker:', registration.scope);
+                    await registration.unregister();
+                }
+                console.log('[PWA] All service workers unregistered');
+            } catch (error) {
+                console.error('[PWA] Error unregistering service workers:', error);
+            }
         }
     }
 
@@ -44,7 +62,20 @@ class PWAStore {
     private async initServiceWorker(): Promise<void> {
         if ('serviceWorker' in navigator) {
             try {
-                this.swRegistration = await navigator.serviceWorker.register('/sw.js');
+                // Temporarily disable service worker completely for debugging
+                console.log('[PWA] Service worker completely disabled for authentication debugging');
+                
+                // Unregister any existing service workers
+                const registrations = await navigator.serviceWorker.getRegistrations();
+                for (const registration of registrations) {
+                    console.log('[PWA] Unregistering existing service worker');
+                    await registration.unregister();
+                }
+                
+                return; // Don't register new service worker
+                
+                // Register new service worker (disabled for now)
+                this.swRegistration = await navigator.serviceWorker.register('/service-worker.js');
                 swRegistered.set(true);
 
                 // Listen for updates

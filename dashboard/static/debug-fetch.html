@@ -19,30 +19,57 @@
 
             try {
                 console.error('🔥 DIRECT TEST: About to call fetch');
+                console.error('🔥 DIRECT TEST: Starting timestamp:', new Date().toISOString());
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
                 const response = await fetch('https://admin.mtool.ovh/api/v1/auth/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
+                        'Accept': 'application/json',
                         'Origin': 'https://admin.mtool.ovh'
                     },
                     body: JSON.stringify({
                         username: 'admin',
                         password: 'admin123'
-                    })
+                    }),
+                    credentials: 'same-origin', // Match backend CORS settings
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 console.error('🔥 DIRECT TEST: Fetch succeeded:', response.status);
+                console.error('🔥 DIRECT TEST: Response timestamp:', new Date().toISOString());
+                console.error('🔥 DIRECT TEST: Response headers:', [...response.headers.entries()]);
+                
                 const data = await response.json();
-                console.error('🔥 DIRECT TEST: Data:', data);
-                resultDiv.innerHTML = `Success: ${response.status}<br>Data: ${JSON.stringify(data, null, 2)}`;
+                console.error('🔥 DIRECT TEST: Data received:', data);
+                resultDiv.innerHTML = `
+                    <h3>Success!</h3>
+                    <p>Status: ${response.status}</p>
+                    <p>Response time: ${new Date().toISOString()}</p>
+                    <p>Headers: ${JSON.stringify([...response.headers.entries()], null, 2)}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
 
             } catch (error) {
                 console.error('🔥 DIRECT TEST: Fetch failed:', error);
+                console.error('🔥 DIRECT TEST: Error timestamp:', new Date().toISOString());
                 console.error('🔥 DIRECT TEST: Error name:', error.name);
                 console.error('🔥 DIRECT TEST: Error message:', error.message);
                 console.error('🔥 DIRECT TEST: Error stack:', error.stack);
-                resultDiv.innerHTML = `Error: ${error.message}<br>Name: ${error.name}`;
+                console.error('🔥 DIRECT TEST: Error constructor:', error.constructor.name);
+                
+                resultDiv.innerHTML = `
+                    <h3>Error!</h3>
+                    <p>Name: ${error.name}</p>
+                    <p>Message: ${error.message}</p>
+                    <p>Constructor: ${error.constructor.name}</p>
+                    <p>Timestamp: ${new Date().toISOString()}</p>
+                    <pre>${error.stack}</pre>
+                `;
             }
         }
 

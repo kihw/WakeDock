@@ -48,6 +48,7 @@ services:
       - caddy_config:/config
     environment:
       - CADDY_ADMIN=${CADDY_ADMIN_IP}:${CADDY_ADMIN_PORT}
+      - DOMAIN=${DOMAIN}
     networks:
       - ${WAKEDOCK_NETWORK}
     depends_on:

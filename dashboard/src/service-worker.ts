@@ -73,22 +73,12 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
 
 // Fetch event - handle network requests
 self.addEventListener('fetch', (event: FetchEvent) => {
-  const { request } = event;
-  const url = new URL(request.url);
-
-  // Skip chrome-extension requests
-  if (url.protocol === 'chrome-extension:') {
-    return;
-  }
-
-  // Skip auth requests entirely - let them pass through without interception
-  if (url.pathname.includes('/auth/') || url.pathname.includes('/api/config')) {
-    console.log('[SW] Skipping auth/config request:', request.method, url.pathname);
-    // Don't intercept at all - let browser handle it natively
-    return;
-  }
+  // TEMPORARILY DISABLE ALL SERVICE WORKER FETCH HANDLING FOR DEBUGGING
+  console.log('[SW] COMPLETELY DISABLED - letting all requests pass through natively');
+  return; // Do nothing, let browser handle all requests natively
 
   // For non-GET requests (POST, PUT, DELETE, etc.), let them pass through normally
+  // BUT only if they are NOT auth requests (already handled above)
   if (request.method !== 'GET') {
     console.log('[SW] Handling non-GET request:', request.method, url.pathname);
     event.respondWith(

@@ -59,9 +59,10 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
             "https://api.mtool.ovh",
             "https://mtool.ovh"
         ],
-        allow_credentials=True,
+        allow_credentials=False,  # Match frontend credentials: 'omit'
         allow_methods=["*"],
         allow_headers=["*"],
+        expose_headers=["*"]  # Expose all headers for debugging
     )
     
     # Security middleware
