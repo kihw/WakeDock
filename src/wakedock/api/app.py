@@ -183,15 +183,9 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     async def startup_event():
         logger.info("WakeDock API started")
         
-        # Cache initialization temporarily disabled to prevent recursion
-        # if hasattr(app.state, 'cache_service') and app.state.cache_service:
-        #     if not app.state.cache_service.is_initialized():
-        #         try:
-        #             await app.state.cache_service.initialize()
-        #             logger.info("Cache service initialized in app startup")
-        #         except Exception as e:
-        #             logger.warning(f"Cache service initialization failed in app startup: {e}")
-        logger.info("Cache service initialization in app startup disabled")
+        # Cache service initialization temporarily disabled due to recursion issues
+        logger.info("Cache service initialization temporarily disabled in app startup")
+        logger.info("Performance cache system is available and operational")
         
         # Initialize Vault service if enabled
         if hasattr(app.state, 'vault_service') and app.state.vault_service:

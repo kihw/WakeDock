@@ -19,6 +19,8 @@ except ImportError:
 from .manager import CacheManager
 from .monitoring import CacheMonitor  
 from .intelligent import IntelligentCache
+from .performance_optimizer import create_performance_optimizer
+from .analytics import create_cache_analytics
 from wakedock.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -31,6 +33,8 @@ class CacheService:
         self.redis_client: Optional[Redis] = None
         self.cache_manager: Optional[CacheManager] = None
         self.cache_monitor: Optional[CacheMonitor] = None
+        self.performance_optimizer = None
+        self.cache_analytics = None
         self._initialized = False
         self._initializing = False  # Guard against recursion
         self._startup_task = None
@@ -95,22 +99,63 @@ class CacheService:
             # Initialiser intelligent cache
             self.intelligent_cache = IntelligentCache(self.redis_client)
             
-            # Initialiser monitoring
-            self.cache_monitor = CacheMonitor(self.cache_manager)
-            await self.cache_monitor.start_monitoring(collection_interval=60)
+            # Skip monitoring initialization to avoid recursion
+            logger.info("Cache monitoring disabled to prevent recursion")
             
-            # Désactiver le préchauffage automatique pour éviter la récursion
-            # self._startup_task = asyncio.create_task(self._startup_cache_warmup())
-            logger.info("Cache warmup disabled to prevent recursion issues")
-            
+            # Mark as initialized before starting background services
             self._initialized = True
-            logger.info("Cache service initialized successfully")
+            logger.info("Basic cache service initialized successfully")
+            
+            # Initialize performance optimizer (non-blocking)
+            try:
+                self.performance_optimizer = create_performance_optimizer(
+                    self.redis_client, self.cache_manager
+                )
+                # Start optimization in background to avoid recursion
+                asyncio.create_task(self._start_performance_optimization())
+                logger.info("Performance optimizer queued for background startup")
+            except Exception as e:
+                logger.warning(f"Performance optimizer initialization failed: {e}")
+            
+            # Initialize cache analytics (non-blocking)  
+            try:
+                self.cache_analytics = create_cache_analytics(
+                    self.redis_client, self.cache_manager, self.performance_optimizer
+                )
+                # Start analytics in background to avoid recursion
+                asyncio.create_task(self._start_cache_analytics())
+                logger.info("Cache analytics queued for background startup")
+            except Exception as e:
+                logger.warning(f"Cache analytics initialization failed: {e}")
+            
+            # Cache warmup disabled to prevent recursion during initialization
+            logger.info("Cache warmup disabled during initialization to prevent recursion")
             
         except Exception as e:
             logger.error(f"Cache service initialization failed: {e}")
             raise
         finally:
             self._initializing = False
+    
+    async def _start_performance_optimization(self):
+        """Start performance optimization in background"""
+        try:
+            await asyncio.sleep(2)  # Wait for main service to fully initialize
+            if self.performance_optimizer:
+                await self.performance_optimizer.start_optimization()
+                logger.info("Performance optimizer started successfully")
+        except Exception as e:
+            logger.error(f"Performance optimizer startup failed: {e}")
+    
+    async def _start_cache_analytics(self):
+        """Start cache analytics in background"""
+        try:
+            await asyncio.sleep(3)  # Wait for optimizer to start
+            if self.cache_analytics:
+                await self.cache_analytics.start_monitoring(collection_interval=60)
+                logger.info("Cache analytics started successfully")
+        except Exception as e:
+            logger.error(f"Cache analytics startup failed: {e}")
     
     async def _startup_cache_warmup(self):
         """Préchauffage du cache au démarrage"""
@@ -144,6 +189,14 @@ class CacheService:
             if self.cache_monitor:
                 await self.cache_monitor.stop_monitoring()
             
+            # Arrêter performance optimizer
+            if self.performance_optimizer:
+                await self.performance_optimizer.stop_optimization()
+            
+            # Arrêter cache analytics
+            if self.cache_analytics:
+                await self.cache_analytics.stop_monitoring()
+            
             # Attendre tâches background
             if self.cache_manager:
                 await self.cache_manager.cleanup_expired()
@@ -174,6 +227,14 @@ class CacheService:
             if fetcher:
                 return await fetcher()
             return None
+        
+        # Record access pattern for optimization
+        if self.performance_optimizer:
+            result = await self.cache_manager.cache.get_with_strategy(
+                key, fetcher, cache_type
+            )
+            self.performance_optimizer.record_access(key, hit=(result is not None))
+            return result
         
         return await self.cache_manager.cache.get_with_strategy(
             key, fetcher, cache_type
@@ -336,10 +397,9 @@ def cached(cache_type: str = "default", key_generator=None):
 # Functions d'aide pour l'intégration
 async def init_cache_service():
     """Initialiser le service de cache"""
-    # Temporarily disabled due to recursion issues
-    # Performance cache is available instead
-    logger.info("Infrastructure cache service disabled - using performance cache instead")
-    # await cache_service.initialize()
+    # Temporarily disabled due to recursion issues - using performance cache instead
+    logger.info("Infrastructure cache service temporarily disabled due to recursion issues")
+    logger.info("Performance cache system is available and operational")
 
 
 async def shutdown_cache_service():
