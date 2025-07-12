@@ -16,7 +16,7 @@
     type ErrorInfo,
   } from '../utils/errorHandling';
   import Icon from './Icon.svelte';
-  import LoadingSpinner from './LoadingSpinner.svelte';
+  import LoadingSpinner from './ui/atoms/LoadingSpinner.svelte';
 
   // Props
   export let fallback: boolean = true;

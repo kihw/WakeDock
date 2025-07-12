@@ -44,10 +44,13 @@
   let debounceTimer: ReturnType<typeof setTimeout>;
   let isFocused = false;
 
-  // Computed
-  $: filteredSuggestions = suggestions
-    .filter((s) => s.toLowerCase().includes(value.toLowerCase()))
-    .slice(0, maxSuggestions);
+  // Optimized computed - cache lowercase value to avoid repeated computation
+  $: lowerValue = value.toLowerCase();
+  $: filteredSuggestions = lowerValue 
+    ? suggestions
+        .filter((s) => s.toLowerCase().includes(lowerValue))
+        .slice(0, maxSuggestions)
+    : [];
   $: shouldShowSuggestions =
     showSuggestions &&
     showSuggestionsDropdown &&

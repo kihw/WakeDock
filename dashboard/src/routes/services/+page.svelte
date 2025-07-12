@@ -12,16 +12,15 @@
   let autoRefresh = true;
   let refreshInterval: NodeJS.Timeout | null = null;
 
-  // Subscribe to stores
-  $: if ($services.services) {
-    filteredServices = $services.services.filter((service) => {
-      const matchesSearch =
-        service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        service.image.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }
+  // Optimize filtering with separate reactive statements to avoid unnecessary re-computations
+  $: lowerSearchTerm = searchTerm.toLowerCase();
+  $: filteredServices = $services.services?.filter((service) => {
+    const matchesSearch = !searchTerm || 
+      service.name.toLowerCase().includes(lowerSearchTerm) ||
+      service.image.toLowerCase().includes(lowerSearchTerm);
+    const matchesStatus = statusFilter === 'all' || service.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  }) || [];
 
   onMount(() => {
     // Redirect if not authenticated
@@ -51,7 +50,10 @@
   const startAutoRefresh = () => {
     if (autoRefresh && !refreshInterval) {
       refreshInterval = setInterval(() => {
-        services.load();
+        // Only refresh if page is visible to reduce unnecessary API calls
+        if (!document.hidden) {
+          services.load();
+        }
       }, 30000); // Refresh every 30 seconds
     }
   };

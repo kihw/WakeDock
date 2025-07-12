@@ -7,8 +7,8 @@
   import { api } from '$lib/api';
   import Button from '$lib/components/ui/atoms/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import Modal from '$lib/components/modals/Modal.svelte';
-  import ConfirmModal from '$lib/components/modals/ConfirmModal.svelte';
+  import Modal from '$lib/components/ui/organisms/Modal.svelte';
+  import ConfirmModal from '$lib/components/ui/organisms/ConfirmModal.svelte';
   import { toast } from '$lib/stores/toastStore';
 
   let users: User[] = [];

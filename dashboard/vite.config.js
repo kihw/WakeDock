@@ -10,7 +10,6 @@ export default defineConfig(({ mode }) => {
     return {
         plugins: [
             sveltekit(),
-            // Ajoute un rapport de bundle pour analyser les performances
             isProduction && visualizer({
                 filename: './build/stats.html',
                 open: false,
@@ -26,28 +25,12 @@ export default defineConfig(({ mode }) => {
                     target: apiBaseUrl,
                     changeOrigin: true,
                     secure: false,
-                    configure: (proxy, _options) => {
-                        proxy.on('error', (err, _req, _res) => {
-                            console.log('proxy error', err);
-                        });
-                        proxy.on('proxyReq', (proxyReq, req, _res) => {
-                            console.log('Sending Request to the Target:', req.method, req.url);
-                        });
-                        proxy.on('proxyRes', (proxyRes, req, _res) => {
-                            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
-                        });
-                    },
                 },
                 '/ws': {
                     target: wsBaseUrl,
                     ws: true,
                     changeOrigin: true,
                     secure: false,
-                    configure: (proxy, _options) => {
-                        proxy.on('error', (err, _req, _res) => {
-                            console.log('websocket proxy error', err);
-                        });
-                    },
                 }
             }
         },
@@ -55,18 +38,16 @@ export default defineConfig(({ mode }) => {
             devSourcemap: true
         },
         build: {
-            sourcemap: isProduction ? false : true, // Désactive en prod pour réduire la taille
+            sourcemap: !isProduction,
             cssCodeSplit: true,
             rollupOptions: {
                 output: {
                     manualChunks: (id) => {
-                        // Chunking optimisé basé sur le chemin des modules
                         if (id.includes('node_modules')) {
                             if (id.includes('svelte')) return 'vendor-svelte';
                             if (id.includes('lucide')) return 'vendor-icons';
-                            return 'vendor'; // autres dépendances
+                            return 'vendor';
                         }
-                        // Regrouper par features pour le code de l'application
                         if (id.includes('/lib/features/')) return 'features';
                         if (id.includes('/lib/components/')) return 'components';
                     },
@@ -86,20 +67,18 @@ export default defineConfig(({ mode }) => {
                     }
                 }
             },
-            // Optimisation des assets
-            assetsInlineLimit: 4096, // 4KB - inline plus petit assets
-            chunkSizeWarningLimit: 500, // Warning pour chunks > 500KB
+            assetsInlineLimit: 4096,
+            chunkSizeWarningLimit: 500,
             minify: 'terser',
             terserOptions: {
                 compress: {
-                    drop_console: isProduction, // Supprime console.log en production
-                    drop_debugger: isProduction, // Supprime debugger en production
+                    drop_console: isProduction,
+                    drop_debugger: isProduction,
                     pure_funcs: isProduction ? ['console.log', 'console.debug', 'console.info'] : []
                 }
             },
-            // Optimisations additionnelles
             reportCompressedSize: true,
-            target: 'es2020', // Target moderne pour réduire la taille du code
+            target: 'es2020',
         }
     };
 });

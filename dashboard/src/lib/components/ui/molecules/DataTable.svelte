@@ -82,55 +82,39 @@
   $: showSearch = searchable;
   $: showHeader = columns.length > 0;
 
-  // Reactive statements
-  $: {
-    // Filter data based on search
-    if (searchQuery.trim()) {
-      filteredData = data.filter((row) => {
+  // Optimized reactive statements - split into separate reactive blocks
+  // to avoid unnecessary re-computations
+  $: filteredData = searchQuery.trim() 
+    ? data.filter((row) => {
         return columns.some((col) => {
           const value = row[col.key];
           return value && value.toString().toLowerCase().includes(searchQuery.toLowerCase());
         });
-      });
-    } else {
-      filteredData = data;
-    }
+      })
+    : data;
 
-    // Apply sorting
-    if (sortColumn && sortable) {
-      filteredData = [...filteredData].sort((a, b) => {
+  $: sortedData = sortColumn && sortable 
+    ? [...filteredData].sort((a, b) => {
         const aVal = a[sortColumn];
         const bVal = b[sortColumn];
 
         if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
         if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
         return 0;
-      });
-    }
+      })
+    : filteredData;
 
-    // Apply pagination
-    if (paginated) {
-      const start = (currentPage - 1) * pageSize;
-      paginatedData = filteredData.slice(start, start + pageSize);
-    } else {
-      paginatedData = filteredData;
-    }
-  }
+  $: paginatedData = paginated 
+    ? sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+    : sortedData;
 
-  $: {
-    // Update selection state
-    if (selectable && selectedRows.length > 0) {
-      const visibleRowIds = paginatedData.map((row) => row.id);
-      const selectedVisibleRows = selectedRows.filter((id) => visibleRowIds.includes(id));
-
-      allSelected = selectedVisibleRows.length === paginatedData.length && paginatedData.length > 0;
-      indeterminate =
-        selectedVisibleRows.length > 0 && selectedVisibleRows.length < paginatedData.length;
-    } else {
-      allSelected = false;
-      indeterminate = false;
-    }
-  }
+  // Optimized selection state - only recalculate when needed
+  $: visibleRowIds = paginatedData.map((row) => row.id);
+  $: selectedVisibleRows = selectable 
+    ? selectedRows.filter((id) => visibleRowIds.includes(id))
+    : [];
+  $: allSelected = selectable && selectedVisibleRows.length === paginatedData.length && paginatedData.length > 0;
+  $: indeterminate = selectable && selectedVisibleRows.length > 0 && selectedVisibleRows.length < paginatedData.length;
 
   // Build table classes
   $: tableClasses = [

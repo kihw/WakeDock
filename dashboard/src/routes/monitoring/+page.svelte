@@ -5,7 +5,7 @@
   import { uiLogger } from '$lib/utils/logger';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/ui/atoms/Button.svelte';
-  import ResourceChart from '$lib/components/charts/ResourceChart.svelte';
+  import ResourceChart from '$lib/components/ui/organisms/charts/ResourceChart.svelte';
 
   let systemMetrics = {
     cpu: 0,

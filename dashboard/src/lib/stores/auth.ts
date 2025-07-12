@@ -1,18 +1,12 @@
 /**
  * Authentication Store
- * Manages user authentication state
+ * Manages user authentication state using token service
  */
 import { writable, derived, get } from 'svelte/store';
 import { api, type ApiError } from '../api.js';
 import { type User, type LoginResponse as ApiLoginResponse, type LoginRequest } from '../types/user.js';
-
-// WebSocket integration
-let websocketClient: any = null;
-if (typeof window !== 'undefined') {
-  import('../websocket.ts').then((module) => {
-    websocketClient = module.websocketClient;
-  });
-}
+import { tokenService } from '../services/token.js';
+import { logger } from '../utils/logger.js';
 
 interface ExtendedLoginResponse extends ApiLoginResponse {
   refresh_token?: string;
@@ -25,7 +19,6 @@ interface LoginOptions {
   device?: string;
   fingerprint?: string;
 }
-
 
 interface AuthState {
   user: User | null;
@@ -54,63 +47,8 @@ const initialState: AuthState = {
 // Create the writable store
 const { subscribe, set, update } = writable<AuthState>(initialState);
 
-// Token refresh timeout
-let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+// Session timeout timer
 let sessionTimer: ReturnType<typeof setTimeout> | null = null;
-
-// Helper to decode JWT token
-function decodeToken(token: string): any {
-  try {
-    const base64Url = token.split('.')[1];
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map(function (c) {
-          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-        })
-        .join('')
-    );
-    return JSON.parse(jsonPayload);
-  } catch (error) {
-    console.error('Error decoding token:', error);
-    return null;
-  }
-}
-
-// Helper to check if token is expired
-function isTokenExpired(token: string): boolean {
-  const decoded = decodeToken(token);
-  if (!decoded || !decoded.exp) return true;
-
-  const now = Date.now() / 1000;
-  // Check if token expires within 5 minutes
-  return decoded.exp < now + 300;
-}
-
-// Helper to schedule token refresh
-function scheduleTokenRefresh(token: string) {
-  if (refreshTimer) {
-    clearTimeout(refreshTimer);
-  }
-
-  const decoded = decodeToken(token);
-  if (!decoded || !decoded.exp) return;
-
-  const now = Date.now() / 1000;
-  const timeUntilRefresh = (decoded.exp - now - 300) * 1000; // Refresh 5 minutes before expiry
-
-  if (timeUntilRefresh > 0) {
-    refreshTimer = setTimeout(async () => {
-      try {
-        await auth.refreshToken();
-      } catch (error) {
-        console.error('Automatic token refresh failed:', error);
-        await auth.logout();
-      }
-    }, timeUntilRefresh);
-  }
-}
 
 // Helper to schedule session timeout
 function scheduleSessionTimeout(expiryDate: Date) {
@@ -118,12 +56,10 @@ function scheduleSessionTimeout(expiryDate: Date) {
     clearTimeout(sessionTimer);
   }
 
-  const now = Date.now();
-  const timeUntilExpiry = expiryDate.getTime() - now;
+  const timeUntilExpiry = expiryDate.getTime() - Date.now();
 
   if (timeUntilExpiry > 0) {
     sessionTimer = setTimeout(async () => {
-      console.warn('Session expired');
       await auth.logout();
     }, timeUntilExpiry);
   }
@@ -147,51 +83,47 @@ export const auth = {
     update((state: AuthState) => ({ ...state, isLoading: true, error: null }));
 
     try {
-      const token = api.getToken();
-      if (token) {
+      const token = tokenService.getAccessToken();
+      if (token && !tokenService.isTokenExpired(token)) {
         const user = await api.auth.getCurrentUser();
+        const tokenInfo = tokenService.getTokenInfo(token);
+        
         set({
           user,
           token,
-          refreshToken: localStorage.getItem('wakedock_refresh_token'), // Récupérer depuis localStorage
+          refreshToken: tokenService.getRefreshToken(),
           isAuthenticated: true,
           isLoading: false,
           error: null,
           isRefreshing: false,
           lastActivity: new Date(),
-          sessionExpiry: token ? (() => {
-            const decoded = decodeToken(token);
-            return decoded?.exp ? new Date(decoded.exp * 1000) : null;
-          })() : null, // Calculer à partir du token
+          sessionExpiry: tokenInfo?.expiresAt || null,
         });
+
+        // Schedule automatic token refresh
+        tokenService.scheduleTokenRefresh(token, async () => {
+          try {
+            await auth.refreshToken();
+          } catch (error) {
+            console.error('Automatic token refresh failed:', error);
+            await auth.logout();
+          }
+        });
+
+        // Schedule session timeout
+        if (tokenInfo?.expiresAt) {
+          scheduleSessionTimeout(tokenInfo.expiresAt);
+        }
       } else {
-        set({
-          user: null,
-          token: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: null,
-          isRefreshing: false,
-          lastActivity: null,
-          sessionExpiry: null,
-        });
+        // Clear invalid or expired token
+        tokenService.clearTokens();
+        set(initialState);
       }
     } catch (error) {
-      console.error('Auth initialization failed:', error);
-      // Clear invalid token
+      logger.error('Auth initialization failed', error as Error);
+      tokenService.clearTokens();
       await api.auth.logout();
-      set({
-        user: null,
-        token: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        isLoading: false,
-        error: null,
-        isRefreshing: false,
-        lastActivity: null,
-        sessionExpiry: null,
-      });
+      set(initialState);
     }
   },
 
@@ -212,15 +144,12 @@ export const auth = {
       };
 
       // Debug information for development
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Attempting login with:', { username: emailOrUsername, hasPassword: !!password });
-      }
-
-      // Debug: log exactly what we're sending to API
-      console.log('[AUTH_DEBUG] Sending loginRequest to API:', loginRequest);
-      console.log('[AUTH_DEBUG] loginRequest JSON:', JSON.stringify(loginRequest));
+      logger.debug('Attempting login', { username: emailOrUsername, hasPassword: !!password });
 
       const response: ApiLoginResponse = await api.auth.login(loginRequest);
+
+      // Store tokens using token service
+      tokenService.setTokens(response.access_token, response.refresh_token);
 
       // No 2FA support in backend, continue with normal flow
       const extendedResponse: ExtendedLoginResponse = {
@@ -233,70 +162,49 @@ export const auth = {
       try {
         user = await api.auth.getCurrentUser();
       } catch (userError) {
-        console.warn('getCurrentUser failed, using data from token:', userError);
+        logger.warn('getCurrentUser failed, using data from token', userError);
         // Fallback: extract user data from token
-        const decoded = decodeToken(response.access_token);
-        user = response.user || {
-          id: parseInt(decoded?.sub || '1'),
-          username: decoded?.username || emailOrUsername,
-          email: emailOrUsername.includes('@') ? emailOrUsername : `${emailOrUsername}@wakedock.com`,
-          full_name: decoded?.full_name || 'User',
-          role: decoded?.role || 'user',
-          is_active: true,
-          is_verified: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          last_login: new Date().toISOString()
-        };
+        const userData = tokenService.getUserFromToken(response.access_token);
+        user = response.user || userData || null;
       }
 
-      // Calculate session expiry
-      const decoded = decodeToken(response.access_token);
-      const sessionExpiry = decoded?.exp ? new Date(decoded.exp * 1000) : null;
+      // Get token info
+      const tokenInfo = tokenService.getTokenInfo(response.access_token);
 
       // Set auth state
       const authState: AuthState = {
         user,
         token: response.access_token,
-        refreshToken: extendedResponse.refresh_token || localStorage.getItem('wakedock_refresh_token'),
+        refreshToken: tokenService.getRefreshToken(),
         isAuthenticated: true,
         isLoading: false,
         error: null,
         isRefreshing: false,
         lastActivity: new Date(),
-        sessionExpiry,
+        sessionExpiry: tokenInfo?.expiresAt || null,
       };
 
       set(authState);
 
-      // Start WebSocket connection after successful login
-      if (websocketClient) {
+      // Schedule automatic token refresh
+      tokenService.scheduleTokenRefresh(response.access_token, async () => {
         try {
-          websocketClient.startConnection();
+          await auth.refreshToken();
         } catch (error) {
-          console.debug('WebSocket connection failed:', error);
+          logger.error('Automatic token refresh failed', error as Error);
+          await auth.logout();
         }
-      }
-
-      // Store refresh token if available (basic refresh token support)
-      if (extendedResponse.refresh_token) {
-        localStorage.setItem('wakedock_refresh_token', extendedResponse.refresh_token);
-      }
-
-      // Schedule token refresh
-      scheduleTokenRefresh(response.access_token);
+      });
 
       // Schedule session timeout if applicable
-      if (sessionExpiry) {
-        scheduleSessionTimeout(sessionExpiry);
+      if (tokenInfo?.expiresAt) {
+        scheduleSessionTimeout(tokenInfo.expiresAt);
       }
 
       return extendedResponse;
     } catch (error) {
-      console.error('Auth store login error:', error);
-      console.error('Auth error details:', {
+      logger.error('Auth store login error', error as Error, {
         message: (error as any)?.message,
-        stack: (error as any)?.stack,
         status: (error as any)?.status,
         response: (error as any)?.response
       });
@@ -314,30 +222,20 @@ export const auth = {
   // Logout method
   logout: async (): Promise<void> => {
     // Clear timers
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-      refreshTimer = null;
-    }
+    tokenService.clearRefreshTimer();
     if (sessionTimer) {
       clearTimeout(sessionTimer);
       sessionTimer = null;
     }
 
-    // Clear localStorage
-    localStorage.removeItem('wakedock_refresh_token');
+    // Clear tokens
+    tokenService.clearTokens();
+
+    // Clear additional localStorage items
     localStorage.removeItem('auth_remember');
     localStorage.removeItem('auth_expiry');
 
     await api.auth.logout();
-
-    // Stop WebSocket connection on logout
-    if (websocketClient) {
-      try {
-        websocketClient.stopConnection();
-      } catch (error) {
-        console.debug('WebSocket disconnection failed:', error);
-      }
-    }
 
     set(initialState);
   },
@@ -363,9 +261,7 @@ export const auth = {
     update((state: AuthState) => ({ ...state, isRefreshing: true }));
 
     try {
-      // Try to get refresh token from localStorage or current state
-      const refreshToken =
-        currentState.refreshToken || localStorage.getItem('wakedock_refresh_token');
+      const refreshToken = tokenService.getRefreshToken();
 
       if (!refreshToken) {
         throw new Error('No refresh token available');
@@ -374,30 +270,40 @@ export const auth = {
       // Call API to refresh token
       const response = await api.auth.refreshToken();
 
+      // Store new tokens
+      tokenService.setTokens(response.access_token, response.refresh_token);
+
       // Get updated user info
       const user = await api.auth.getCurrentUser();
 
-      // Calculate new session expiry
-      const decoded = decodeToken(response.access_token);
-      const sessionExpiry = decoded?.exp ? new Date(decoded.exp * 1000) : null;
+      // Get token info
+      const tokenInfo = tokenService.getTokenInfo(response.access_token);
 
       // Update auth state
       update((state: AuthState) => ({
         ...state,
         user,
         token: response.access_token,
+        refreshToken: tokenService.getRefreshToken(),
         isRefreshing: false,
         lastActivity: new Date(),
-        sessionExpiry,
+        sessionExpiry: tokenInfo?.expiresAt || null,
         error: null,
       }));
 
       // Schedule next refresh
-      scheduleTokenRefresh(response.access_token);
+      tokenService.scheduleTokenRefresh(response.access_token, async () => {
+        try {
+          await auth.refreshToken();
+        } catch (error) {
+          logger.error('Automatic token refresh failed', error as Error);
+          await auth.logout();
+        }
+      });
 
       return true;
     } catch (error) {
-      console.error('Token refresh failed:', error);
+      logger.error('Token refresh failed', error as Error);
 
       // If refresh fails, logout user
       update((state: AuthState) => ({
@@ -420,24 +326,23 @@ export const auth = {
 
   // Check if session is expired
   isSessionExpired: (): boolean => {
-    const state = get({ subscribe });
-    if (!state.sessionExpiry) return false;
-    return new Date() > state.sessionExpiry;
+    const token = tokenService.getAccessToken();
+    return !token || tokenService.isTokenExpired(token);
   },
 
-  // Check if token needs refresh (within 5 minutes of expiry)
+  // Check if token needs refresh
   needsTokenRefresh: (): boolean => {
-    const state = get({ subscribe });
-    if (!state.sessionExpiry) return false;
-    const fiveMinutes = 5 * 60 * 1000;
-    return new Date().getTime() > state.sessionExpiry.getTime() - fiveMinutes;
+    const token = tokenService.getAccessToken();
+    return !token || tokenService.needsTokenRefresh(token);
   },
 
   // Verify token validity
   verifyToken: async (): Promise<boolean> => {
     try {
-      const state = get({ subscribe });
-      if (!state.token) return false;
+      const token = tokenService.getAccessToken();
+      if (!token || tokenService.isTokenExpired(token)) {
+        return false;
+      }
 
       const user = await api.auth.getCurrentUser();
       if (user) {
@@ -451,7 +356,7 @@ export const auth = {
       }
       return false;
     } catch (error) {
-      console.error('Token verification failed:', error);
+      logger.error('Token verification failed', error as Error);
       await auth.logout();
       return false;
     }

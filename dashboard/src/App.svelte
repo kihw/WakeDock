@@ -14,14 +14,14 @@
   import Navbar from './lib/components/Navbar.svelte';
   import Sidebar from './lib/components/Sidebar.svelte';
   import Toast from './lib/components/Toast.svelte';
-  import LoadingSpinner from './lib/components/LoadingSpinner.svelte';
+  import LoadingSpinner from './lib/components/ui/atoms/LoadingSpinner.svelte';
 
   // Pages
   import Dashboard from './routes/+page.svelte';
   import Services from './routes/services/+page.svelte';
   import Monitoring from './routes/monitoring/+page.svelte';
   import Settings from './routes/settings/+page.svelte';
-  import Login from './routes/auth/login/+page.svelte';
+  import Login from './routes/login/+page.svelte';
   import NotFound from './routes/404/+page.svelte';
 
   // Routes configuration

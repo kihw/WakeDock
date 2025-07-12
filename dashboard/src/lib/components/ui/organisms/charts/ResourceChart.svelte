@@ -5,9 +5,9 @@
 <script lang="ts">
   import { onMount, onDestroy, createEventDispatcher } from 'svelte';
   import { writable } from 'svelte/store';
-  import Icon from '../Icon.svelte';
-  import Button from '../ui/atoms/Button.svelte';
-  import Select from '../forms/Select.svelte';
+  import Icon from '../../../Icon.svelte';
+  import Button from '../../atoms/Button.svelte';
+  import Select from '../../molecules/Select.svelte';
 
   // Props
   export let title = 'Resource Usage';

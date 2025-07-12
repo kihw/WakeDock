@@ -115,7 +115,7 @@
   async function loadSettings() {
     try {
       loading = true;
-      // In a real implementation, this would fetch from the API
+      // TODO: Replace with actual API call
       // const response = await api.settings.get();
       // settings = response;
       originalSettings = JSON.parse(JSON.stringify(settings));
@@ -131,7 +131,7 @@
 
     try {
       saving = true;
-      // In a real implementation, this would save to the API
+      // TODO: Replace with actual API call
       // await api.settings.update(settings);
 
       originalSettings = JSON.parse(JSON.stringify(settings));
@@ -157,12 +157,12 @@
   async function testConnection(type: 'docker' | 'caddy') {
     try {
       if (type === 'docker') {
-        // Test docker connection
+        // Test Docker connection
         toast.info('Testing Docker connection...');
         // await api.system.testDockerConnection();
         toast.success('Docker connection successful');
       } else if (type === 'caddy') {
-        // Test caddy connection
+        // Test Caddy connection
         toast.info('Testing Caddy connection...');
         // await api.system.testCaddyConnection();
         toast.success('Caddy connection successful');

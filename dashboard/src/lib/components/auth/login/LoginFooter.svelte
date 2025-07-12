@@ -22,18 +22,18 @@
 <div class="login-footer">
   <div class="footer-content">
     <div class="footer-links">
-      <a href="/privacy" class="footer-link"> Privacy Policy </a>
+      <a href="https://github.com/wakedock/wakedock/blob/main/PRIVACY.md" target="_blank" class="footer-link"> Privacy Policy </a>
       <span class="footer-divider">•</span>
-      <a href="/terms" class="footer-link"> Terms of Service </a>
+      <a href="https://github.com/wakedock/wakedock/blob/main/TERMS.md" target="_blank" class="footer-link"> Terms of Service </a>
       <span class="footer-divider">•</span>
-      <a href="/support" class="footer-link"> Support </a>
+      <a href="https://github.com/wakedock/wakedock/issues" target="_blank" class="footer-link"> Support </a>
     </div>
 
     <div class="footer-info">
       <div class="info-item">
         <Globe class="info-icon" />
         <span class="info-text">
-          <a href="/docs" class="info-link">Documentation</a>
+          <a href="https://github.com/wakedock/wakedock/blob/main/README.md" target="_blank" class="info-link">Documentation</a>
         </span>
       </div>
       <div class="info-item">

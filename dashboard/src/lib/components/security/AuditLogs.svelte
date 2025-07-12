@@ -2,11 +2,11 @@
   import { createEventDispatcher } from 'svelte';
   import Card from '$lib/components/Card.svelte';
   import Button from '$lib/components/ui/atoms/Button.svelte';
-  import Input from '$lib/components/forms/Input.svelte';
-  import Select from '$lib/components/forms/Select.svelte';
-  import DateRangePicker from '$lib/components/forms/DateRangePicker.svelte';
+  import Input from '$lib/components/ui/atoms/Input.svelte';
+  import Select from '$lib/components/ui/molecules/Select.svelte';
+  import DateRangePicker from '$lib/components/ui/molecules/DateRangePicker.svelte';
   import SecureTable from '$lib/components/tables/SecureTable.svelte';
-  import ConfirmModal from '$lib/components/modals/ConfirmModal.svelte';
+  import ConfirmModal from '$lib/components/ui/organisms/ConfirmModal.svelte';
 
   export let logs: AuditLog[] = [];
   export let loading = false;

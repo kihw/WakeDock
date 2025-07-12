@@ -5,18 +5,18 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { writable, get } from 'svelte/store';
-  import Button from '../ui/atoms/Button.svelte';
-  import Input from './Input.svelte';
+  import Button from '../atoms/Button.svelte';
+  import Input from '../atoms/Input.svelte';
   import Textarea from './Textarea.svelte';
   import Select from './Select.svelte';
-  import Icon from '../Icon.svelte';
+  import Icon from '../../Icon.svelte';
   import {
     validateServiceConfig,
     sanitizeInput,
     generateCSRFToken,
     verifyCSRFToken,
-  } from '../../utils/validation';
-  import { manageFocus, announceToScreenReader } from '../../utils/accessibility';
+  } from '../../../utils/validation';
+  import { manageFocus, announceToScreenReader } from '../../../utils/accessibility';
 
   // Props
   export let mode: 'create' | 'edit' = 'create';

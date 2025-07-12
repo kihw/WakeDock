@@ -2,7 +2,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { LogIn, AlertCircle, Shield, Clock } from 'lucide-svelte';
-  import LoadingSpinner from '$lib/components/LoadingSpinner.svelte';
+  import LoadingSpinner from '$lib/components/ui/atoms/LoadingSpinner.svelte';
 
   export let loading = false;
   export let error = '';

@@ -6,10 +6,10 @@
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { writable, get } from 'svelte/store';
   import Modal from './Modal.svelte';
-  import Button from '../ui/atoms/Button.svelte';
-  import Input from '../forms/Input.svelte';
-  import Select from '../forms/Select.svelte';
-  import Icon from '../Icon.svelte';
+  import Button from '../atoms/Button.svelte';
+  import Input from '../atoms/Input.svelte';
+  import Select from '../molecules/Select.svelte';
+  import Icon from '../../Icon.svelte';
   import { api } from '../../api';
   import { logger } from '../../utils/logger';
   import { sanitizeInput, generateCSRFToken, checkRateLimit } from '$lib/utils/validation';

@@ -2,9 +2,9 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import Modal from './Modal.svelte';
-  import Button from '../ui/atoms/Button.svelte';
-  import { sanitizeInput, generateCSRFToken, checkRateLimit } from '../../utils/validation';
-  import { announceToScreenReader, manageFocus } from '../../utils/accessibility';
+  import Button from '../atoms/Button.svelte';
+  import { sanitizeInput, generateCSRFToken, checkRateLimit } from '../../../utils/validation';
+  import { announceToScreenReader, manageFocus } from '../../../utils/accessibility';
 
   export let open: boolean = false;
   export let title: string = 'Confirm Action';

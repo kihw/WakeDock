@@ -267,10 +267,20 @@ export const logger = new Logger();
 // Helpers pour différents contextes
 export const apiLogger = {
   request: (method: string, url: string, data?: any) => {
-    logger.debug(`API Request: ${method} ${url}`, { method, url, data });
+    // Only log non-polling requests to reduce noise
+    if (!url.includes('/health') && !url.includes('/ping')) {
+      logger.debug(`API Request: ${method} ${url}`, { method, url, data });
+    }
   },
   response: (method: string, url: string, status: number, data?: any) => {
-    logger.debug(`API Response: ${method} ${url} - ${status}`, { method, url, status, data });
+    // Only log non-polling responses and errors
+    if (!url.includes('/health') && !url.includes('/ping')) {
+      if (status >= 400) {
+        logger.warn(`API Response: ${method} ${url} - ${status}`, { method, url, status, data });
+      } else {
+        logger.debug(`API Response: ${method} ${url} - ${status}`, { method, url, status });
+      }
+    }
   },
   error: (method: string, url: string, error: Error) => {
     logger.error(`API Error: ${method} ${url}`, error, { method, url });
@@ -308,9 +318,9 @@ export const loggerConfigs = {
     includeStackTrace: true,
   },
   production: {
-    level: LogLevel.WARN,
+    level: LogLevel.ERROR,
     enableConsole: false,
-    enableStorage: true,
+    enableStorage: false,
     includeStackTrace: false,
   },
   test: {
@@ -323,9 +333,10 @@ export const loggerConfigs = {
 
 // Auto-configuration basée sur l'environnement
 if (typeof window !== 'undefined') {
-  const isDev =
-    window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  const isTest = window.location.search.includes('test=true');
+  const isDev = process.env.NODE_ENV === 'development' || 
+    window.location.hostname === 'localhost' || 
+    window.location.hostname === '127.0.0.1';
+  const isTest = process.env.NODE_ENV === 'test' || window.location.search.includes('test=true');
 
   if (isTest) {
     logger.configure(loggerConfigs.test);

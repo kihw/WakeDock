@@ -19,11 +19,20 @@
   let inputValue = '';
   let showToast = false;
 
-  const sampleData = [
-    { id: 1, name: 'Test Service', status: 'running', cpu: 25.5 },
-    { id: 2, name: 'API Gateway', status: 'stopped', cpu: 0 },
-    { id: 3, name: 'Database', status: 'running', cpu: 67.2 },
-  ];
+  // Generate dynamic sample data for design system testing
+  const generateSampleData = () => {
+    const services = ['Web Server', 'API Gateway', 'Database', 'Cache', 'Queue'];
+    const statuses = ['running', 'stopped', 'restarting'];
+    
+    return services.map((name, index) => ({
+      id: index + 1,
+      name,
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      cpu: Math.round(Math.random() * 100 * 10) / 10
+    }));
+  };
+
+  let sampleData = generateSampleData();
 
   const columns = [
     { key: 'name', label: 'Service Name' },

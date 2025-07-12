@@ -2,22 +2,18 @@
   import '../app.css';
   import '@fontsource/inter';
   import { onMount } from 'svelte';
-  import { writable } from 'svelte/store';
   import { page } from '$app/stores';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Header from '$lib/components/Header.svelte';
   import { initializeConfig } from '$lib/config/loader.js';
+  import { sidebarOpen, mounted, closeSidebarOnMobile, handleEscapeKey, handleResize } from '$lib/stores/layout.js';
+  import { initializeTheme } from '$lib/utils/theme.js';
 
   export let data: any = {};
 
-  let sidebarOpen = writable(false);
-  let mounted = false;
-
   // Close sidebar on route change (mobile)
-  $: if ($page.url.pathname && mounted) {
-    if (window.innerWidth <= 768) {
-      sidebarOpen.set(false);
-    }
+  $: if ($page.url.pathname && $mounted) {
+    closeSidebarOnMobile();
   }
 
   onMount(async () => {
@@ -26,20 +22,15 @@
     // Initialize configuration FIRST before anything else
     await initializeConfig();
 
-    mounted = true;
+    // Initialize theme
+    initializeTheme();
+
+    mounted.set(true);
 
     // Handle escape key for sidebar
     function handleKeydown(event: KeyboardEvent) {
       if (event.key === 'Escape' && $sidebarOpen) {
-        sidebarOpen.set(false);
-      }
-    }
-
-    // Handle resize events
-    function handleResize() {
-      // Auto-close sidebar on mobile when resizing to desktop
-      if (window.innerWidth > 768 && $sidebarOpen) {
-        sidebarOpen.set(false);
+        handleEscapeKey(event);
       }
     }
 
@@ -47,31 +38,10 @@
     document.addEventListener('keydown', handleKeydown);
     window.addEventListener('resize', handleResize);
 
-    // Initialize theme from localStorage
-    const savedTheme = localStorage.getItem('wakedock_theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else {
-      // Default to system preference
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-    }
-
-    // Listen for system theme changes
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    function handleThemeChange(e: MediaQueryListEvent) {
-      const currentTheme = localStorage.getItem('wakedock_theme');
-      if (!currentTheme || currentTheme === 'auto') {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-      }
-    }
-    mediaQuery.addEventListener('change', handleThemeChange);
-
     // Cleanup
     return () => {
       document.removeEventListener('keydown', handleKeydown);
       window.removeEventListener('resize', handleResize);
-      mediaQuery.removeEventListener('change', handleThemeChange);
     };
   });
 </script>
