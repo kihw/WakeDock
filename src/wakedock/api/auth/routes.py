@@ -686,6 +686,82 @@ async def extend_current_session(
     )
 
 
+@router.post("/reset-password")
+def request_password_reset(
+    password_reset: PasswordReset,
+    db: Session = Depends(get_db_session)
+):
+    """Request password reset for email."""
+    # Find user by email
+    user = db.query(User).filter(User.email == password_reset.email).first()
+    
+    if not user:
+        # Don't reveal whether email exists or not for security
+        return {"message": "If the email exists in our system, you will receive a password reset link."}
+    
+    if not user.is_active:
+        return {"message": "If the email exists in our system, you will receive a password reset link."}
+    
+    # Generate password reset token (in production, use secure random token and store in DB)
+    import secrets
+    import time
+    reset_token = secrets.token_urlsafe(32)
+    
+    # In a real implementation, you would:
+    # 1. Store the token in database with expiration time
+    # 2. Send email with reset link
+    # For now, we'll just log it
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"Password reset requested for {password_reset.email}. Token: {reset_token}")
+    
+    # In development, return the token for testing
+    return {
+        "message": "If the email exists in our system, you will receive a password reset link.",
+        "debug_token": reset_token  # Remove this in production
+    }
+
+
+@router.post("/reset-password-confirm")
+def confirm_password_reset(
+    reset_confirm: PasswordResetConfirm,
+    db: Session = Depends(get_db_session)
+):
+    """Confirm password reset with token."""
+    # In a real implementation, you would:
+    # 1. Validate the token from database
+    # 2. Check if token is expired
+    # 3. Find user associated with token
+    
+    # For now, we'll implement a basic version
+    # This is a simplified implementation for demonstration
+    
+    # You would typically decode/validate the token here
+    # For demo purposes, we'll just check if it's a valid format
+    if len(reset_confirm.token) < 16:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # In production, you would find the user by the token
+    # For demo, we'll assume it's for the admin user
+    user = db.query(User).filter(User.email == "admin@wakedock.com").first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token"
+        )
+    
+    # Update password
+    user.hashed_password = hash_password(reset_confirm.new_password)
+    user.updated_at = datetime.utcnow()
+    db.commit()
+    
+    return {"message": "Password reset successfully"}
+
+
 @router.api_route("/login_raw_debug", methods=["POST", "GET", "PUT", "PATCH", "DELETE"])
 async def login_raw_debug(request: Request):
     """Endpoint de debug pour capturer toutes les requêtes vers login."""

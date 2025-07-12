@@ -152,3 +152,10 @@ docker network inspect caddy_net
 7. 🔒 **ALWAYS verify SSL in production** - Caddy auto-HTTPS must work
 
 **Goal**: Production-ready Docker Compose management platform with Caddy SSL automation.
+
+## 📋 TASK MANAGEMENT
+- **Source**: All tasks in PROJECT_COMPLETION_PLAN.md
+- **Workflow**: Select task → Develop → Mark complete → Deploy/Test
+- **Format**: TASK-XXX with file paths
+- **Priority**: CRITICAL → HIGH → MEDIUM → LOW
+- **Current**: Phase 1 Docker Integration (TASK-001 to TASK-015)

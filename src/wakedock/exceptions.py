@@ -64,6 +64,13 @@ class DockerException(WakeDockException):
     pass
 
 
+class DockerConnectionError(DockerException):
+    """Docker connection error."""
+    
+    def __init__(self, reason: str):
+        super().__init__(f"Docker connection error: {reason}", {"reason": reason})
+
+
 class DockerDaemonError(DockerException):
     """Docker daemon not available or responding."""
     
@@ -256,6 +263,7 @@ EXCEPTION_STATUS_MAP = {
     ServiceConfigurationError: 400,
     ServiceStartError: 500,
     ServiceStopError: 500,
+    DockerConnectionError: 503,
     DockerDaemonError: 503,
     DockerImageError: 400,
     DockerContainerError: 500,

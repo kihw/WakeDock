@@ -50,6 +50,7 @@ aiosmtplib==3.0.1
 
 # Validation
 validators==0.22.0
+humanize==4.9.0
 
 # Production server
 gunicorn==21.2.0

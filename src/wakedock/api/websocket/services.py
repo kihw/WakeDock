@@ -18,9 +18,10 @@ logger = logging.getLogger(__name__)
 class ServicesWebSocketHandler:
     """Gestionnaire WebSocket pour les événements de services"""
     
-    def __init__(self, websocket_manager):
+    def __init__(self, websocket_manager, orchestrator=None):
         """Initialiser le handler de services"""
         self.ws_manager = websocket_manager
+        self.orchestrator = orchestrator
         self.log_streams: Dict[str, asyncio.Task] = {}  # service_id -> task
         self.metrics_streams: Dict[str, asyncio.Task] = {}  # service_id -> task
     
@@ -268,75 +269,252 @@ class ServicesWebSocketHandler:
     async def _stream_service_logs(self, connection_id: str, service_id: str, lines: int) -> None:
         """Stream des logs de service en continu"""
         try:
-            # TODO: Intégrer avec Docker API pour récupérer les logs en temps réel
-            # Pour l'instant, simulation avec des logs exemple
+            if not self.orchestrator:
+                logger.error("No orchestrator available for log streaming")
+                return
             
-            log_count = 0
+            # Get the service to find the container ID
+            service = await self.orchestrator.get_service(service_id)
+            if not service:
+                logger.error(f"Service {service_id} not found")
+                return
+            
+            container_id = service.get("container_id")
+            if not container_id:
+                logger.error(f"Service {service_id} has no container")
+                return
+            
+            # Send initial logs
+            try:
+                initial_logs = await self.orchestrator.get_container_logs(container_id, tail=lines)
+                if initial_logs:
+                    # Split logs into lines and send each as a separate message
+                    for log_line in initial_logs.split('\n'):
+                        if log_line.strip():
+                            # Parse timestamp and log level from Docker log format
+                            timestamp_str, level, message = self._parse_docker_log_line(log_line)
+                            
+                            log_entry = LogEntry(
+                                service_id=service_id,
+                                level=level,
+                                message=message,
+                                timestamp=timestamp_str,
+                                source="container"
+                            )
+                            
+                            message = WebSocketMessage(
+                                type=EventType.SERVICE_LOGS.value,
+                                data={
+                                    "service_id": service_id,
+                                    "log": log_entry.dict()
+                                }
+                            )
+                            
+                            success = await self.ws_manager.send_to_connection(connection_id, message)
+                            if not success:
+                                return  # Connection closed
+                        
+                            # Small delay to avoid overwhelming the client
+                            await asyncio.sleep(0.01)
+            except Exception as e:
+                logger.error(f"Error sending initial logs: {e}")
+            
+            # Stream new logs continuously
+            last_timestamp = None
             while True:
-                # Simulation de logs
-                log_entry = LogEntry(
-                    service_id=service_id,
-                    level="info",
-                    message=f"Service log message {log_count}",
-                    timestamp=datetime.utcnow(),
-                    source="container"
-                )
-                
-                message = WebSocketMessage(
-                    type=EventType.SERVICE_LOGS.value,
-                    data={
-                        "service_id": service_id,
-                        "log": log_entry.dict()
-                    }
-                )
-                
-                success = await self.ws_manager.send_to_connection(connection_id, message)
-                if not success:
-                    break  # Connexion fermée
-                
-                log_count += 1
-                await asyncio.sleep(1)  # Envoyer un log par seconde
+                try:
+                    # Get logs since last timestamp
+                    new_logs = await self.orchestrator.get_container_logs(
+                        container_id, 
+                        tail=10,  # Get only recent logs
+                        since=last_timestamp
+                    )
+                    
+                    if new_logs:
+                        log_lines = new_logs.split('\n')
+                        for log_line in log_lines:
+                            if log_line.strip():
+                                timestamp_str, level, message = self._parse_docker_log_line(log_line)
+                                
+                                log_entry = LogEntry(
+                                    service_id=service_id,
+                                    level=level,
+                                    message=message,
+                                    timestamp=timestamp_str,
+                                    source="container"
+                                )
+                                
+                                message = WebSocketMessage(
+                                    type=EventType.SERVICE_LOGS.value,
+                                    data={
+                                        "service_id": service_id,
+                                        "log": log_entry.dict()
+                                    }
+                                )
+                                
+                                success = await self.ws_manager.send_to_connection(connection_id, message)
+                                if not success:
+                                    return  # Connection closed
+                                
+                                # Update last timestamp
+                                last_timestamp = timestamp_str
+                    
+                    # Wait before checking for new logs
+                    await asyncio.sleep(2)
+                    
+                except Exception as e:
+                    logger.error(f"Error in continuous log streaming: {e}")
+                    await asyncio.sleep(5)  # Wait longer on error
                 
         except asyncio.CancelledError:
             logger.debug(f"Log stream cancelled for service {service_id}")
         except Exception as e:
             logger.error(f"Error in log stream for service {service_id}: {e}")
     
+    def _parse_docker_log_line(self, log_line: str) -> tuple:
+        """Parse a Docker log line to extract timestamp, level, and message"""
+        try:
+            # Docker log format: timestamp level message
+            # Example: "2023-07-12T10:30:00.000000000Z INFO This is a log message"
+            
+            if not log_line.strip():
+                return datetime.utcnow(), "info", ""
+            
+            # Try to extract timestamp
+            parts = log_line.split(' ', 2)
+            if len(parts) >= 3:
+                timestamp_str = parts[0]
+                level_str = parts[1].lower()
+                message = parts[2]
+                
+                # Parse timestamp
+                try:
+                    if 'T' in timestamp_str and 'Z' in timestamp_str:
+                        # ISO format with Z
+                        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+                    else:
+                        # Fallback to current time
+                        timestamp = datetime.utcnow()
+                except:
+                    timestamp = datetime.utcnow()
+                
+                # Determine log level
+                if level_str in ['error', 'err', 'fatal', 'crit']:
+                    level = "error"
+                elif level_str in ['warn', 'warning']:
+                    level = "warning"
+                elif level_str in ['debug', 'trace']:
+                    level = "debug"
+                else:
+                    level = "info"
+                
+                return timestamp, level, message
+            else:
+                # Simple format without timestamp
+                return datetime.utcnow(), "info", log_line
+                
+        except Exception as e:
+            logger.debug(f"Error parsing log line: {e}")
+            return datetime.utcnow(), "info", log_line
+    
     async def _stream_service_metrics(self, connection_id: str, service_id: str, interval: int) -> None:
         """Stream des métriques de service en continu"""
         try:
-            # TODO: Intégrer avec Docker API pour récupérer les métriques en temps réel
-            # Pour l'instant, simulation avec des métriques exemple
+            if not self.orchestrator:
+                logger.error("No orchestrator available for metrics streaming")
+                return
             
-            import random
+            # Get the service to find the container ID
+            service = await self.orchestrator.get_service(service_id)
+            if not service:
+                logger.error(f"Service {service_id} not found")
+                return
+            
+            container_id = service.get("container_id")
+            if not container_id:
+                logger.error(f"Service {service_id} has no container")
+                return
             
             while True:
-                # Simulation de métriques
-                metrics_data = {
-                    "service_id": service_id,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "cpu_usage": random.uniform(10, 80),
-                    "memory_usage": random.uniform(100, 500),  # MB
-                    "network_io": {
-                        "rx_bytes": random.randint(1000, 10000),
-                        "tx_bytes": random.randint(1000, 10000)
-                    },
-                    "disk_io": {
-                        "read_bytes": random.randint(0, 1000),
-                        "write_bytes": random.randint(0, 1000)
-                    }
-                }
-                
-                message = WebSocketMessage(
-                    type=EventType.SERVICE_METRICS.value,
-                    data=metrics_data
-                )
-                
-                success = await self.ws_manager.send_to_connection(connection_id, message)
-                if not success:
-                    break  # Connexion fermée
-                
-                await asyncio.sleep(interval)
+                try:
+                    # Get real metrics from Docker API
+                    stats = await self.orchestrator.get_container_stats(container_id)
+                    
+                    if stats:
+                        # Use real Docker stats
+                        metrics_data = {
+                            "service_id": service_id,
+                            "container_id": container_id,
+                            "timestamp": stats.get("timestamp", datetime.utcnow().isoformat()),
+                            "cpu_usage": stats.get("cpu_usage", 0),
+                            "memory_usage": stats.get("memory_usage", 0),
+                            "memory_limit": stats.get("memory_limit", 0),
+                            "memory_percent": stats.get("memory_percent", 0),
+                            "network_io": {
+                                "rx_bytes": stats.get("network_rx", 0),
+                                "tx_bytes": stats.get("network_tx", 0)
+                            },
+                            "disk_io": {
+                                "read_bytes": stats.get("block_read", 0),
+                                "write_bytes": stats.get("block_write", 0)
+                            }
+                        }
+                    else:
+                        # Fallback to basic service stats
+                        service_stats = await self.orchestrator.get_service_stats(service_id)
+                        if service_stats:
+                            metrics_data = {
+                                "service_id": service_id,
+                                "container_id": container_id,
+                                "timestamp": service_stats.get("timestamp", datetime.utcnow().isoformat()),
+                                "cpu_usage": service_stats.get("cpu_percent", 0),
+                                "memory_usage": service_stats.get("memory_usage", 0),
+                                "memory_limit": service_stats.get("memory_limit", 0),
+                                "memory_percent": service_stats.get("memory_percent", 0),
+                                "network_io": {
+                                    "rx_bytes": service_stats.get("network_rx", 0),
+                                    "tx_bytes": service_stats.get("network_tx", 0)
+                                },
+                                "disk_io": {
+                                    "read_bytes": 0,
+                                    "write_bytes": 0
+                                }
+                            }
+                        else:
+                            # Service is not running, send empty metrics
+                            metrics_data = {
+                                "service_id": service_id,
+                                "container_id": container_id,
+                                "timestamp": datetime.utcnow().isoformat(),
+                                "cpu_usage": 0,
+                                "memory_usage": 0,
+                                "memory_limit": 0,
+                                "memory_percent": 0,
+                                "network_io": {
+                                    "rx_bytes": 0,
+                                    "tx_bytes": 0
+                                },
+                                "disk_io": {
+                                    "read_bytes": 0,
+                                    "write_bytes": 0
+                                },
+                                "status": "stopped"
+                            }
+                    
+                    message = WebSocketMessage(
+                        type=EventType.SERVICE_METRICS.value,
+                        data=metrics_data
+                    )
+                    
+                    success = await self.ws_manager.send_to_connection(connection_id, message)
+                    if not success:
+                        break  # Connection closed
+                    
+                    await asyncio.sleep(interval)
+                    
+                except Exception as e:
+                    logger.error(f"Error getting metrics for service {service_id}: {e}")
+                    await asyncio.sleep(interval)  # Continue trying
                 
         except asyncio.CancelledError:
             logger.debug(f"Metrics stream cancelled for service {service_id}")

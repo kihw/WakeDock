@@ -137,6 +137,9 @@
     overflow-y: auto;
     position: relative;
     background: var(--color-background);
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
 
     /* Smooth scrolling */
     scroll-behavior: smooth;
@@ -392,11 +395,11 @@
   }
 
   /* Dark Mode Adjustments */
-  [data-theme='dark'] .footer-text {
+  :global([data-theme='dark']) .footer-text {
     color: var(--color-text-secondary);
   }
 
-  [data-theme='dark'] .footer-link:hover {
+  :global([data-theme='dark']) .footer-link:hover {
     background: rgba(59, 130, 246, 0.2);
   }
 

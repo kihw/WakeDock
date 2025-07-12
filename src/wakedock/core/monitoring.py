@@ -211,17 +211,36 @@ class MonitoringService:
             disk = type('obj', (object,), {'percent': 0.0})()
             uptime = 0
         
-        # Get Docker status
+        # Get Docker status and detailed info
         docker_status = "healthy"
         docker_version = "unknown"
         docker_api_version = "unknown"
+        docker_containers = 0
+        docker_images = 0
+        docker_networks = 0
+        docker_volumes = 0
         
         if self.orchestrator and hasattr(self.orchestrator, 'client'):
             try:
-                info = self.orchestrator.client.version()
-                docker_version = info.get('Version', 'unknown')
-                docker_api_version = info.get('ApiVersion', 'unknown')
-            except Exception:
+                # Get Docker version
+                version_info = self.orchestrator.client.version()
+                docker_version = version_info.get('Version', 'unknown')
+                docker_api_version = version_info.get('ApiVersion', 'unknown')
+                
+                # Get Docker system info
+                docker_info = await self.orchestrator.get_docker_system_info()
+                if docker_info:
+                    docker_containers = docker_info.get('containers_running', 0)
+                    docker_images = docker_info.get('images', 0)
+                
+                # Get counts for networks and volumes
+                networks = await self.orchestrator.list_networks()
+                volumes = await self.orchestrator.list_volumes()
+                docker_networks = len(networks) if networks else 0
+                docker_volumes = len(volumes) if volumes else 0
+                
+            except Exception as e:
+                logger.warning(f"Error getting Docker info: {e}")
                 docker_status = "unhealthy"
         
         return {
@@ -240,11 +259,193 @@ class MonitoringService:
             "docker": {
                 "version": docker_version,
                 "api_version": docker_api_version,
-                "status": docker_status
+                "status": docker_status,
+                "containers": docker_containers,
+                "images": docker_images,
+                "networks": docker_networks,
+                "volumes": docker_volumes
             },
             "caddy": {
                 "version": "2.0",  # Could be fetched from Caddy API
                 "status": "healthy",  # Could be checked via health endpoint
                 "active_routes": 3  # Base routes: API, dashboard, health
             }
+        }
+    
+    async def get_container_metrics(self, container_id: str) -> Dict[str, Any]:
+        """Get real-time metrics for a specific container"""
+        if not self.orchestrator:
+            return {}
+        
+        try:
+            stats = await self.orchestrator.get_container_stats(container_id)
+            container_details = await self.orchestrator.get_container_details(container_id)
+            
+            if not stats or not container_details:
+                return {}
+            
+            return {
+                "container_id": container_id,
+                "name": container_details.get("name", "unknown"),
+                "image": container_details.get("image", "unknown"),
+                "status": container_details.get("status", "unknown"),
+                "uptime": container_details.get("uptime", 0),
+                "metrics": {
+                    "cpu_usage": stats.get("cpu_usage", 0),
+                    "memory_usage": stats.get("memory_usage", 0),
+                    "memory_limit": stats.get("memory_limit", 0),
+                    "memory_percent": stats.get("memory_percent", 0),
+                    "network_rx": stats.get("network_rx", 0),
+                    "network_tx": stats.get("network_tx", 0),
+                    "block_read": stats.get("block_read", 0),
+                    "block_write": stats.get("block_write", 0)
+                },
+                "timestamp": stats.get("timestamp", datetime.now().isoformat())
+            }
+        except Exception as e:
+            logger.error(f"Error getting container metrics: {e}")
+            return {}
+    
+    async def get_all_container_metrics(self) -> List[Dict[str, Any]]:
+        """Get metrics for all containers"""
+        if not self.orchestrator:
+            return []
+        
+        try:
+            containers = await self.orchestrator.list_containers(all_containers=False)
+            metrics = []
+            
+            for container in containers:
+                container_metrics = await self.get_container_metrics(container["id"])
+                if container_metrics:
+                    metrics.append(container_metrics)
+            
+            return metrics
+        except Exception as e:
+            logger.error(f"Error getting all container metrics: {e}")
+            return []
+    
+    async def get_resource_alerts(self) -> List[Dict[str, Any]]:
+        """Get current resource alerts"""
+        alerts = []
+        
+        try:
+            # System resource alerts
+            import psutil
+            cpu_usage = psutil.cpu_percent(interval=0.1)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            # High CPU usage alert
+            if cpu_usage > 80:
+                alerts.append({
+                    "type": "system",
+                    "level": "warning" if cpu_usage < 90 else "critical",
+                    "message": f"High CPU usage: {cpu_usage:.1f}%",
+                    "timestamp": datetime.now().isoformat()
+                })
+            
+            # High memory usage alert
+            if memory.percent > 80:
+                alerts.append({
+                    "type": "system",
+                    "level": "warning" if memory.percent < 90 else "critical",
+                    "message": f"High memory usage: {memory.percent:.1f}%",
+                    "timestamp": datetime.now().isoformat()
+                })
+            
+            # High disk usage alert
+            if disk.percent > 80:
+                alerts.append({
+                    "type": "system",
+                    "level": "warning" if disk.percent < 90 else "critical",
+                    "message": f"High disk usage: {disk.percent:.1f}%",
+                    "timestamp": datetime.now().isoformat()
+                })
+            
+            # Container resource alerts
+            if self.orchestrator:
+                services = await self.orchestrator.list_services()
+                for service in services:
+                    if service["status"] == "running":
+                        try:
+                            stats = await self.orchestrator.get_service_stats(service["id"])
+                            if stats:
+                                # High container CPU usage
+                                cpu_percent = stats.get("cpu_percent", 0)
+                                if cpu_percent > 80:
+                                    alerts.append({
+                                        "type": "container",
+                                        "service_id": service["id"],
+                                        "service_name": service["name"],
+                                        "level": "warning" if cpu_percent < 90 else "critical",
+                                        "message": f"High CPU usage in {service['name']}: {cpu_percent:.1f}%",
+                                        "timestamp": datetime.now().isoformat()
+                                    })
+                                
+                                # High container memory usage
+                                memory_percent = stats.get("memory_percent", 0)
+                                if memory_percent > 80:
+                                    alerts.append({
+                                        "type": "container",
+                                        "service_id": service["id"],
+                                        "service_name": service["name"],
+                                        "level": "warning" if memory_percent < 90 else "critical",
+                                        "message": f"High memory usage in {service['name']}: {memory_percent:.1f}%",
+                                        "timestamp": datetime.now().isoformat()
+                                    })
+                        except Exception as e:
+                            logger.warning(f"Error checking alerts for {service['name']}: {e}")
+            
+            # Docker daemon alerts
+            if self.orchestrator and hasattr(self.orchestrator, 'client'):
+                try:
+                    self.orchestrator.client.ping()
+                except Exception:
+                    alerts.append({
+                        "type": "docker",
+                        "level": "critical",
+                        "message": "Docker daemon is not responding",
+                        "timestamp": datetime.now().isoformat()
+                    })
+            
+        except Exception as e:
+            logger.error(f"Error getting resource alerts: {e}")
+        
+        return alerts
+    
+    def get_metrics_summary(self, service_id: str, hours: int = 24) -> Dict[str, Any]:
+        """Get a summary of metrics for a service over a time period"""
+        if service_id not in self.metrics_history:
+            return {}
+        
+        cutoff_time = datetime.now() - timedelta(hours=hours)
+        recent_metrics = [
+            metric for metric in self.metrics_history[service_id]
+            if metric["timestamp"] > cutoff_time
+        ]
+        
+        if not recent_metrics:
+            return {}
+        
+        # Calculate averages, min, max
+        cpu_values = [m.get("cpu_percent", 0) for m in recent_metrics]
+        memory_values = [m.get("memory_usage", 0) for m in recent_metrics]
+        
+        return {
+            "service_id": service_id,
+            "period_hours": hours,
+            "data_points": len(recent_metrics),
+            "cpu": {
+                "avg": sum(cpu_values) / len(cpu_values) if cpu_values else 0,
+                "min": min(cpu_values) if cpu_values else 0,
+                "max": max(cpu_values) if cpu_values else 0
+            },
+            "memory": {
+                "avg": sum(memory_values) / len(memory_values) if memory_values else 0,
+                "min": min(memory_values) if memory_values else 0,
+                "max": max(memory_values) if memory_values else 0
+            },
+            "first_timestamp": recent_metrics[0]["timestamp"] if recent_metrics else None,
+            "last_timestamp": recent_metrics[-1]["timestamp"] if recent_metrics else None
         }

@@ -17,6 +17,7 @@ from docker.models.images import Image
 
 from wakedock.config import get_settings, ServiceSettings
 from wakedock.infrastructure.caddy import caddy_manager
+from wakedock.utils.docker_utils import DockerUtils
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class DockerOrchestrator:
         self.services: Dict[str, Dict[str, Any]] = {}
         self.container_map: Dict[str, str] = {}  # container_id -> service_id
         self.client = None
+        self.docker_utils = None
         self._initialize_docker_client()
         self._load_services()
     
@@ -38,6 +40,8 @@ class DockerOrchestrator:
             self.client = docker.from_env()
             # Test connection
             self.client.ping()
+            # Initialize Docker utils with client
+            self.docker_utils = DockerUtils(self.client)
             logger.info("✅ Docker client initialized successfully")
         except docker.errors.DockerException as e:
             logger.error(f"❌ Failed to connect to Docker daemon: {e}")
@@ -45,9 +49,11 @@ class DockerOrchestrator:
                 logger.error("💡 This is likely a Docker socket permission issue.")
                 logger.error("💡 Make sure the container has access to /var/run/docker.sock")
             self.client = None
+            self.docker_utils = None
         except Exception as e:
             logger.error(f"❌ Unexpected error initializing Docker client: {e}")
             self.client = None
+            self.docker_utils = None
     
     def _load_services(self):
         """Load services from configuration"""
@@ -252,7 +258,7 @@ class DockerOrchestrator:
                 ports=ports,
                 environment=service["environment"],
                 detach=True,
-                network="wakedock-network"
+                network="caddy_net"
             )
             
             service["status"] = "running"
@@ -485,6 +491,397 @@ class DockerOrchestrator:
         except Exception as e:
             logger.error(f"❌ Error updating Caddy configuration: {e}")
             return False
+
+    async def list_containers(self, all_containers: bool = False) -> List[Dict[str, Any]]:
+        """List all Docker containers with detailed information"""
+        if not self._check_docker_available():
+            return []
+        
+        try:
+            containers = self.client.containers.list(all=all_containers)
+            container_list = []
+            
+            for container in containers:
+                container_info = {
+                    "id": container.id,
+                    "short_id": container.short_id,
+                    "name": container.name,
+                    "image": container.image.tags[0] if container.image.tags else container.image.id,
+                    "status": container.status,
+                    "state": container.attrs.get('State', {}),
+                    "created": container.attrs.get('Created', ''),
+                    "started_at": container.attrs.get('State', {}).get('StartedAt', ''),
+                    "finished_at": container.attrs.get('State', {}).get('FinishedAt', ''),
+                    "ports": self.docker_utils.parse_container_ports(container.attrs.get('NetworkSettings', {}).get('Ports', {})),
+                    "environment": self.docker_utils.parse_container_environment(container.attrs.get('Config', {}).get('Env', [])),
+                    "volumes": self.docker_utils.parse_container_volumes(container.attrs.get('Mounts', [])),
+                    "networks": self.docker_utils.parse_container_networks(container.attrs.get('NetworkSettings', {}).get('Networks', {})),
+                    "labels": container.attrs.get('Config', {}).get('Labels', {}),
+                    "uptime": self.docker_utils.calculate_container_uptime(container.attrs.get('State', {}).get('StartedAt', '')),
+                    "size": container.attrs.get('SizeRootFs', 0),
+                    "size_formatted": self.docker_utils.format_container_size(container.attrs.get('SizeRootFs', 0)),
+                    "is_wakedock_managed": self.docker_utils.is_wakedock_managed(container.attrs.get('Config', {}).get('Labels', {})),
+                    "service_name": self.docker_utils.get_service_name_from_labels(container.attrs.get('Config', {}).get('Labels', {}))
+                }
+                container_list.append(container_info)
+            
+            return container_list
+            
+        except Exception as e:
+            logger.error(f"Failed to list containers: {e}")
+            return []
+
+    async def get_container_details(self, container_id: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific container"""
+        if not self._check_docker_available():
+            return None
+        
+        try:
+            container = self.client.containers.get(container_id)
+            
+            # Get detailed container information
+            details = {
+                "id": container.id,
+                "short_id": container.short_id,
+                "name": container.name,
+                "image": container.image.tags[0] if container.image.tags else container.image.id,
+                "status": container.status,
+                "state": container.attrs.get('State', {}),
+                "created": container.attrs.get('Created', ''),
+                "started_at": container.attrs.get('State', {}).get('StartedAt', ''),
+                "finished_at": container.attrs.get('State', {}).get('FinishedAt', ''),
+                "ports": self.docker_utils.parse_container_ports(container.attrs.get('NetworkSettings', {}).get('Ports', {})),
+                "environment": self.docker_utils.parse_container_environment(container.attrs.get('Config', {}).get('Env', [])),
+                "volumes": self.docker_utils.parse_container_volumes(container.attrs.get('Mounts', [])),
+                "networks": self.docker_utils.parse_container_networks(container.attrs.get('NetworkSettings', {}).get('Networks', {})),
+                "labels": container.attrs.get('Config', {}).get('Labels', {}),
+                "uptime": self.docker_utils.calculate_container_uptime(container.attrs.get('State', {}).get('StartedAt', '')),
+                "size": container.attrs.get('SizeRootFs', 0),
+                "size_formatted": self.docker_utils.format_container_size(container.attrs.get('SizeRootFs', 0)),
+                "is_wakedock_managed": self.docker_utils.is_wakedock_managed(container.attrs.get('Config', {}).get('Labels', {})),
+                "service_name": self.docker_utils.get_service_name_from_labels(container.attrs.get('Config', {}).get('Labels', {})),
+                "config": container.attrs.get('Config', {}),
+                "host_config": container.attrs.get('HostConfig', {}),
+                "network_settings": container.attrs.get('NetworkSettings', {}),
+                "platform": container.attrs.get('Platform', ''),
+                "driver": container.attrs.get('Driver', ''),
+                "mount_label": container.attrs.get('MountLabel', ''),
+                "process_label": container.attrs.get('ProcessLabel', ''),
+                "app_armor_profile": container.attrs.get('AppArmorProfile', ''),
+                "exec_ids": container.attrs.get('ExecIDs', []),
+                "log_path": container.attrs.get('LogPath', ''),
+                "restart_count": container.attrs.get('RestartCount', 0),
+                "args": container.attrs.get('Args', []),
+                "exec_driver": container.attrs.get('ExecDriver', ''),
+                "host_name_path": container.attrs.get('HostnamePath', ''),
+                "hosts_path": container.attrs.get('HostsPath', ''),
+                "resolv_conf_path": container.attrs.get('ResolvConfPath', ''),
+                "seccomp_profile": container.attrs.get('SeccompProfile', ''),
+                "no_new_privileges": container.attrs.get('NoNewPrivileges', False)
+            }
+            
+            return details
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get container details for {container_id}: {e}")
+            return None
+
+    async def restart_service(self, service_id: str) -> bool:
+        """Restart a service"""
+        service = self.services.get(service_id)
+        if not service:
+            return False
+        
+        logger.info(f"Restarting service: {service['name']}")
+        
+        try:
+            # Stop the service first
+            stop_success = await self.sleep_service(service_id)
+            if not stop_success:
+                logger.error(f"Failed to stop service {service['name']} before restart")
+                return False
+            
+            # Wait a moment for cleanup
+            await asyncio.sleep(1)
+            
+            # Start the service again
+            start_success = await self.wake_service(service_id)
+            if start_success:
+                logger.info(f"Successfully restarted service: {service['name']}")
+                return True
+            else:
+                logger.error(f"Failed to start service {service['name']} after restart")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to restart service {service['name']}: {str(e)}")
+            return False
+
+    async def restart_container(self, container_id: str) -> bool:
+        """Restart a specific container"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            container = self.client.containers.get(container_id)
+            container.restart()
+            logger.info(f"Successfully restarted container: {container.name}")
+            return True
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to restart container {container_id}: {e}")
+            return False
+
+    async def start_container(self, container_id: str) -> bool:
+        """Start a specific container"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            container = self.client.containers.get(container_id)
+            container.start()
+            logger.info(f"Successfully started container: {container.name}")
+            return True
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to start container {container_id}: {e}")
+            return False
+
+    async def stop_container(self, container_id: str) -> bool:
+        """Stop a specific container"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            container = self.client.containers.get(container_id)
+            container.stop()
+            logger.info(f"Successfully stopped container: {container.name}")
+            return True
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to stop container {container_id}: {e}")
+            return False
+
+    async def remove_container(self, container_id: str, force: bool = False) -> bool:
+        """Remove a specific container"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            container = self.client.containers.get(container_id)
+            container.remove(force=force)
+            logger.info(f"Successfully removed container: {container.name}")
+            return True
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to remove container {container_id}: {e}")
+            return False
+
+    async def get_container_logs(self, container_id: str, tail: int = 100, since: Optional[str] = None) -> Optional[str]:
+        """Get logs from a specific container"""
+        if not self._check_docker_available():
+            return None
+        
+        try:
+            container = self.client.containers.get(container_id)
+            logs = container.logs(tail=tail, since=since, timestamps=True)
+            
+            # Decode logs if they're bytes
+            if isinstance(logs, bytes):
+                logs = logs.decode('utf-8', errors='ignore')
+            
+            return logs
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get logs for container {container_id}: {e}")
+            return None
+
+    async def get_container_stats(self, container_id: str) -> Optional[Dict[str, Any]]:
+        """Get resource usage statistics for a container"""
+        if not self._check_docker_available():
+            return None
+        
+        try:
+            container = self.client.containers.get(container_id)
+            stats = container.stats(stream=False)
+            
+            # Parse stats using docker utils
+            parsed_stats = self.docker_utils.parse_docker_stats(stats)
+            return parsed_stats
+            
+        except docker.errors.NotFound:
+            logger.warning(f"Container {container_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get stats for container {container_id}: {e}")
+            return None
+
+    async def list_images(self) -> List[Dict[str, Any]]:
+        """List all Docker images"""
+        if not self._check_docker_available():
+            return []
+        
+        try:
+            images = self.client.images.list()
+            image_list = []
+            
+            for image in images:
+                image_info = {
+                    "id": image.id,
+                    "short_id": image.short_id,
+                    "tags": image.tags,
+                    "created": image.attrs.get('Created', ''),
+                    "size": image.attrs.get('Size', 0),
+                    "size_formatted": self.docker_utils.format_container_size(image.attrs.get('Size', 0)),
+                    "virtual_size": image.attrs.get('VirtualSize', 0),
+                    "virtual_size_formatted": self.docker_utils.format_container_size(image.attrs.get('VirtualSize', 0)),
+                    "labels": image.attrs.get('Config', {}).get('Labels', {}) or {},
+                    "parent": image.attrs.get('Parent', ''),
+                    "comment": image.attrs.get('Comment', ''),
+                    "author": image.attrs.get('Author', ''),
+                    "architecture": image.attrs.get('Architecture', ''),
+                    "os": image.attrs.get('Os', ''),
+                    "docker_version": image.attrs.get('DockerVersion', ''),
+                    "config": image.attrs.get('Config', {}),
+                    "container": image.attrs.get('Container', ''),
+                    "container_config": image.attrs.get('ContainerConfig', {}),
+                    "graph_driver": image.attrs.get('GraphDriver', {}),
+                    "root_fs": image.attrs.get('RootFS', {}),
+                    "metadata": image.attrs.get('Metadata', {})
+                }
+                image_list.append(image_info)
+            
+            return image_list
+            
+        except Exception as e:
+            logger.error(f"Failed to list images: {e}")
+            return []
+
+    async def pull_image(self, image_name: str, tag: str = "latest") -> bool:
+        """Pull a Docker image"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            full_image_name = f"{image_name}:{tag}"
+            logger.info(f"Pulling image: {full_image_name}")
+            
+            image = self.client.images.pull(image_name, tag=tag)
+            logger.info(f"Successfully pulled image: {full_image_name}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to pull image {image_name}:{tag}: {e}")
+            return False
+
+    async def remove_image(self, image_id: str, force: bool = False) -> bool:
+        """Remove a Docker image"""
+        if not self._check_docker_available():
+            return False
+        
+        try:
+            self.client.images.remove(image_id, force=force)
+            logger.info(f"Successfully removed image: {image_id}")
+            return True
+            
+        except docker.errors.ImageNotFound:
+            logger.warning(f"Image {image_id} not found")
+            return False
+        except Exception as e:
+            logger.error(f"Failed to remove image {image_id}: {e}")
+            return False
+
+    async def list_networks(self) -> List[Dict[str, Any]]:
+        """List all Docker networks"""
+        if not self._check_docker_available():
+            return []
+        
+        try:
+            networks = self.client.networks.list()
+            network_list = []
+            
+            for network in networks:
+                network_info = {
+                    "id": network.id,
+                    "short_id": network.short_id,
+                    "name": network.name,
+                    "driver": network.attrs.get('Driver', ''),
+                    "scope": network.attrs.get('Scope', ''),
+                    "internal": network.attrs.get('Internal', False),
+                    "attachable": network.attrs.get('Attachable', False),
+                    "ingress": network.attrs.get('Ingress', False),
+                    "created": network.attrs.get('Created', ''),
+                    "labels": network.attrs.get('Labels', {}) or {},
+                    "containers": network.attrs.get('Containers', {}),
+                    "options": network.attrs.get('Options', {}),
+                    "config": network.attrs.get('IPAM', {}).get('Config', []) if network.attrs.get('IPAM') else [],
+                    "enable_ipv6": network.attrs.get('EnableIPv6', False)
+                }
+                network_list.append(network_info)
+            
+            return network_list
+            
+        except Exception as e:
+            logger.error(f"Failed to list networks: {e}")
+            return []
+
+    async def list_volumes(self) -> List[Dict[str, Any]]:
+        """List all Docker volumes"""
+        if not self._check_docker_available():
+            return []
+        
+        try:
+            volumes = self.client.volumes.list()
+            volume_list = []
+            
+            for volume in volumes:
+                volume_info = {
+                    "name": volume.name,
+                    "driver": volume.attrs.get('Driver', ''),
+                    "mountpoint": volume.attrs.get('Mountpoint', ''),
+                    "created": volume.attrs.get('CreatedAt', ''),
+                    "labels": volume.attrs.get('Labels', {}) or {},
+                    "options": volume.attrs.get('Options', {}),
+                    "scope": volume.attrs.get('Scope', ''),
+                    "status": volume.attrs.get('Status', {}),
+                    "usage_data": volume.attrs.get('UsageData', {})
+                }
+                volume_list.append(volume_info)
+            
+            return volume_list
+            
+        except Exception as e:
+            logger.error(f"Failed to list volumes: {e}")
+            return []
+
+    async def get_docker_system_info(self) -> Dict[str, Any]:
+        """Get Docker system information"""
+        if not self._check_docker_available():
+            return {}
+        
+        try:
+            return self.docker_utils.get_docker_info()
+        except Exception as e:
+            logger.error(f"Failed to get Docker system info: {e}")
+            return {}
 
     def _check_docker_available(self) -> bool:
         """Check if Docker client is available"""
