@@ -4,17 +4,20 @@
   export let dismissible: boolean = false;
 
   import { createEventDispatcher } from 'svelte';
+  import { variants } from '$lib/design-system/tokens';
+  
   const dispatch = createEventDispatcher();
 
   function handleDismiss() {
     dispatch('dismiss');
   }
 
+  // Use design tokens for consistent styling
   const typeClasses = {
-    info: 'bg-blue-50 border-blue-200 text-blue-800',
-    success: 'bg-green-50 border-green-200 text-green-800',
-    warning: 'bg-yellow-50 border-yellow-200 text-yellow-800',
-    error: 'bg-red-50 border-red-200 text-red-800',
+    info: variants.alert.info,
+    success: variants.alert.success,
+    warning: variants.alert.warning,
+    error: variants.alert.error,
   };
 </script>
 

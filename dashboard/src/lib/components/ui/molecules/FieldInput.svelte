@@ -14,6 +14,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import FormInput from './FormInput.svelte';
+  import { colors } from '$lib/design-system/tokens';
   import type { 
     FieldInputProps, 
     EnhancedInputEvents,
@@ -47,7 +48,8 @@
   export let id: FieldInputProps['id'] = undefined;
   export let name: FieldInputProps['name'] = undefined;
   export let autocomplete: FieldInputProps['autocomplete'] = undefined;
-  export let autofocus: FieldInputProps['autofocus'] = false;
+  // ACCESSIBILITY: Removed autofocus prop - violates WCAG 2.4.3 Focus Order  
+  // Use focus() method programmatically instead when needed
   export let minLength: FieldInputProps['minLength'] = undefined;
   export let maxLength: FieldInputProps['maxLength'] = undefined;
   export let min: FieldInputProps['min'] = undefined;
@@ -272,7 +274,6 @@
       {id}
       {name}
       {autocomplete}
-      {autofocus}
       {minLength}
       {maxLength}
       {min}
@@ -396,9 +397,15 @@
   }
 
   .field-input-icon {
-    @apply absolute top-1/2 transform -translate-y-1/2 text-gray-400 cursor-pointer;
-    @apply hover:text-gray-600 focus:text-gray-600 transition-colors;
+    @apply absolute top-1/2 transform -translate-y-1/2 cursor-pointer;
+    @apply transition-colors;
     @apply flex items-center justify-center;
+    color: theme('colors.secondary.400');
+  }
+  
+  .field-input-icon:hover,
+  .field-input-icon:focus {
+    color: theme('colors.secondary.600');
   }
 
   .field-input-icon-left {
@@ -415,13 +422,22 @@
   }
 
   .field-input-action {
-    @apply p-1 rounded text-gray-400 hover:text-gray-600 transition-colors;
-    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50;
+    @apply p-1 rounded transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-opacity-50;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    color: theme('colors.secondary.400');
+  }
+  
+  .field-input-action:hover {
+    color: theme('colors.secondary.600');
+  }
+  
+  .field-input-action:focus {
+    --tw-ring-color: theme('colors.primary.500');
   }
 
   .field-input-spinner {
-    @apply text-gray-400;
+    color: theme('colors.secondary.400');
   }
 
   .icon-content {
@@ -435,7 +451,8 @@
 
   /* Focus states for icon buttons */
   .field-input-icon:focus {
-    @apply outline-none ring-2 ring-blue-500 ring-opacity-50 rounded;
+    @apply outline-none ring-2 ring-opacity-50 rounded;
+    --tw-ring-color: theme('colors.primary.500');
   }
 
   /* Loading state adjustments */

@@ -1,11 +1,12 @@
 <!--
   Enhanced Toast Component - Atomic Design System
-  Supports all variants, auto-dismiss, and animations
+  Supports all variants, auto-dismiss, and animations with design tokens
 -->
 <script lang="ts">
   import { scale, fly, fade } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
   import { createEventDispatcher, onMount } from 'svelte';
+  import { variants, colors } from '$lib/design-system/tokens';
 
   // Props
   export let variant: 'success' | 'warning' | 'error' | 'info' | 'neutral' = 'info';
@@ -61,47 +62,47 @@
     return icons[variant] || icons.info;
   }
 
-  // Variant classes
+  // Variant classes using design tokens
   const variantClasses = {
     success: {
-      container: 'bg-green-50 border-green-200',
-      icon: 'text-green-400',
-      title: 'text-green-800',
-      message: 'text-green-700',
-      button: 'text-green-800 hover:bg-green-100',
-      progress: 'bg-green-400',
+      container: variants.toast.success,
+      icon: 'text-success-400',
+      title: 'text-white',
+      message: 'text-success-100',
+      button: 'text-white hover:bg-success-700',
+      progress: 'bg-success-400',
     },
     warning: {
-      container: 'bg-yellow-50 border-yellow-200',
-      icon: 'text-yellow-400',
-      title: 'text-yellow-800',
-      message: 'text-yellow-700',
-      button: 'text-yellow-800 hover:bg-yellow-100',
-      progress: 'bg-yellow-400',
+      container: variants.toast.warning,
+      icon: 'text-warning-400',
+      title: 'text-white',
+      message: 'text-warning-100',
+      button: 'text-white hover:bg-warning-700',
+      progress: 'bg-warning-400',
     },
     error: {
-      container: 'bg-red-50 border-red-200',
-      icon: 'text-red-400',
-      title: 'text-red-800',
-      message: 'text-red-700',
-      button: 'text-red-800 hover:bg-red-100',
-      progress: 'bg-red-400',
+      container: variants.toast.error,
+      icon: 'text-error-400',
+      title: 'text-white',
+      message: 'text-error-100',
+      button: 'text-white hover:bg-error-700',
+      progress: 'bg-error-400',
     },
     info: {
-      container: 'bg-blue-50 border-blue-200',
-      icon: 'text-blue-400',
-      title: 'text-blue-800',
-      message: 'text-blue-700',
-      button: 'text-blue-800 hover:bg-blue-100',
-      progress: 'bg-blue-400',
+      container: variants.toast.info,
+      icon: 'text-primary-400',
+      title: 'text-white',
+      message: 'text-primary-100',
+      button: 'text-white hover:bg-primary-700',
+      progress: 'bg-primary-400',
     },
     neutral: {
-      container: 'bg-gray-50 border-gray-200',
-      icon: 'text-gray-400',
-      title: 'text-gray-800',
-      message: 'text-gray-700',
-      button: 'text-gray-800 hover:bg-gray-100',
-      progress: 'bg-gray-400',
+      container: 'bg-neutral-600 text-white shadow-lg border border-neutral-700',
+      icon: 'text-neutral-400',
+      title: 'text-white',
+      message: 'text-neutral-100',
+      button: 'text-white hover:bg-neutral-700',
+      progress: 'bg-neutral-400',
     },
   };
 

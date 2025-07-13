@@ -1,8 +1,6 @@
 <script lang="ts">
   import '../app.css';
   import '@fontsource/inter';
-  import '$lib/styles/responsive.css';
-  import '$lib/styles/mobile.css';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import Sidebar from '$lib/components/Sidebar.svelte';

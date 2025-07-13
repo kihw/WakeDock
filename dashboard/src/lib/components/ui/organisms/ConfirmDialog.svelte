@@ -92,27 +92,27 @@
     switch (v) {
       case 'danger':
         return {
-          icon: 'text-red-400',
-          button: 'bg-red-600 hover:bg-red-700 focus:ring-red-500',
-          border: 'border-red-500',
+          icon: 'text-error-400',
+          button: 'bg-error-600 hover:bg-error-700 focus:ring-error-500',
+          border: 'border-error-500',
         };
       case 'warning':
         return {
-          icon: 'text-yellow-400',
-          button: 'bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500',
-          border: 'border-yellow-500',
+          icon: 'text-warning-400',
+          button: 'bg-warning-600 hover:bg-warning-700 focus:ring-warning-500',
+          border: 'border-warning-500',
         };
       case 'info':
         return {
-          icon: 'text-blue-400',
-          button: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500',
-          border: 'border-blue-500',
+          icon: 'text-primary-400',
+          button: 'bg-primary-600 hover:bg-primary-700 focus:ring-primary-500',
+          border: 'border-primary-500',
         };
       default:
         return {
-          icon: 'text-gray-400',
-          button: 'bg-gray-600 hover:bg-gray-700 focus:ring-gray-500',
-          border: 'border-gray-500',
+          icon: 'text-secondary-400',
+          button: 'bg-secondary-600 hover:bg-secondary-700 focus:ring-secondary-500',
+          border: 'border-secondary-500',
         };
     }
   }
@@ -276,14 +276,14 @@
 <style>
   /* Custom button styles for variants */
   :global(.confirm-dialog-danger) {
-    @apply bg-red-600 hover:bg-red-700 focus:ring-red-500;
+    @apply bg-error-600 hover:bg-error-700 focus:ring-error-500;
   }
 
   :global(.confirm-dialog-warning) {
-    @apply bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500;
+    @apply bg-warning-600 hover:bg-warning-700 focus:ring-warning-500;
   }
 
   :global(.confirm-dialog-info) {
-    @apply bg-blue-600 hover:bg-blue-700 focus:ring-blue-500;
+    @apply bg-primary-600 hover:bg-primary-700 focus:ring-primary-500;
   }
 </style>

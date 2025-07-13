@@ -2,6 +2,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, onDestroy, tick } from 'svelte';
   import { manageFocus, announceToScreenReader, trapFocus } from '$lib/utils/accessibility';
+  import { colors } from '$lib/design-system/tokens';
 
   export let open: boolean = false;
   export let size: 'sm' | 'md' | 'lg' | 'xl' | 'full' = 'md';
@@ -127,6 +128,13 @@
     }
   };
 
+  const handleBackdropKeydown = (event: KeyboardEvent) => {
+    if (!persistent && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+      event.preventDefault();
+      handleClose();
+    }
+  };
+
   const handleClose = () => {
     if (open) {
       open = false;
@@ -138,8 +146,9 @@
 {#if open}
   <!-- Backdrop -->
   <div
-    class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+    class="fixed inset-0 bg-secondary-600 bg-opacity-50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
     on:click={handleBackdropClick}
+    on:keydown={handleBackdropKeydown}
     bind:this={modalElement}
     {role}
     aria-modal="true"
@@ -153,16 +162,17 @@
       class="relative bg-white rounded-lg shadow-xl {sizeClasses[
         size
       ]} w-full max-h-full overflow-hidden"
+      role="document"
       on:click|stopPropagation
     >
       <!-- Header -->
       {#if title || showCloseButton || $$slots.header}
-        <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <div class="flex items-center justify-between p-6 border-b border-secondary-200">
           <div class="flex items-center">
             {#if $$slots.header}
               <slot name="header" />
             {:else if title}
-              <h3 class="text-lg font-medium text-gray-900">
+              <h3 class="text-lg font-medium text-secondary-900">
                 {title}
               </h3>
             {/if}
@@ -171,7 +181,7 @@
           {#if showCloseButton}
             <button
               type="button"
-              class="text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600 transition ease-in-out duration-150"
+              class="text-secondary-400 hover:text-secondary-600 focus:outline-none focus:text-secondary-600 transition ease-in-out duration-150"
               on:click={handleClose}
               aria-label="Close modal"
             >
@@ -195,7 +205,7 @@
 
       <!-- Footer -->
       {#if $$slots.footer}
-        <div class="flex items-center justify-end px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <div class="flex items-center justify-end px-6 py-4 bg-secondary-50 border-t border-secondary-200">
           <slot name="footer" />
         </div>
       {/if}

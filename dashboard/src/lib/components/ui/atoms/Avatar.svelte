@@ -1,10 +1,11 @@
 <!--
   Enhanced Avatar Component - Atomic Design System
-  Supports images, initials, icons, and status indicators
+  Supports images, initials, icons, and status indicators with design tokens
 -->
 <script lang="ts">
   import { scale, fade } from 'svelte/transition';
   import { createEventDispatcher } from 'svelte';
+  import { variants } from '$lib/design-system/tokens';
 
   // Props
   export let src: string | undefined = undefined;
@@ -13,14 +14,15 @@
   export let initials: string | undefined = undefined;
   export let size: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' = 'md';
   export let variant: 'circle' | 'square' | 'rounded' = 'circle';
+  export let colorVariant: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'neutral' = 'neutral';
   export let status: 'online' | 'offline' | 'away' | 'busy' | undefined = undefined;
   export let statusPosition: 'top-right' | 'top-left' | 'bottom-right' | 'bottom-left' =
     'bottom-right';
   export let border = false;
   export let borderColor = 'border-gray-300';
   export let fallbackIcon: string | undefined = undefined;
-  export let backgroundColor = 'bg-gray-100';
-  export let textColor = 'text-gray-600';
+  export let backgroundColor: string | undefined = undefined;
+  export let textColor: string | undefined = undefined;
   export let clickable = false;
   export let loading = false;
   export let href: string | undefined = undefined;
@@ -46,6 +48,11 @@
   $: hasFallbackIcon = fallbackIcon || $$slots.fallbackIcon;
   $: isInteractive = clickable || href;
   $: isLink = href !== undefined;
+  
+  // Use design tokens for colors, with fallback to props
+  $: avatarColors = variants.avatar[colorVariant] || variants.avatar.neutral;
+  $: finalBackgroundColor = backgroundColor || avatarColors;
+  $: finalTextColor = textColor || (colorVariant === 'neutral' ? 'text-neutral-800' : `text-${colorVariant}-800`);
 
   // Size classes
   const sizeClasses = {
@@ -184,8 +191,6 @@
     class={classes}
     {alt}
     data-testid={testId}
-    tabindex="0"
-    role="button"
     on:click={handleClick}
     on:keydown={handleKeyDown}
     on:mouseenter={handleMouseEnter}
@@ -203,16 +208,16 @@
       />
     {:else if hasInitials}
       <!-- Initials -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
-        <span class={`font-medium ${textColor} ${sizeClasses[size].text}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
+        <span class={`font-medium ${finalTextColor} ${sizeClasses[size].text}`}>
           {displayInitials}
         </span>
       </div>
     {:else if hasFallbackIcon}
       <!-- Fallback icon -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
         {#if fallbackIcon}
-          <i class={`${fallbackIcon} ${sizeClasses[size].icon} ${textColor}`} aria-hidden="true"
+          <i class={`${fallbackIcon} ${sizeClasses[size].icon} ${finalTextColor}`} aria-hidden="true"
           ></i>
         {:else}
           <slot name="fallbackIcon" />
@@ -220,9 +225,9 @@
       </div>
     {:else}
       <!-- Default user icon -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
         <svg
-          class={`${sizeClasses[size].icon} ${textColor}`}
+          class={`${sizeClasses[size].icon} ${finalTextColor}`}
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -280,16 +285,16 @@
       />
     {:else if hasInitials}
       <!-- Initials -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
-        <span class={`font-medium ${textColor} ${sizeClasses[size].text}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
+        <span class={`font-medium ${finalTextColor} ${sizeClasses[size].text}`}>
           {displayInitials}
         </span>
       </div>
     {:else if hasFallbackIcon}
       <!-- Fallback icon -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
         {#if fallbackIcon}
-          <i class={`${fallbackIcon} ${sizeClasses[size].icon} ${textColor}`} aria-hidden="true"
+          <i class={`${fallbackIcon} ${sizeClasses[size].icon} ${finalTextColor}`} aria-hidden="true"
           ></i>
         {:else}
           <slot name="fallbackIcon" />
@@ -297,9 +302,9 @@
       </div>
     {:else}
       <!-- Default user icon -->
-      <div class={`w-full h-full flex items-center justify-center ${backgroundColor}`}>
+      <div class={`w-full h-full flex items-center justify-center ${finalBackgroundColor}`}>
         <svg
-          class={`${sizeClasses[size].icon} ${textColor}`}
+          class={`${sizeClasses[size].icon} ${finalTextColor}`}
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"

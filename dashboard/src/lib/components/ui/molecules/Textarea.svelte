@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { sanitizeInput } from '$lib/utils/validation';
   import { announceToScreenReader } from '$lib/utils/accessibility';
+  import { variants } from '$lib/design-system/tokens';
 
   export let label: string;
   export let id: string = '';
@@ -95,10 +96,10 @@
 </script>
 
 <div class="form-field">
-  <label for={textareaId} class="block text-sm font-medium text-gray-700 mb-1">
+  <label for={textareaId} class="block text-sm font-medium text-secondary-700 mb-1">
     {label}
     {#if required}
-      <span class="text-red-500 ml-1">*</span>
+      <span class="text-error-500 ml-1">*</span>
     {/if}
   </label>
 
@@ -116,10 +117,10 @@
       {spellcheck}
       class="block w-full {sizeClasses[size]} {resizeClasses[
         resize
-      ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-gray-100 disabled:cursor-not-allowed readonly:bg-gray-50 transition-colors duration-200
+      ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-secondary-100 disabled:cursor-not-allowed readonly:bg-secondary-50 transition-colors duration-200
       {error
-        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}"
+        ? variants.input.error
+        : variants.input.base}"
       bind:value
       on:input={handleInput}
       on:blur={handleBlur}
@@ -142,7 +143,7 @@
     {#if error}
       <div class="absolute top-2 right-2 pointer-events-none">
         <svg
-          class="h-5 w-5 text-red-500"
+          class="h-5 w-5 text-error-500"
           fill="currentColor"
           viewBox="0 0 20 20"
           aria-hidden="true"
@@ -161,7 +162,7 @@
   {#if characterLimit}
     <div id={counterId} class="mt-1 flex justify-between text-sm">
       <div></div>
-      <div class="text-gray-500" class:text-red-500={remainingChars !== null && remainingChars < 0}>
+      <div class="text-secondary-500" class:text-error-500={remainingChars !== null && remainingChars < 0}>
         {characterCount}
         {#if characterLimit}
           / {characterLimit}
@@ -172,12 +173,12 @@
   {/if}
 
   {#if error}
-    <p id={errorId} class="mt-1 text-sm text-red-600" role="alert">
+    <p id={errorId} class="mt-1 text-sm text-error-600" role="alert">
       <span class="sr-only">Error:</span>
       {error}
     </p>
   {:else if help}
-    <p id={helpId} class="mt-1 text-sm text-gray-500">
+    <p id={helpId} class="mt-1 text-sm text-secondary-500">
       {help}
     </p>
   {/if}

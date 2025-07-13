@@ -1,6 +1,6 @@
 <!--
   SearchInput Molecule - Combines Input with search functionality
-  Includes debouncing, clear button, and search suggestions
+  Includes debouncing, clear button, and search suggestions with design tokens
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
@@ -9,6 +9,7 @@
   import Input from '../atoms/Input.svelte';
   import Button from '../atoms/Button.svelte';
   import LoadingSpinner from '../atoms/LoadingSpinner.svelte';
+  import { colors } from '$lib/design-system/tokens';
 
   // Props
   export let value = '';
@@ -22,7 +23,8 @@
   export let maxSuggestions = 5;
   export let clearable = true;
   export let searchOnEnter = false;
-  export let autoFocus = false;
+  // ACCESSIBILITY: Removed autoFocus prop - violates WCAG 2.4.3 Focus Order  
+  // Use focus() method programmatically instead when needed
   export let fullWidth = false;
   export let variant: 'default' | 'success' | 'warning' | 'error' = 'default';
   export let testId: string | undefined = undefined;
@@ -186,7 +188,6 @@
     {disabled}
     {variant}
     {fullWidth}
-    autofocus={autoFocus}
     {testId}
     leftIcon="fas fa-search"
     on:input={handleInput}
@@ -201,7 +202,7 @@
       {:else if clearable && value}
         <button
           type="button"
-          class="p-1 text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600"
+          class="p-1 text-secondary-400 hover:text-secondary-600 focus:outline-none focus:text-secondary-600"
           on:click={handleClear}
           aria-label="Clear search"
         >
@@ -227,7 +228,7 @@
   <!-- Suggestions dropdown -->
   {#if shouldShowSuggestions}
     <div
-      class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
+      class="absolute z-10 w-full mt-1 bg-white border border-secondary-300 rounded-md shadow-lg max-h-60 overflow-y-auto"
       in:fly={{ y: -5, duration: 150, easing: quintOut }}
       out:fade={{ duration: 100 }}
     >
@@ -236,15 +237,15 @@
           <li>
             <button
               type="button"
-              class={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
-                index === selectedSuggestionIndex ? 'bg-blue-50 text-blue-600' : 'text-gray-900'
+              class={`w-full text-left px-4 py-2 text-sm hover:bg-secondary-100 focus:bg-secondary-100 focus:outline-none ${
+                index === selectedSuggestionIndex ? 'bg-primary-50 text-primary-600' : 'text-secondary-900'
               }`}
               on:click={() => handleSuggestionClick(suggestion)}
               on:mouseenter={() => (selectedSuggestionIndex = index)}
             >
               <div class="flex items-center">
                 <svg
-                  class="w-4 h-4 mr-2 text-gray-400"
+                  class="w-4 h-4 mr-2 text-secondary-400"
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
                   viewBox="0 0 24 24"

@@ -5,6 +5,21 @@
 
 import { cubicOut, cubicInOut, quartOut, quintOut } from 'svelte/easing';
 
+/**
+ * Check if user prefers reduced motion
+ */
+export function prefersReducedMotion(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/**
+ * Get animation duration respecting user preferences
+ */
+export function getAnimationDuration(duration: number): number {
+  return prefersReducedMotion() ? 0 : duration;
+}
+
 // Animation duration constants
 export const DURATIONS = {
     fast: 150,
@@ -324,6 +339,132 @@ export function createResponsiveAnimation(animation: any) {
             return animation.css(t);
         }
     };
+}
+
+/**
+ * Animation functions with prefers-reduced-motion support
+ */
+export function createAccessibleAnimation(
+    baseAnimation: any,
+    fallback?: any
+) {
+    if (prefersReducedMotion()) {
+        return fallback || {
+            duration: 0,
+            css: () => ''
+        };
+    }
+    return {
+        ...baseAnimation,
+        duration: getAnimationDuration(baseAnimation.duration)
+    };
+}
+
+/**
+ * Enhanced fade animation with reduced motion support
+ */
+export function accessibleFade(node: Element, params: {
+    duration?: number;
+    easing?: (t: number) => number;
+    delay?: number;
+} = {}) {
+    const {
+        duration = DURATIONS.normal,
+        easing = EASINGS.ease,
+        delay = 0
+    } = params;
+    
+    const actualDuration = getAnimationDuration(duration);
+    
+    return {
+        duration: actualDuration,
+        delay,
+        easing,
+        css: (t: number) => `opacity: ${t}`
+    };
+}
+
+/**
+ * Enhanced slide animation with reduced motion support
+ */
+export function accessibleSlide(node: Element, params: {
+    direction?: 'up' | 'down' | 'left' | 'right';
+    duration?: number;
+    easing?: (t: number) => number;
+    delay?: number;
+    distance?: number;
+} = {}) {
+    const {
+        direction = 'up',
+        duration = DURATIONS.normal,
+        easing = EASINGS.spring,
+        delay = 0,
+        distance = 20
+    } = params;
+    
+    const actualDuration = getAnimationDuration(duration);
+    
+    if (actualDuration === 0) {
+        return {
+            duration: 0,
+            css: () => ''
+        };
+    }
+    
+    const transforms = {
+        up: (t: number) => `translateY(${(1 - t) * distance}px)`,
+        down: (t: number) => `translateY(${(1 - t) * -distance}px)`,
+        left: (t: number) => `translateX(${(1 - t) * distance}px)`,
+        right: (t: number) => `translateX(${(1 - t) * -distance}px)`
+    };
+    
+    return {
+        duration: actualDuration,
+        delay,
+        easing,
+        css: (t: number) => `
+            transform: ${transforms[direction](t)};
+            opacity: ${t}
+        `
+    };
+}
+
+/**
+ * CSS custom properties for reduced motion
+ */
+export const REDUCED_MOTION_CSS = `
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+`;
+
+/**
+ * Apply reduced motion CSS to document
+ */
+export function applyReducedMotionCSS() {
+    if (typeof document === 'undefined') return;
+    
+    const styleId = 'wakedock-reduced-motion';
+    let existingStyle = document.getElementById(styleId);
+    
+    if (!existingStyle) {
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = REDUCED_MOTION_CSS;
+        document.head.appendChild(style);
+    }
+}
+
+// Auto-apply reduced motion CSS when module loads
+if (typeof window !== 'undefined') {
+    applyReducedMotionCSS();
 }
 
 // Export all animations for easy access

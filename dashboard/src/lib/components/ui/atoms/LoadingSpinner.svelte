@@ -1,10 +1,11 @@
 <!--
   Enhanced Loading Spinner Component - Atomic Design System
-  Multiple spinner types, sizes, and variants
+  Multiple spinner types, sizes, and variants with design tokens
 -->
 <script lang="ts">
   import { scale, fade } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
+  import { variants } from '$lib/design-system/tokens';
 
   // Props
   export let type: 'spin' | 'pulse' | 'bounce' | 'dots' | 'bars' | 'ring' = 'spin';
@@ -56,13 +57,13 @@
     },
   };
 
-  // Variant classes
+  // Variant classes using design tokens
   const variantClasses = {
-    primary: 'text-blue-600',
-    secondary: 'text-gray-600',
-    success: 'text-green-600',
-    warning: 'text-yellow-600',
-    error: 'text-red-600',
+    primary: 'text-primary-600',
+    secondary: 'text-secondary-600', 
+    success: 'text-success-600',
+    warning: 'text-warning-600',
+    error: 'text-error-600',
     white: 'text-white',
   };
 
@@ -76,8 +77,12 @@
     .filter(Boolean)
     .join(' ');
 
-  // Spinner classes
-  $: spinnerClasses = [variantClasses[variant], 'animate-spin'].filter(Boolean).join(' ');
+  // Spinner classes using design tokens for more sophisticated styling
+  $: spinnerClasses = [
+    variantClasses[variant], 
+    'animate-spin',
+    type === 'ring' ? variants.spinner[variant] || variants.spinner.primary : ''
+  ].filter(Boolean).join(' ');
 
   // Animation styles
   $: animationStyle = duration ? `animation-duration: ${duration}ms` : '';

@@ -10,6 +10,8 @@
   import Badge from '../atoms/Badge.svelte';
   import LoadingSpinner from '../atoms/LoadingSpinner.svelte';
   import SearchInput from './SearchInput.svelte';
+  import { variants } from '$lib/design-system/tokens';
+  import { debounce, createMemoized } from '$lib/utils/debounce';
 
   // Types
   interface Column {
@@ -68,58 +70,119 @@
 
   // State
   let searchQuery = '';
+  let debouncedSearchQuery = '';
   let sortColumn = '';
   let sortDirection: 'asc' | 'desc' = 'asc';
   let filteredData: Row[] = [];
   let paginatedData: Row[] = [];
   let allSelected = false;
   let indeterminate = false;
+  
+  // Performance optimizations
+  let selectedRowsSet = new Set<string | number>();
+  let columnAlignCache = new Map<string, string>();
+  let columnWidthCache = new Map<string, string>();
 
-  // Computed
+  // Debounced search handler
+  const debouncedSearch = debounce((query: string) => {
+    debouncedSearchQuery = query;
+  }, 300);
+
+  // Memoized column utilities
+  function getColumnAlign(column: Column): string {
+    if (!columnAlignCache.has(column.key)) {
+      columnAlignCache.set(column.key, column.align || 'left');
+    }
+    return columnAlignCache.get(column.key)!;
+  }
+
+  function getColumnWidth(column: Column): string {
+    if (!columnWidthCache.has(column.key)) {
+      columnWidthCache.set(column.key, column.width || 'auto');
+    }
+    return columnWidthCache.get(column.key)!;
+  }
+
+  // Optimized selection operations
+  function updateSelectedRowsSet() {
+    selectedRowsSet = new Set(selectedRows);
+  }
+
+  // Watch for changes to selectedRows and update Set
+  $: selectedRows, updateSelectedRowsSet();
+
+  // Optimized data processing - combined reactive statement to reduce cascading
+  $: processedData = (() => {
+    // Filter data
+    const filtered = debouncedSearchQuery.trim() 
+      ? data.filter((row) => {
+          const query = debouncedSearchQuery.toLowerCase();
+          return columns.some((col) => {
+            const value = row[col.key];
+            return value && value.toString().toLowerCase().includes(query);
+          });
+        })
+      : data;
+    
+    // Sort data (avoid array spread by mutating filtered)
+    const sorted = sortColumn && sortable 
+      ? filtered.sort((a, b) => {
+          const aVal = a[sortColumn];
+          const bVal = b[sortColumn];
+
+          if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+          return 0;
+        })
+      : filtered;
+    
+    // Paginate data
+    const paginated = paginated 
+      ? sorted.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+      : sorted;
+    
+    return { filtered, sorted, paginated };
+  })();
+
+  // Extract processed data
+  $: ({ filtered: filteredData, sorted: sortedData, paginated: paginatedData } = processedData);
+
+  // Computed properties
   $: hasActions = actions.length > 0;
   $: hasData = data.length > 0;
   $: showPagination = paginated && totalPages > 1;
   $: showSearch = searchable;
   $: showHeader = columns.length > 0;
 
-  // Optimized reactive statements - split into separate reactive blocks
-  // to avoid unnecessary re-computations
-  $: filteredData = searchQuery.trim() 
-    ? data.filter((row) => {
-        return columns.some((col) => {
-          const value = row[col.key];
-          return value && value.toString().toLowerCase().includes(searchQuery.toLowerCase());
-        });
-      })
-    : data;
+  // Optimized pagination calculation
+  $: paginationPages = (() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    
+    const start = Math.max(1, Math.min(totalPages - 4, currentPage - 2));
+    return Array.from({ length: 5 }, (_, i) => start + i).filter(page => page <= totalPages);
+  })();
 
-  $: sortedData = sortColumn && sortable 
-    ? [...filteredData].sort((a, b) => {
-        const aVal = a[sortColumn];
-        const bVal = b[sortColumn];
+  // Optimized pagination info
+  $: paginationInfo = {
+    start: (currentPage - 1) * pageSize + 1,
+    end: Math.min(currentPage * pageSize, filteredData.length),
+    total: filteredData.length
+  };
 
-        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
-        return 0;
-      })
-    : filteredData;
-
-  $: paginatedData = paginated 
-    ? sortedData.slice((currentPage - 1) * pageSize, currentPage * pageSize)
-    : sortedData;
-
-  // Optimized selection state - only recalculate when needed
+  // Optimized selection state using Set for O(1) lookups
   $: visibleRowIds = paginatedData.map((row) => row.id);
   $: selectedVisibleRows = selectable 
-    ? selectedRows.filter((id) => visibleRowIds.includes(id))
+    ? visibleRowIds.filter((id) => selectedRowsSet.has(id))
     : [];
   $: allSelected = selectable && selectedVisibleRows.length === paginatedData.length && paginatedData.length > 0;
   $: indeterminate = selectable && selectedVisibleRows.length > 0 && selectedVisibleRows.length < paginatedData.length;
 
   // Build table classes
   $: tableClasses = [
-    'min-w-full divide-y divide-gray-200',
-    bordered ? 'border border-gray-300' : '',
+    'min-w-full divide-y divide-secondary-200',
+    bordered ? 'border border-secondary-300' : '',
     compact ? 'text-sm' : '',
   ]
     .filter(Boolean)
@@ -127,14 +190,14 @@
 
   $: containerClasses = [
     'overflow-hidden',
-    bordered ? 'border border-gray-300 rounded-lg' : '',
+    bordered ? 'border border-secondary-300 rounded-lg' : '',
     maxHeight ? 'overflow-y-auto' : '',
     'bg-white',
   ]
     .filter(Boolean)
     .join(' ');
 
-  $: headerClasses = ['bg-gray-50', stickyHeader ? 'sticky top-0 z-10' : '']
+  $: headerClasses = ['bg-secondary-50', stickyHeader ? 'sticky top-0 z-10' : '']
     .filter(Boolean)
     .join(' ');
 
@@ -154,27 +217,20 @@
 
   function handleSearch(event: CustomEvent<{ query: string }>) {
     searchQuery = event.detail.query;
+    debouncedSearch(searchQuery); // Use debounced search
     currentPage = 1; // Reset to first page
     dispatch('search', { query: searchQuery });
   }
 
   function handleSelectAll() {
     if (allSelected) {
-      // Deselect all visible rows
-      const visibleRowIds = paginatedData.map((row) => row.id);
-      selectedRows = selectedRows.filter((id) => !visibleRowIds.includes(id));
+      // Deselect all visible rows - optimized with Set operations
+      visibleRowIds.forEach(id => selectedRowsSet.delete(id));
+      selectedRows = Array.from(selectedRowsSet);
     } else {
-      // Select all visible rows
-      const visibleRowIds = paginatedData.map((row) => row.id);
-      const newSelected = [...selectedRows];
-
-      visibleRowIds.forEach((id) => {
-        if (!newSelected.includes(id)) {
-          newSelected.push(id);
-        }
-      });
-
-      selectedRows = newSelected;
+      // Select all visible rows - optimized with Set operations
+      visibleRowIds.forEach(id => selectedRowsSet.add(id));
+      selectedRows = Array.from(selectedRowsSet);
     }
 
     dispatch('select', { selectedRows });
@@ -182,11 +238,13 @@
   }
 
   function handleRowSelect(rowId: string | number) {
-    if (selectedRows.includes(rowId)) {
-      selectedRows = selectedRows.filter((id) => id !== rowId);
+    // Optimized selection using Set operations (O(1) instead of O(n))
+    if (selectedRowsSet.has(rowId)) {
+      selectedRowsSet.delete(rowId);
     } else {
-      selectedRows = [...selectedRows, rowId];
+      selectedRowsSet.add(rowId);
     }
+    selectedRows = Array.from(selectedRowsSet);
 
     dispatch('select', { selectedRows });
   }
@@ -215,13 +273,6 @@
     return value;
   }
 
-  function getColumnWidth(column: Column) {
-    return column.width || 'auto';
-  }
-
-  function getColumnAlign(column: Column) {
-    return column.align || 'left';
-  }
 </script>
 
 <div class="space-y-4" data-testid={testId}>
@@ -264,10 +315,10 @@
         <LoadingSpinner size="lg" />
       </div>
     {:else if !hasData}
-      <div class="flex items-center justify-center p-8 text-gray-500">
+      <div class="flex items-center justify-center p-8 text-secondary-500">
         <div class="text-center">
           <svg
-            class="w-12 h-12 mx-auto mb-4 text-gray-400"
+            class="w-12 h-12 mx-auto mb-4 text-secondary-400"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -291,27 +342,27 @@
             <tr>
               {#if selectable}
                 <th
-                  class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12"
+                  class="px-6 py-3 text-left text-xs font-medium text-secondary-500 uppercase tracking-wider w-12"
                 >
                   <input
                     type="checkbox"
                     checked={allSelected}
                     {indeterminate}
                     on:change={handleSelectAll}
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
                   />
                 </th>
               {/if}
 
               {#each columns as column}
                 <th
-                  class={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider ${
+                  class={`px-6 py-3 text-xs font-medium text-secondary-500 uppercase tracking-wider ${
                     getColumnAlign(column) === 'center'
                       ? 'text-center'
                       : getColumnAlign(column) === 'right'
                         ? 'text-right'
                         : 'text-left'
-                  } ${column.sortable && sortable ? 'cursor-pointer hover:bg-gray-100' : ''}`}
+                  } ${column.sortable && sortable ? 'cursor-pointer hover:bg-secondary-100' : ''}`}
                   style={`width: ${getColumnWidth(column)}`}
                   on:click={() => handleSort(column)}
                   on:keydown={(e) => e.key === 'Enter' && handleSort(column)}
@@ -330,7 +381,7 @@
                     {#if column.sortable && sortable}
                       <div class="flex flex-col">
                         <svg
-                          class={`w-3 h-3 ${sortColumn === column.key && sortDirection === 'asc' ? 'text-blue-600' : 'text-gray-400'}`}
+                          class={`w-3 h-3 ${sortColumn === column.key && sortDirection === 'asc' ? 'text-primary-600' : 'text-secondary-400'}`}
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -344,7 +395,7 @@
                           />
                         </svg>
                         <svg
-                          class={`w-3 h-3 -mt-1 ${sortColumn === column.key && sortDirection === 'desc' ? 'text-blue-600' : 'text-gray-400'}`}
+                          class={`w-3 h-3 -mt-1 ${sortColumn === column.key && sortDirection === 'desc' ? 'text-primary-600' : 'text-secondary-400'}`}
                           xmlns="http://www.w3.org/2000/svg"
                           fill="none"
                           viewBox="0 0 24 24"
@@ -365,7 +416,7 @@
 
               {#if hasActions}
                 <th
-                  class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                  class="px-6 py-3 text-right text-xs font-medium text-secondary-500 uppercase tracking-wider"
                 >
                   Actions
                 </th>
@@ -375,16 +426,15 @@
         {/if}
 
         <!-- Body -->
-        <tbody class={`bg-white divide-y divide-gray-200 ${striped ? 'divide-y-0' : ''}`}>
+        <tbody class={`bg-white divide-y divide-secondary-200 ${striped ? 'divide-y-0' : ''}`}>
           {#each paginatedData as row, index (row.id)}
             <tr
-              class={`${striped && index % 2 === 1 ? 'bg-gray-50' : 'bg-white'} ${
-                hoverable ? 'hover:bg-gray-50' : ''
-              } ${selectedRows.includes(row.id) ? 'bg-blue-50' : ''} transition-colors duration-150`}
+              class={`${striped && index % 2 === 1 ? 'bg-secondary-50' : 'bg-white'} ${
+                hoverable ? 'hover:bg-secondary-50' : ''
+              } ${selectedRows.includes(row.id) ? 'bg-primary-50' : ''} transition-colors duration-150`}
               on:click={() => handleRowClick(row)}
               on:keydown={(e) => e.key === 'Enter' && handleRowClick(row)}
               tabindex="0"
-              role="row"
             >
               {#if selectable}
                 <td class="px-6 py-4 whitespace-nowrap w-12">
@@ -393,7 +443,7 @@
                     checked={selectedRows.includes(row.id)}
                     on:change={() => handleRowSelect(row.id)}
                     on:click={(e) => e.stopPropagation()}
-                    class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-secondary-300 rounded"
                   />
                 </td>
               {/if}
@@ -412,7 +462,7 @@
                   {#if column.component}
                     <svelte:component this={column.component} value={row[column.key]} {row} />
                   {:else}
-                    <div class="text-sm text-gray-900">
+                    <div class="text-sm text-secondary-900">
                       {getCellValue(row, column)}
                     </div>
                   {/if}
@@ -448,11 +498,8 @@
   <!-- Pagination -->
   {#if showPagination}
     <div class="flex items-center justify-between">
-      <div class="text-sm text-gray-700">
-        Showing {(currentPage - 1) * pageSize + 1} to {Math.min(
-          currentPage * pageSize,
-          filteredData.length
-        )} of {filteredData.length} results
+      <div class="text-sm text-secondary-700">
+        Showing {paginationInfo.start} to {paginationInfo.end} of {paginationInfo.total} results
       </div>
 
       <div class="flex space-x-2">
@@ -465,10 +512,7 @@
           Previous
         </Button>
 
-        {#each Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-          const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-          return page <= totalPages ? page : null;
-        }).filter(Boolean) as page}
+        {#each paginationPages as page}
           <Button
             variant={page === currentPage ? 'primary' : 'ghost'}
             size="sm"
@@ -495,7 +539,7 @@
   /* Custom checkbox styles */
   input[type='checkbox']:indeterminate {
     background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M5.707 7.293a1 1 0 0 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4a1 1 0 0 0-1.414-1.414L7 8.586 5.707 7.293z'/%3e%3c/svg%3e");
-    background-color: #2563eb;
+    background-color: #3b82f6;
     background-size: 100% 100%;
     background-position: 50%;
     background-repeat: no-repeat;

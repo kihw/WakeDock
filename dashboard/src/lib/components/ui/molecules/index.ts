@@ -14,3 +14,6 @@ export { default as DateRangePicker } from './DateRangePicker.svelte';
 export { default as DataTable } from './DataTable.svelte';
 export { default as FormField } from './FormField.svelte';
 export { default as SearchInput } from './SearchInput.svelte';
+
+// ADVANCED DESIGN SYSTEM COMPONENTS
+export { default as ThemeSwitcher } from './ThemeSwitcher.svelte';

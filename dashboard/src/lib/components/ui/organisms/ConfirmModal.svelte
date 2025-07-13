@@ -5,6 +5,7 @@
   import Button from '../atoms/Button.svelte';
   import { sanitizeInput, generateCSRFToken, checkRateLimit } from '../../../utils/validation';
   import { announceToScreenReader, manageFocus } from '../../../utils/accessibility';
+  import { colors } from '$lib/design-system/tokens';
 
   export let open: boolean = false;
   export let title: string = 'Confirm Action';
@@ -84,12 +85,12 @@
   <header slot="header" class="flex items-center">
     {#if confirmVariant === 'danger'}
       <div
-        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-red-100 mr-3"
+        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-error-100 mr-3"
         role="img"
         aria-label="Warning icon for dangerous action"
       >
         <svg
-          class="h-6 w-6 text-red-600"
+          class="h-6 w-6 text-error-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -105,12 +106,12 @@
       </div>
     {:else if confirmVariant === 'warning'}
       <div
-        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-yellow-100 mr-3"
+        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-warning-100 mr-3"
         role="img"
         aria-label="Warning icon"
       >
         <svg
-          class="h-6 w-6 text-yellow-600"
+          class="h-6 w-6 text-warning-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -126,12 +127,12 @@
       </div>
     {:else if confirmVariant === 'success'}
       <div
-        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-green-100 mr-3"
+        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-success-100 mr-3"
         role="img"
         aria-label="Success icon"
       >
         <svg
-          class="h-6 w-6 text-green-600"
+          class="h-6 w-6 text-success-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -147,12 +148,12 @@
       </div>
     {:else}
       <div
-        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-blue-100 mr-3"
+        class="flex-shrink-0 flex items-center justify-center h-10 w-10 rounded-full bg-primary-100 mr-3"
         role="img"
         aria-label="Information icon"
       >
         <svg
-          class="h-6 w-6 text-blue-600"
+          class="h-6 w-6 text-primary-600"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -167,12 +168,12 @@
         </svg>
       </div>
     {/if}
-    <h1 class="text-lg font-medium text-gray-900" id="confirm-title">
+    <h1 class="text-lg font-medium text-secondary-900" id="confirm-title">
       {sanitizeInput(title)}
     </h1>
   </header>
 
-  <div class="text-sm text-gray-500" id="confirm-message" aria-live="polite">
+  <div class="text-sm text-secondary-500" id="confirm-message" aria-live="polite">
     {sanitizeInput(message)}
   </div>
 

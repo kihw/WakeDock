@@ -452,14 +452,17 @@
     <CheckboxField
       id="acceptTerms"
       name="acceptTerms"
-      label={`J'accepte les <a href="/terms" target="_blank" class="text-green-600 hover:text-green-500 underline">conditions d'utilisation</a> et la <a href="/privacy" target="_blank" class="text-green-600 hover:text-green-500 underline">politique de confidentialité</a>`}
       required={true}
       disabled={loading}
       bind:checked={formData.acceptTerms}
       error={errors.acceptTerms}
       helpText="Vous devez accepter les conditions pour créer un compte"
       on:change={(e) => validateField('acceptTerms', e.detail.checked)}
-    />
+    >
+      <span slot="label">
+        J'accepte les <a href="/terms" target="_blank" class="text-success-600 hover:text-success-500 underline">conditions d'utilisation</a> et la <a href="/privacy" target="_blank" class="text-success-600 hover:text-success-500 underline">politique de confidentialité</a>
+      </span>
+    </CheckboxField>
 
     <CheckboxField
       id="subscribeNewsletter"

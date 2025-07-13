@@ -166,7 +166,6 @@
           class="w-full text-center text-2xl font-mono px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           class:border-red-500={verificationError}
           on:keydown={handleKeyDown}
-          autofocus
         />
         <p class="text-xs text-gray-500 mt-1">Entrez le code à 6 chiffres de votre application</p>
       </div>
@@ -186,7 +185,6 @@
           class:border-red-500={verificationError}
           on:input={handleBackupCodeInput}
           on:keydown={handleKeyDown}
-          autofocus
         />
         <p class="text-xs text-gray-500 mt-1">Format: XXXX-XXXX</p>
       </div>

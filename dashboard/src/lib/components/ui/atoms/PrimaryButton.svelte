@@ -1,8 +1,9 @@
 <!--
-  Primary Button - Main action variant
+  Primary Button - Main action variant with design tokens
 -->
 <script lang="ts">
   import BaseButton from './BaseButton.svelte';
+  import { variants, spacing, accessibilityTokens } from '$lib/design-system/tokens';
 
   export let size: 'sm' | 'md' | 'lg' = 'md';
   export let fullWidth = false;
@@ -15,19 +16,20 @@
   export let ariaLabel: string | undefined = undefined;
   export let testId: string | undefined = undefined;
 
+  // ACCESSIBILITY: Ensure minimum touch target sizes (WCAG 2.5.5)
   const sizeClasses = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
-    lg: 'px-6 py-3 text-base'
+    sm: `px-3 py-1.5 text-sm ${accessibilityTokens.touchTarget.small}`,
+    md: `px-4 py-2 text-sm ${accessibilityTokens.touchTarget.minimum}`,
+    lg: `px-6 py-3 text-base ${accessibilityTokens.touchTarget.comfortable}`
   };
 
+  // Use design tokens for consistent styling
   $: classes = [
     'inline-flex items-center justify-center',
     'font-medium rounded-md',
-    'bg-blue-600 text-white',
-    'hover:bg-blue-700 focus:ring-blue-500',
+    variants.button.primary.base,
     'focus:outline-none focus:ring-2 focus:ring-offset-2',
-    'disabled:bg-blue-300 disabled:cursor-not-allowed',
+    disabled ? variants.button.primary.disabled : '',
     'transition-all duration-200',
     sizeClasses[size],
     fullWidth ? 'w-full' : ''

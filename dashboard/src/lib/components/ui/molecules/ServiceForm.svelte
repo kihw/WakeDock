@@ -17,6 +17,7 @@
     verifyCSRFToken,
   } from '../../../utils/validation';
   import { manageFocus, announceToScreenReader } from '../../../utils/accessibility';
+  import { colors } from '$lib/design-system/tokens';
 
   // Props
   export let mode: 'create' | 'edit' = 'create';
@@ -269,9 +270,9 @@
 
 <form on:submit|preventDefault={handleSubmit} class="space-y-6">
   <!-- Basic Information -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <h3 class="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-      <Icon name="info" class="w-5 h-5 text-blue-400" />
+      <Icon name="info" class="w-5 h-5 text-primary-400" />
       <span>Basic Information</span>
     </h3>
 
@@ -317,10 +318,10 @@
   </div>
 
   <!-- Port Mappings -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
-        <Icon name="network" class="w-5 h-5 text-green-400" />
+        <Icon name="network" class="w-5 h-5 text-success-400" />
         <span>Port Mappings</span>
       </h3>
       <Button
@@ -336,7 +337,7 @@
     </div>
 
     {#if $formData.ports.length === 0}
-      <div class="text-center py-8 text-gray-400">
+      <div class="text-center py-8 text-secondary-400">
         <Icon name="network" class="w-12 h-12 mx-auto mb-2 opacity-50" />
         <p>No port mappings configured</p>
         <p class="text-sm">Click "Add Port" to expose service ports</p>
@@ -344,7 +345,7 @@
     {:else}
       <div class="space-y-3">
         {#each $formData.ports as port, index}
-          <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
+          <div class="flex items-center space-x-3 p-3 bg-secondary-700 rounded-lg">
             <Input
               type="number"
               placeholder="Host port"
@@ -355,7 +356,7 @@
               label=""
               id="host-port-{index}"
             />
-            <Icon name="arrow-right" class="w-4 h-4 text-gray-400" />
+            <Icon name="arrow-right" class="w-4 h-4 text-secondary-400" />
             <Input
               type="number"
               placeholder="Container port"
@@ -377,10 +378,10 @@
   </div>
 
   <!-- Environment Variables -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
-        <Icon name="settings" class="w-5 h-5 text-yellow-400" />
+        <Icon name="settings" class="w-5 h-5 text-warning-400" />
         <span>Environment Variables</span>
       </h3>
       <Button
@@ -396,14 +397,14 @@
     </div>
 
     {#if $formData.environment.length === 0}
-      <div class="text-center py-8 text-gray-400">
+      <div class="text-center py-8 text-secondary-400">
         <Icon name="settings" class="w-12 h-12 mx-auto mb-2 opacity-50" />
         <p>No environment variables configured</p>
       </div>
     {:else}
       <div class="space-y-3">
         {#each $formData.environment as env, index}
-          <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
+          <div class="flex items-center space-x-3 p-3 bg-secondary-700 rounded-lg">
             <Input
               id="env-key-{index}"
               placeholder="Variable name"
@@ -411,7 +412,7 @@
               class="flex-1"
               label=""
             />
-            <Icon name="equal" class="w-4 h-4 text-gray-400" />
+            <Icon name="equal" class="w-4 h-4 text-secondary-400" />
             <Input
               id="env-value-{index}"
               type={env.isSecret ? 'password' : 'text'}
@@ -420,11 +421,11 @@
               class="flex-1"
               label=""
             />
-            <label class="flex items-center space-x-2 text-sm text-gray-300">
+            <label class="flex items-center space-x-2 text-sm text-secondary-300">
               <input
                 type="checkbox"
                 bind:checked={env.isSecret}
-                class="rounded border-gray-600 bg-gray-700 text-blue-600"
+                class="rounded border-secondary-600 bg-secondary-700 text-primary-600"
               />
               <span>Secret</span>
             </label>
@@ -443,7 +444,7 @@
   </div>
 
   <!-- Volume Mounts -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
         <Icon name="hard-drive" class="w-5 h-5 text-purple-400" />
@@ -462,14 +463,14 @@
     </div>
 
     {#if $formData.volumes.length === 0}
-      <div class="text-center py-8 text-gray-400">
+      <div class="text-center py-8 text-secondary-400">
         <Icon name="hard-drive" class="w-12 h-12 mx-auto mb-2 opacity-50" />
         <p>No volume mounts configured</p>
       </div>
     {:else}
       <div class="space-y-3">
         {#each $formData.volumes as volume, index}
-          <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
+          <div class="flex items-center space-x-3 p-3 bg-secondary-700 rounded-lg">
             <Input
               id="volume-host-{index}"
               placeholder="Host path"
@@ -477,7 +478,7 @@
               class="flex-1"
               label=""
             />
-            <Icon name="arrow-right" class="w-4 h-4 text-gray-400" />
+            <Icon name="arrow-right" class="w-4 h-4 text-secondary-400" />
             <Input
               id="volume-container-{index}"
               placeholder="Container path"
@@ -496,9 +497,9 @@
   </div>
 
   <!-- Resource Limits -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <h3 class="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-      <Icon name="cpu" class="w-5 h-5 text-red-400" />
+      <Icon name="cpu" class="w-5 h-5 text-error-400" />
       <span>Resource Limits</span>
     </h3>
 
@@ -527,12 +528,12 @@
   </div>
 
   <!-- Health Check -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <div class="flex items-center space-x-2 mb-4">
       <input
         type="checkbox"
         bind:checked={$formData.healthCheck.enabled}
-        class="rounded border-gray-600 bg-gray-700 text-blue-600"
+        class="rounded border-secondary-600 bg-secondary-700 text-primary-600"
       />
       <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
         <Icon name="heart" class="w-5 h-5 text-pink-400" />
@@ -579,7 +580,7 @@
   </div>
 
   <!-- Labels -->
-  <div class="bg-gray-800 rounded-lg p-6">
+  <div class="bg-secondary-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-white flex items-center space-x-2">
         <Icon name="tag" class="w-5 h-5 text-indigo-400" />
@@ -598,14 +599,14 @@
     </div>
 
     {#if $formData.labels.length === 0}
-      <div class="text-center py-8 text-gray-400">
+      <div class="text-center py-8 text-secondary-400">
         <Icon name="tag" class="w-12 h-12 mx-auto mb-2 opacity-50" />
         <p>No labels configured</p>
       </div>
     {:else}
       <div class="space-y-3">
         {#each $formData.labels as label, index}
-          <div class="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg">
+          <div class="flex items-center space-x-3 p-3 bg-secondary-700 rounded-lg">
             <Input
               id="label-key-{index}"
               placeholder="Label key"
@@ -613,7 +614,7 @@
               class="flex-1"
               label=""
             />
-            <Icon name="equal" class="w-4 h-4 text-gray-400" />
+            <Icon name="equal" class="w-4 h-4 text-secondary-400" />
             <Input
               id="label-value-{index}"
               placeholder="Label value"
@@ -631,7 +632,7 @@
   </div>
 
   <!-- Form Actions -->
-  <div class="flex items-center justify-end space-x-3 pt-6 border-t border-gray-700">
+  <div class="flex items-center justify-end space-x-3 pt-6 border-t border-secondary-700">
     <Button type="button" variant="secondary" on:click={handleCancel} disabled={isLoading}>
       Cancel
     </Button>

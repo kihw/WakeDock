@@ -3,6 +3,7 @@
   import { createEventDispatcher } from 'svelte';
   import { sanitizeInput } from '$lib/utils/validation';
   import { announceToScreenReader } from '$lib/utils/accessibility';
+  import { variants } from '$lib/design-system/tokens';
 
   export let label: string;
   export let id: string = '';
@@ -85,10 +86,10 @@
 </script>
 
 <div class="form-field">
-  <label for={selectId} class="block text-sm font-medium text-gray-700 mb-1">
+  <label for={selectId} class="block text-sm font-medium text-secondary-700 mb-1">
     {label}
     {#if required}
-      <span class="text-red-500 ml-1">*</span>
+      <span class="text-error-500 ml-1">*</span>
     {/if}
   </label>
 
@@ -102,10 +103,10 @@
       aria-label={ariaLabel}
       class="block w-full {sizeClasses[
         size
-      ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-gray-100 disabled:cursor-not-allowed transition-colors duration-200
+      ]} border rounded-md shadow-sm focus:ring-2 focus:ring-offset-0 disabled:bg-secondary-100 disabled:cursor-not-allowed transition-colors duration-200
       {error
-        ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-        : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} {cssClass}"
+        ? variants.input.error
+        : variants.input.base} {cssClass}"
       class:pr-10={error && !multiple}
       {value}
       on:change={handleChange}
@@ -130,7 +131,7 @@
 
     {#if error && !multiple}
       <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-        <svg class="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+        <svg class="h-5 w-5 text-error-500" fill="currentColor" viewBox="0 0 20 20">
           <path
             fill-rule="evenodd"
             d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
@@ -142,12 +143,12 @@
   </div>
 
   {#if error}
-    <p id={errorId} class="mt-1 text-sm text-red-600" role="alert">
+    <p id={errorId} class="mt-1 text-sm text-error-600" role="alert">
       <span class="sr-only">Error:</span>
       {error}
     </p>
   {:else if help}
-    <p id={helpId} class="mt-1 text-sm text-gray-500">
+    <p id={helpId} class="mt-1 text-sm text-secondary-500">
       {help}
     </p>
   {/if}

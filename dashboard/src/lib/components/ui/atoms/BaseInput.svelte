@@ -53,7 +53,8 @@
   export let id: string | undefined = undefined;
   export let name: string | undefined = undefined;
   export let autocomplete: string | undefined = undefined;
-  export let autofocus = false;
+  // ACCESSIBILITY: Removed autofocus prop - violates WCAG 2.4.3 Focus Order  
+  // Use focus() method programmatically instead when needed
   export let minLength: number | undefined = undefined;
   export let maxLength: number | undefined = undefined;
   export let min: number | string | undefined = undefined;
@@ -146,7 +147,6 @@
   {readonly}
   {required}
   {autocomplete}
-  {autofocus}
   {minLength}
   {maxLength}
   {min}

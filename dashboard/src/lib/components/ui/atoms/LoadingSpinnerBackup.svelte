@@ -1,6 +1,9 @@
 <script lang="ts">
   import { getLoadingStore, cancelLoading } from '$lib/utils/loading';
   import type { LoadingState } from '$lib/utils/loading';
+  import { variants } from '$lib/design-system/tokens';
+  import { cssBridge } from '$lib/design-system/css-bridge';
+  import { onMount } from 'svelte';
 
   export let size: 'small' | 'medium' | 'large' = 'medium';
   export let color: string = 'var(--color-primary)';
@@ -11,6 +14,12 @@
   export let showProgress: boolean = false;
   export let showCancel: boolean = false;
   export let inline: boolean = false;
+  export let variant: 'spinner' | 'pulse' | 'dots' = 'spinner';
+
+  // Apply CSS bridge on component mount to ensure custom properties are available
+  onMount(() => {
+    cssBridge.applyToDocument();
+  });
 
   // Enhanced loading state management
   $: loadingStore = loadingKey ? getLoadingStore(loadingKey) : null;
@@ -21,7 +30,7 @@
   $: showCancelButton = showCancel && loadingState?.canCancel;
   $: progress = loadingState?.progress;
 
-  // Size mappings
+  // Size mappings using design tokens
   const sizeClasses = {
     small: 'spinner-small',
     medium: 'spinner-medium',
@@ -33,6 +42,13 @@
     medium: '0.9rem',
     large: '1.1rem',
   };
+
+  // Variant classes for different loading animations
+  $: variantClass = {
+    spinner: '',
+    pulse: 'pulse',
+    dots: 'dots'
+  }[variant];
 
   function handleCancel() {
     if (loadingKey && loadingState?.canCancel) {
@@ -46,7 +62,7 @@
     : 0;
 </script>
 
-<div class="spinner-container {sizeClasses[size]} {className}" class:center class:inline>
+<div class="spinner-container {sizeClasses[size]} {variantClass} {className}" class:center class:inline>
   <div class="spinner-content">
     <div class="spinner" style="border-top-color: {color}">
       <div class="spinner-inner"></div>

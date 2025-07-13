@@ -206,6 +206,7 @@
         bind:this={notificationDropdown}
         class="absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
         role="menu"
+        tabindex="-1"
         aria-orientation="vertical"
         on:click|stopPropagation
       >
@@ -286,6 +287,7 @@
           bind:this={userDropdown}
           class="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50"
           role="menu"
+          tabindex="-1"
           aria-orientation="vertical"
           on:click|stopPropagation
         >

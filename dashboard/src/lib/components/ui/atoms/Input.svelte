@@ -1,11 +1,13 @@
 <!--
   Enhanced Input Component - Atomic Design System
-  Supports all input types, validation states, and accessibility features
+  Supports all input types, validation states, and accessibility features with design tokens
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { scale, fly } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
+  import { variants, accessibleColors, accessibilityTokens } from '$lib/design-system/tokens';
+  import { accessibilityUtils } from '$lib/design-system/accessibility';
 
   // Props
   export let type:
@@ -27,7 +29,8 @@
   export let readonly = false;
   export let required = false;
   export let autocomplete: string | undefined = undefined;
-  export let autofocus = false;
+  // ACCESSIBILITY: Removed autofocus prop - violates WCAG 2.4.3 Focus Order
+  // Use focus() method programmatically instead when needed
   export let id: string | undefined = undefined;
   export let name: string | undefined = undefined;
   export let size: 'sm' | 'md' | 'lg' = 'md';
@@ -83,40 +86,46 @@
     clearable ||
     (type === 'password' && showPasswordToggle) ||
     loading;
-  $: helperId = id ? `${id}-helper` : undefined;
-  $: errorId = id ? `${id}-error` : undefined;
-  $: successId = id ? `${id}-success` : undefined;
-  $: describedBy =
-    [ariaDescribedBy, helperId, errorId, successId].filter(Boolean).join(' ') || undefined;
+  // ACCESSIBILITY: Generate unique IDs if not provided
+  $: componentId = id || accessibilityUtils.generateId('input');
+  $: helperId = `${componentId}-helper`;
+  $: errorId = `${componentId}-error`;
+  $: successId = `${componentId}-success`;
+  $: describedBy = accessibilityUtils.buildDescribedBy([
+    ariaDescribedBy,
+    helperText ? helperId : undefined,
+    hasError && errorText ? errorId : undefined,
+    hasSuccess && successText ? successId : undefined,
+  ]);
 
-  // Base classes
+  // Base classes using design tokens (Updated for WCAG compliance)
   const baseClasses = [
     'block w-full',
     'border',
     'transition-all duration-200 ease-in-out',
-    'focus:outline-none focus:ring-2 focus:ring-offset-1',
-    'disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500',
-    'placeholder-gray-400',
-    'text-gray-900',
+    'focus:outline-none focus:ring-2 focus:ring-offset-2',
+    'disabled:cursor-not-allowed disabled:bg-secondary-50 disabled:text-secondary-600',
+    'placeholder-secondary-500', // Changed from 400 to 500 for better contrast (4.76:1)
+    'text-secondary-800', // Excellent contrast (14.63:1)
   ];
 
-  // Variant classes
+  // Variant classes using design tokens
   const variantClasses = {
     default: {
-      base: 'border-gray-300 focus:border-blue-500 focus:ring-blue-500',
+      base: variants.input.base,
       bg: 'bg-white',
     },
     success: {
-      base: 'border-green-500 focus:border-green-500 focus:ring-green-500',
-      bg: 'bg-green-50',
+      base: variants.input.success,
+      bg: 'bg-success-50',
     },
     warning: {
-      base: 'border-yellow-500 focus:border-yellow-500 focus:ring-yellow-500',
-      bg: 'bg-yellow-50',
+      base: variants.input.warning,
+      bg: 'bg-warning-50',
     },
     error: {
-      base: 'border-red-500 focus:border-red-500 focus:ring-red-500',
-      bg: 'bg-red-50',
+      base: variants.input.error,
+      bg: 'bg-error-50',
     },
   };
 
@@ -145,7 +154,7 @@
   $: inputClasses = [
     ...baseClasses,
     variantClasses[variant].base,
-    disabled ? 'bg-gray-50' : variantClasses[variant].bg,
+    disabled ? 'bg-secondary-50' : variantClasses[variant].bg,
     sizeClasses[size].input,
     rounded ? 'rounded-full' : 'rounded-md',
     hasLeftIcon ? 'pl-10' : '',
@@ -156,7 +165,7 @@
 
   $: labelClasses = [
     'block text-sm font-medium',
-    hasError ? 'text-red-700' : hasSuccess ? 'text-green-700' : 'text-gray-700',
+    hasError ? 'text-error-700' : hasSuccess ? 'text-success-700' : 'text-secondary-700',
     'mb-1',
   ]
     .filter(Boolean)
@@ -242,10 +251,10 @@
 
 <div class={containerClasses}>
   {#if label}
-    <label for={id} class={labelClasses}>
+    <label for={componentId} class={labelClasses}>
       {label}
       {#if required}
-        <span class="text-red-500 ml-1">*</span>
+        <span class="text-error-500 ml-1">*</span>
       {/if}
     </label>
   {/if}
@@ -255,7 +264,7 @@
     {#if hasLeftIcon}
       <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         {#if leftIcon}
-          <i class={`${leftIcon} ${sizeClasses[size].icon} text-gray-400`} aria-hidden="true"></i>
+          <i class={`${leftIcon} ${sizeClasses[size].icon} text-secondary-400`} aria-hidden="true"></i>
         {:else}
           <slot name="leftIcon" />
         {/if}
@@ -269,14 +278,13 @@
           bind:this={inputElement}
           bind:value
           type="text"
-          {id}
+          id={componentId}
           {name}
           {placeholder}
           {disabled}
           {readonly}
           {required}
           {autocomplete}
-          {autofocus}
           {minLength}
           {maxLength}
           {min}
@@ -286,6 +294,7 @@
           class={inputClasses}
           aria-label={ariaLabel}
           aria-describedby={describedBy}
+          aria-invalid={hasError}
           data-testid={testId}
           on:input={handleInput}
           on:change={handleChange}
@@ -299,14 +308,13 @@
           bind:this={inputElement}
           bind:value
           type="password"
-          {id}
+          id={componentId}
           {name}
           {placeholder}
           {disabled}
           {readonly}
           {required}
           {autocomplete}
-          {autofocus}
           {minLength}
           {maxLength}
           {min}
@@ -316,6 +324,7 @@
           class={inputClasses}
           aria-label={ariaLabel}
           aria-describedby={describedBy}
+          aria-invalid={hasError}
           data-testid={testId}
           on:input={handleInput}
           on:change={handleChange}
@@ -337,7 +346,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -367,7 +375,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -397,7 +404,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -427,7 +433,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -457,7 +462,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -487,7 +491,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -517,7 +520,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -547,7 +549,6 @@
         {readonly}
         {required}
         {autocomplete}
-        {autofocus}
         {minLength}
         {maxLength}
         {min}
@@ -573,7 +574,7 @@
         {#if loading}
           <div class="animate-spin">
             <svg
-              class={`${sizeClasses[size].icon} text-gray-400`}
+              class={`${sizeClasses[size].icon} text-secondary-400`}
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -598,7 +599,7 @@
         {#if type === 'password' && showPasswordToggle}
           <button
             type="button"
-            class={`${sizeClasses[size].button} text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600`}
+            class={`${sizeClasses[size].button} text-secondary-400 hover:text-secondary-600 focus:outline-none focus:text-secondary-600`}
             on:click={handleTogglePassword}
             aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
           >
@@ -645,7 +646,7 @@
         {#if clearable && value !== ''}
           <button
             type="button"
-            class={`${sizeClasses[size].button} text-gray-400 hover:text-gray-600 focus:outline-none focus:text-gray-600`}
+            class={`${sizeClasses[size].button} text-secondary-400 hover:text-secondary-600 focus:outline-none focus:text-secondary-600`}
             on:click={handleClear}
             aria-label="Clear input"
           >
@@ -667,7 +668,7 @@
         {/if}
 
         {#if rightIcon}
-          <i class={`${rightIcon} ${sizeClasses[size].icon} text-gray-400`} aria-hidden="true"></i>
+          <i class={`${rightIcon} ${sizeClasses[size].icon} text-secondary-400`} aria-hidden="true"></i>
         {:else if $$slots.rightIcon}
           <slot name="rightIcon" />
         {/if}
@@ -679,15 +680,15 @@
   {#if helperText || errorText || successText}
     <div class="mt-1 text-sm">
       {#if hasError && errorText}
-        <p class="text-red-600" id={errorId}>
+        <p class="text-error-600" id={errorId}>
           {errorText}
         </p>
       {:else if hasSuccess && successText}
-        <p class="text-green-600" id={successId}>
+        <p class="text-success-600" id={successId}>
           {successText}
         </p>
       {:else if helperText}
-        <p class="text-gray-600" id={helperId}>
+        <p class="text-secondary-600" id={helperId}>
           {helperText}
         </p>
       {/if}

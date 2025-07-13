@@ -14,6 +14,7 @@
   import { logger } from '../../utils/logger';
   import { sanitizeInput, generateCSRFToken, checkRateLimit } from '$lib/utils/validation';
   import { manageFocus, announceToScreenReader, trapFocus } from '$lib/utils/accessibility';
+  import { colors } from '$lib/design-system/tokens';
 
   // Props
   export let isOpen = false;
@@ -300,15 +301,15 @@
   function getLogLevelColor(level: string): string {
     switch (level.toLowerCase()) {
       case 'error':
-        return 'text-red-400';
+        return 'text-error-400';
       case 'warn':
-        return 'text-yellow-400';
+        return 'text-warning-400';
       case 'info':
-        return 'text-blue-400';
+        return 'text-primary-400';
       case 'debug':
-        return 'text-gray-400';
+        return 'text-secondary-400';
       default:
-        return 'text-gray-300';
+        return 'text-secondary-300';
     }
   }
 
@@ -349,7 +350,7 @@
 >
   <div slot="header" class="flex items-center justify-between">
     <div class="flex items-center space-x-3">
-      <Icon name="file-text" class="w-5 h-5 text-gray-400" aria-hidden="true" />
+      <Icon name="file-text" class="w-5 h-5 text-secondary-400" aria-hidden="true" />
       <h3 id="logs-title" class="text-lg font-semibold text-white">
         Service Logs: {sanitizeInput(serviceName)}
       </h3>
@@ -396,7 +397,7 @@
 
     <!-- Controls -->
     <div
-      class="flex flex-wrap items-center gap-4 p-4 bg-gray-800 rounded-lg"
+      class="flex flex-wrap items-center gap-4 p-4 bg-secondary-800 rounded-lg"
       role="toolbar"
       aria-label="Log filtering and actions"
     >
@@ -480,15 +481,15 @@
     <!-- Error display -->
     {#if error}
       <div
-        class="p-4 bg-red-900/20 border border-red-500 rounded-lg"
+        class="p-4 bg-error-900/20 border border-error-500 rounded-lg"
         role="alert"
         aria-live="assertive"
       >
         <div class="flex items-center space-x-2">
-          <Icon name="alert-circle" class="w-5 h-5 text-red-400" aria-hidden="true" />
-          <span class="text-red-400 font-medium">Error loading logs:</span>
+          <Icon name="alert-circle" class="w-5 h-5 text-error-400" aria-hidden="true" />
+          <span class="text-error-400 font-medium">Error loading logs:</span>
         </div>
-        <p class="mt-1 text-red-300 text-sm">{sanitizeInput(error)}</p>
+        <p class="mt-1 text-error-300 text-sm">{sanitizeInput(error)}</p>
         <Button
           variant="secondary"
           size="sm"
@@ -504,7 +505,7 @@
     <!-- Logs display -->
     <div class="flex-1 flex flex-col min-h-0">
       <div class="flex items-center justify-between mb-2">
-        <div class="text-sm text-gray-400" aria-live="polite" aria-atomic="true">
+        <div class="text-sm text-secondary-400" aria-live="polite" aria-atomic="true">
           {#if $filteredLogs.length !== $logs.length}
             Showing {$filteredLogs.length} of {$logs.length} lines
           {:else}
@@ -540,7 +541,7 @@
       <div
         bind:this={logsContainer}
         on:scroll={handleScroll}
-        class="flex-1 overflow-auto bg-gray-900 border border-gray-700 rounded-lg p-4 font-mono text-sm logs-container"
+        class="flex-1 overflow-auto bg-secondary-900 border border-secondary-700 rounded-lg p-4 font-mono text-sm logs-container"
         style="max-height: 500px;"
         role="log"
         aria-label="Service log entries"
@@ -565,14 +566,14 @@
       >
         {#if isLoading && $logs.length === 0}
           <div class="flex items-center justify-center h-32" role="status" aria-live="polite">
-            <div class="flex items-center space-x-2 text-gray-400">
+            <div class="flex items-center space-x-2 text-secondary-400">
               <Icon name="loader-2" class="w-5 h-5 animate-spin" aria-hidden="true" />
               <span>Loading logs...</span>
             </div>
           </div>
         {:else if $filteredLogs.length === 0}
           <div class="flex items-center justify-center h-32" role="status">
-            <div class="text-center text-gray-400">
+            <div class="text-center text-secondary-400">
               {#if $logs.length === 0}
                 <Icon name="file-text" class="w-8 h-8 mx-auto mb-2" aria-hidden="true" />
                 <p>No logs available</p>
@@ -586,16 +587,16 @@
           {#each $filteredLogs as line, index (index)}
             {@const { timestamp, level, message } = formatLogLine(line)}
             <div
-              class="flex items-start space-x-2 py-1 hover:bg-gray-800/50 rounded focus:bg-gray-800/50 focus:outline-none"
+              class="flex items-start space-x-2 py-1 hover:bg-secondary-800/50 rounded focus:bg-secondary-800/50 focus:outline-none"
               role="row"
               aria-rowindex={index + 1}
               tabindex="-1"
             >
-              <span class="text-gray-500 text-xs min-w-0 flex-shrink-0" aria-label="Line number">
+              <span class="text-secondary-500 text-xs min-w-0 flex-shrink-0" aria-label="Line number">
                 {index + 1}
               </span>
               {#if timestamp}
-                <span class="text-gray-400 text-xs min-w-0 flex-shrink-0" aria-label="Timestamp">
+                <span class="text-secondary-400 text-xs min-w-0 flex-shrink-0" aria-label="Timestamp">
                   {sanitizeInput(timestamp)}
                 </span>
               {/if}
@@ -607,7 +608,7 @@
                   {sanitizeInput(level)}
                 </span>
               {/if}
-              <span class="text-gray-300 min-w-0 flex-1 break-all" aria-label="Log message">
+              <span class="text-secondary-300 min-w-0 flex-1 break-all" aria-label="Log message">
                 {sanitizeInput(message || line)}
               </span>
             </div>
@@ -617,10 +618,10 @@
     </div>
   </div>
   <div slot="footer" class="flex items-center justify-between">
-    <div class="text-sm text-gray-400" aria-live="polite">
+    <div class="text-sm text-secondary-400" aria-live="polite">
       {#if autoRefresh}
         <div class="flex items-center space-x-1">
-          <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse" aria-hidden="true"></div>
+          <div class="w-2 h-2 bg-success-400 rounded-full animate-pulse" aria-hidden="true"></div>
           <span>Auto-refreshing every 5 seconds</span>
         </div>
       {:else}

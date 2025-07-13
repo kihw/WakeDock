@@ -1,10 +1,11 @@
 <!--
   Enhanced Badge Component - Atomic Design System
-  Supports all variants, sizes, and states
+  Supports all variants, sizes, and states with design tokens
 -->
 <script lang="ts">
   import { scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
+  import { variants } from '$lib/design-system/tokens';
 
   // Props
   export let variant:
@@ -54,40 +55,40 @@
     'select-none',
   ];
 
-  // Variant classes
+  // Variant classes using design tokens
   const variantClasses = {
     primary: {
-      filled: 'bg-blue-100 text-blue-800 border-blue-200',
-      outlined: 'border-blue-500 text-blue-700 bg-transparent',
-      dot: 'bg-blue-500',
+      filled: variants.badge.primary,
+      outlined: 'border-primary-500 text-primary-700 bg-transparent',
+      dot: 'bg-primary-500',
     },
     secondary: {
-      filled: 'bg-gray-100 text-gray-800 border-gray-200',
-      outlined: 'border-gray-500 text-gray-700 bg-transparent',
-      dot: 'bg-gray-500',
+      filled: variants.badge.secondary,
+      outlined: 'border-secondary-500 text-secondary-700 bg-transparent',
+      dot: 'bg-secondary-500',
     },
     success: {
-      filled: 'bg-green-100 text-green-800 border-green-200',
-      outlined: 'border-green-500 text-green-700 bg-transparent',
-      dot: 'bg-green-500',
+      filled: variants.badge.success,
+      outlined: 'border-success-500 text-success-700 bg-transparent',
+      dot: 'bg-success-500',
     },
     warning: {
-      filled: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      outlined: 'border-yellow-500 text-yellow-700 bg-transparent',
-      dot: 'bg-yellow-500',
+      filled: variants.badge.warning,
+      outlined: 'border-warning-500 text-warning-700 bg-transparent',
+      dot: 'bg-warning-500',
     },
     error: {
-      filled: 'bg-red-100 text-red-800 border-red-200',
-      outlined: 'border-red-500 text-red-700 bg-transparent',
-      dot: 'bg-red-500',
+      filled: variants.badge.error,
+      outlined: 'border-error-500 text-error-700 bg-transparent',
+      dot: 'bg-error-500',
     },
     info: {
-      filled: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-      outlined: 'border-cyan-500 text-cyan-700 bg-transparent',
-      dot: 'bg-cyan-500',
+      filled: variants.badge.info,
+      outlined: 'border-primary-500 text-primary-700 bg-transparent',
+      dot: 'bg-primary-500',
     },
     neutral: {
-      filled: 'bg-neutral-100 text-neutral-800 border-neutral-200',
+      filled: variants.badge.neutral,
       outlined: 'border-neutral-500 text-neutral-700 bg-transparent',
       dot: 'bg-neutral-500',
     },
@@ -195,8 +196,8 @@
     class={`inline-block ${sizeClasses[size].dot} ${variantClasses[variant].dot} rounded-full ${pulse ? 'animate-pulse' : ''}`}
     aria-label={ariaLabel}
     data-testid={testId}
-    role={isInteractive ? 'button' : undefined}
-    tabindex={isInteractive ? 0 : undefined}
+    role={isInteractive ? 'button' : null}
+    tabindex={isInteractive ? 0 : null}
     on:click={handleClick}
     on:keydown={handleKeyDown}
     on:keyup={handleKeyUp}
@@ -213,8 +214,6 @@
     class={classes}
     aria-label={ariaLabel}
     data-testid={testId}
-    role="button"
-    tabindex="0"
     on:click={handleClick}
     on:keydown={handleKeyDown}
     on:keyup={handleKeyUp}
@@ -269,8 +268,8 @@
     class={classes}
     aria-label={ariaLabel}
     data-testid={testId}
-    role={isInteractive ? 'button' : undefined}
-    tabindex={isInteractive ? 0 : undefined}
+    role={isInteractive ? 'button' : null}
+    tabindex={isInteractive ? 0 : null}
     on:click={handleClick}
     on:keydown={handleKeyDown}
     on:keyup={handleKeyUp}

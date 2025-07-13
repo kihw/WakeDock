@@ -8,6 +8,7 @@
   import RunningServicesWidget from './widgets/services/RunningServicesWidget.svelte';
   import ServicesOverviewWidget from './widgets/services/ServicesOverviewWidget.svelte';
   import SystemOverviewWidget from './widgets/system/SystemOverviewWidget.svelte';
+  import DashboardCustomizeModal from './DashboardCustomizeModal.svelte';
 
   interface DashboardData {
     system: {
@@ -36,6 +37,8 @@
   export let dashboardData: DashboardData | null = null;
   export let loading: boolean = false;
   export let userPreferences: any = null;
+
+  let showCustomizeModal = false;
 
   const dispatch = createEventDispatcher<{
     refresh: void;
@@ -127,8 +130,7 @@
   }
 
   function openCustomizeModal() {
-    // TODO: Implement dashboard customization modal
-    console.log('Open customize modal');
+    showCustomizeModal = true;
   }
 
   // Transform data for widgets
@@ -219,6 +221,23 @@
       />
     {/if}
   </div>
+
+  <!-- Dashboard Customization Modal -->
+  {#if showCustomizeModal}
+    <DashboardCustomizeModal
+      bind:show={showCustomizeModal}
+      currentLayout={widgetConfig}
+      on:save={(event) => {
+        // Update user preferences with new layout
+        userPreferences = {
+          ...userPreferences,
+          dashboardLayout: event.detail.layout,
+        };
+        showCustomizeModal = false;
+        dispatch('preferencesUpdated', userPreferences);
+      }}
+    />
+  {/if}
 </div>
 
 <!-- Event handlers for widget actions -->

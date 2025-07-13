@@ -10,7 +10,13 @@
   export { cssClass as class };
 
   import { createEventDispatcher } from 'svelte';
+  import { variants } from '$lib/design-system/tokens';
   const dispatch = createEventDispatcher();
+
+  // Generate unique IDs for accessibility
+  const startDateId = `start-date-${Math.random().toString(36).substr(2, 9)}`;
+  const endDateId = `end-date-${Math.random().toString(36).substr(2, 9)}`;
+  const groupId = `date-range-${Math.random().toString(36).substr(2, 9)}`;
 
   function handleChange() {
     dispatch('change', { startDate, endDate });
@@ -19,23 +25,51 @@
 
 <div class="date-range-picker {className} {cssClass}">
   {#if label}
-    <label class="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+    <fieldset class="border-0 p-0 m-0">
+      <legend class="block text-sm font-medium text-secondary-700 mb-2">{label}</legend>
+      <div class="flex items-center space-x-2" role="group" aria-labelledby={groupId}>
+        <input
+          id={startDateId}
+          type="date"
+          bind:value={startDate}
+          on:change={handleChange}
+          {disabled}
+          aria-label="Start date"
+          class="{variants.input.base} px-3 py-2 focus:outline-none focus:ring-2"
+        />
+        <span class="text-secondary-500" aria-hidden="true">to</span>
+        <input
+          id={endDateId}
+          type="date"
+          bind:value={endDate}
+          on:change={handleChange}
+          {disabled}
+          aria-label="End date"
+          class="{variants.input.base} px-3 py-2 focus:outline-none focus:ring-2"
+        />
+      </div>
+    </fieldset>
+  {:else}
+    <div class="flex items-center space-x-2" role="group" aria-label="Date range picker">
+      <input
+        id={startDateId}
+        type="date"
+        bind:value={startDate}
+        on:change={handleChange}
+        {disabled}
+        aria-label="Start date"
+        class="{variants.input.base} px-3 py-2 focus:outline-none focus:ring-2"
+      />
+      <span class="text-secondary-500" aria-hidden="true">to</span>
+      <input
+        id={endDateId}
+        type="date"
+        bind:value={endDate}
+        on:change={handleChange}
+        {disabled}
+        aria-label="End date"
+        class="{variants.input.base} px-3 py-2 focus:outline-none focus:ring-2"
+      />
+    </div>
   {/if}
-  <div class="flex items-center space-x-2">
-    <input
-      type="date"
-      bind:value={startDate}
-      on:change={handleChange}
-      {disabled}
-      class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    />
-    <span class="text-gray-500">to</span>
-    <input
-      type="date"
-      bind:value={endDate}
-      on:change={handleChange}
-      {disabled}
-      class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-    />
-  </div>
 </div>

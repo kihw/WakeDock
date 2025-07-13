@@ -1,8 +1,9 @@
 <!--
-  Secondary Button - Secondary action variant
+  Secondary Button - Secondary action variant with design tokens
 -->
 <script lang="ts">
   import BaseButton from './BaseButton.svelte';
+  import { variants } from '$lib/design-system/tokens';
 
   export let size: 'sm' | 'md' | 'lg' = 'md';
   export let fullWidth = false;
@@ -21,13 +22,13 @@
     lg: 'px-6 py-3 text-base'
   };
 
+  // Use design tokens for consistent styling
   $: classes = [
     'inline-flex items-center justify-center',
     'font-medium rounded-md',
-    'bg-gray-100 text-gray-900',
-    'hover:bg-gray-200 focus:ring-gray-500',
+    variants.button.secondary.base,
     'focus:outline-none focus:ring-2 focus:ring-offset-2',
-    'disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed',
+    disabled ? variants.button.secondary.disabled : '',
     'transition-all duration-200',
     sizeClasses[size],
     fullWidth ? 'w-full' : ''

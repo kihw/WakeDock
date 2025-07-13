@@ -1,11 +1,12 @@
 <!--
   FormField Molecule - Complete form field with label, input, validation, and help text
-  Combines Input with proper form structure and validation display
+  Combines Input with proper form structure and validation display with design tokens
 -->
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import Input from '../atoms/Input.svelte';
   import Badge from '../atoms/Badge.svelte';
+  import { variants, colors } from '$lib/design-system/tokens';
 
   // Props
   export let type:
@@ -95,13 +96,29 @@
   $: errorId = `${fieldId}-error`;
   $: successId = `${fieldId}-success`;
 
-  // Label classes
+  // Label classes using design tokens
   $: labelClasses = [
     'block text-sm font-medium mb-1',
-    hasError ? 'text-red-700' : hasSuccess ? 'text-green-700' : 'text-gray-700',
+    hasError ? 'text-error-700' : hasSuccess ? 'text-success-700' : 'text-secondary-700',
   ]
     .filter(Boolean)
     .join(' ');
+
+  // Input styling using design tokens
+  $: baseInputClasses = variants.input.base;
+  $: variantInputClasses = 
+    currentVariant === 'error' ? variants.input.error :
+    currentVariant === 'success' ? variants.input.success :
+    currentVariant === 'warning' ? 'border-warning-500 focus:border-warning-500 focus:ring-warning-500' :
+    baseInputClasses;
+  
+  $: inputClasses = [
+    'block w-full transition-all duration-200 ease-in-out',
+    'focus:outline-none focus:ring-2 focus:ring-offset-1',
+    variantInputClasses,
+    disabled ? variants.input.disabled : 'bg-white',
+    'placeholder-secondary-400 text-secondary-900'
+  ].filter(Boolean).join(' ');
 
   // Validation
   function validateField(val: string | number): { valid: boolean; errors: string[] } {
@@ -249,10 +266,10 @@
   <label for={fieldId} class={labelClasses}>
     {label}
     {#if required}
-      <span class="text-red-500 ml-1">*</span>
+      <span class="text-error-500 ml-1">*</span>
     {/if}
     {#if maxLength && type !== 'number'}
-      <span class="text-xs text-gray-500 ml-2">
+      <span class="text-xs text-secondary-500 ml-2">
         {typeof value === 'string' ? value.length : 0}/{maxLength}
       </span>
     {/if}
@@ -275,22 +292,9 @@
         {maxLength}
         {rows}
         class={`
-          block w-full border rounded-md shadow-sm
-          transition-all duration-200 ease-in-out
-          focus:outline-none focus:ring-2 focus:ring-offset-1
-          disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500
-          placeholder-gray-400 text-gray-900
+          ${inputClasses}
           ${size === 'sm' ? 'px-3 py-1.5 text-sm' : size === 'lg' ? 'px-4 py-3 text-base' : 'px-4 py-2 text-sm'}
-          ${
-            currentVariant === 'error'
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-              : currentVariant === 'success'
-                ? 'border-green-500 focus:border-green-500 focus:ring-green-500'
-                : currentVariant === 'warning'
-                  ? 'border-yellow-500 focus:border-yellow-500 focus:ring-yellow-500'
-                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-          }
-          ${disabled ? 'bg-gray-50' : 'bg-white'}
+          disabled:cursor-not-allowed disabled:text-secondary-500
         `}
         aria-describedby={[
           displayHelpText ? helperId : '',
@@ -313,22 +317,9 @@
         {disabled}
         {required}
         class={`
-          block w-full border rounded-md shadow-sm
-          transition-all duration-200 ease-in-out
-          focus:outline-none focus:ring-2 focus:ring-offset-1
-          disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500
-          text-gray-900
+          ${inputClasses}
           ${size === 'sm' ? 'px-3 py-1.5 text-sm' : size === 'lg' ? 'px-4 py-3 text-base' : 'px-4 py-2 text-sm'}
-          ${
-            currentVariant === 'error'
-              ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
-              : currentVariant === 'success'
-                ? 'border-green-500 focus:border-green-500 focus:ring-green-500'
-                : currentVariant === 'warning'
-                  ? 'border-yellow-500 focus:border-yellow-500 focus:ring-yellow-500'
-                  : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
-          }
-          ${disabled ? 'bg-gray-50' : 'bg-white'}
+          disabled:cursor-not-allowed disabled:text-secondary-500
         `}
         aria-describedby={[
           displayHelpText ? helperId : '',
@@ -398,7 +389,7 @@
       <div class="flex items-center space-x-1">
         {#if showValidationIcon}
           <svg
-            class="w-4 h-4 text-red-500 flex-shrink-0"
+            class="w-4 h-4 text-error-500 flex-shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -412,7 +403,7 @@
             />
           </svg>
         {/if}
-        <p class="text-sm text-red-600" id={errorId}>
+        <p class="text-sm text-error-600" id={errorId}>
           {displayErrorText}
         </p>
       </div>
@@ -420,7 +411,7 @@
       <div class="flex items-center space-x-1">
         {#if showValidationIcon}
           <svg
-            class="w-4 h-4 text-green-500 flex-shrink-0"
+            class="w-4 h-4 text-success-500 flex-shrink-0"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -434,12 +425,12 @@
             />
           </svg>
         {/if}
-        <p class="text-sm text-green-600" id={successId}>
+        <p class="text-sm text-success-600" id={successId}>
           {displaySuccessText}
         </p>
       </div>
     {:else if displayHelpText}
-      <p class="text-sm text-gray-600" id={helperId}>
+      <p class="text-sm text-secondary-600" id={helperId}>
         {displayHelpText}
       </p>
     {/if}

@@ -16,6 +16,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import BaseInput from '../atoms/BaseInput.svelte';
+  import { colors } from '$lib/design-system/tokens';
   import type { 
     FormInputProps, 
     ValidationRule, 
@@ -52,7 +53,8 @@
   export let id: FormInputProps['id'] = undefined;
   export let name: FormInputProps['name'] = undefined;
   export let autocomplete: FormInputProps['autocomplete'] = undefined;
-  export let autofocus: FormInputProps['autofocus'] = false;
+  // ACCESSIBILITY: Removed autofocus prop - violates WCAG 2.4.3 Focus Order  
+  // Use focus() method programmatically instead when needed
   export let minLength: FormInputProps['minLength'] = undefined;
   export let maxLength: FormInputProps['maxLength'] = undefined;
   export let min: FormInputProps['min'] = undefined;
@@ -273,7 +275,6 @@
     variant={computedVariant}
     {fullWidth}
     {autocomplete}
-    {autofocus}
     {minLength}
     {maxLength}
     {min}
@@ -325,23 +326,43 @@
   }
 
   .form-input-label {
-    @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1;
+    @apply block text-sm font-medium mb-1;
+    color: theme('colors.secondary.700');
+  }
+  
+  .dark .form-input-label {
+    color: theme('colors.secondary.300');
   }
 
   .form-input-label.required {
-    @apply after:content-['*'] after:ml-1 after:text-red-500;
+    @apply after:content-['*'] after:ml-1;
+  }
+  
+  .form-input-label.required:after {
+    color: theme('colors.error.500');
   }
 
   .required-indicator {
-    @apply text-red-500 ml-1;
+    @apply ml-1;
+    color: theme('colors.error.500');
   }
 
   .form-input-helper {
-    @apply mt-1 text-xs text-gray-500 dark:text-gray-400;
+    @apply mt-1 text-xs;
+    color: theme('colors.secondary.500');
+  }
+  
+  .dark .form-input-helper {
+    color: theme('colors.secondary.400');
   }
 
   .form-input-error {
-    @apply mt-1 text-xs text-red-600 dark:text-red-400;
+    @apply mt-1 text-xs;
+    color: theme('colors.error.600');
+  }
+  
+  .dark .form-input-error {
+    color: theme('colors.error.400');
   }
 
   .error-message {
@@ -354,7 +375,12 @@
   }
 
   .form-input-success {
-    @apply mt-1 text-xs text-green-600 dark:text-green-400;
+    @apply mt-1 text-xs;
+    color: theme('colors.success.600');
+  }
+  
+  .dark .form-input-success {
+    color: theme('colors.success.400');
   }
 
   .form-input-success:before {
@@ -363,6 +389,11 @@
   }
 
   .has-error :global(.input-base) {
-    @apply border-red-500 focus:border-red-500 focus:ring-red-500;
+    border-color: theme('colors.error.500');
+  }
+  
+  .has-error :global(.input-base:focus) {
+    border-color: theme('colors.error.500');
+    --tw-ring-color: theme('colors.error.500');
   }
 </style>
