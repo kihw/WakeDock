@@ -64,14 +64,14 @@ class PWAStore {
             try {
                 // Register service worker
                 console.log('[PWA] Registering service worker');
-                
+
                 // Unregister any existing service workers to ensure clean state
                 const registrations = await navigator.serviceWorker.getRegistrations();
                 for (const registration of registrations) {
                     console.log('[PWA] Unregistering existing service worker');
                     await registration.unregister();
                 }
-                
+
                 // Register new service worker
                 this.swRegistration = await navigator.serviceWorker.register('/service-worker.js');
                 swRegistered.set(true);

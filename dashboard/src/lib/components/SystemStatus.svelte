@@ -182,7 +182,10 @@
         ></div>
       </div>
       <span class="metric-value" aria-label="Memory usage value">
-        {(typeof $systemStore.metrics?.memory === 'number' ? $systemStore.metrics.memory : 0).toFixed(1)}%
+        {(typeof $systemStore.metrics?.memory === 'number'
+          ? $systemStore.metrics.memory
+          : 0
+        ).toFixed(1)}%
       </span>
     </div>
 
@@ -209,7 +212,9 @@
         ></div>
       </div>
       <span class="metric-value" aria-label="Disk usage value">
-        {(typeof $systemStore.metrics?.disk === 'number' ? $systemStore.metrics.disk : 0).toFixed(1)}%
+        {(typeof $systemStore.metrics?.disk === 'number' ? $systemStore.metrics.disk : 0).toFixed(
+          1
+        )}%
       </span>
     </div>
   </div>

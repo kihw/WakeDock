@@ -51,6 +51,13 @@ aiosmtplib==3.0.1
 # Validation
 validators==0.22.0
 humanize==4.9.0
+croniter==1.4.1
+
+# Advanced Security
+user-agents==2.2.0
+pyotp==2.9.0
+qrcode==7.4.2
+Pillow==10.0.1
 
 # Production server
 gunicorn==21.2.0

@@ -23,7 +23,8 @@ from .types import (
     AnalyticsEvent, MetricPoint, TimeSeriesData, QueryRequest, QueryResult,
     SystemMetrics, ServiceMetrics, AggregationType, TimeResolution
 )
-from ..database import get_db_session
+from ..database import get_db_session, get_async_db_session_context
+from ..database.database import DatabaseManager, get_db_manager
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,8 @@ logger = logging.getLogger(__name__)
 class TimeSeriesStorage:
     """Time-series data storage with PostgreSQL"""
     
-    def __init__(self, db_url: str):
-        self.db_url = db_url
-        self.engine = create_async_engine(db_url)
+    def __init__(self, engine):
+        self.engine = engine
         self._initialized = False
         
     async def initialize(self):
@@ -389,8 +389,7 @@ class AnalyticsStorage:
     """High-level analytics storage interface"""
     
     def __init__(self):
-        settings = get_settings()
-        self.time_series = TimeSeriesStorage(settings.database.url)
+        # Use the existing database session for analytics data
         self._initialized = False
         
     async def initialize(self):
@@ -398,9 +397,52 @@ class AnalyticsStorage:
         if self._initialized:
             return
             
-        await self.time_series.initialize()
-        self._initialized = True
-        logger.info("Analytics storage initialized")
+        # Create analytics tables using the existing database session
+        try:
+            with get_db_manager().get_session() as session:
+                # Create analytics tables if they don't exist
+                session.execute(text("""
+                CREATE TABLE IF NOT EXISTS analytics_metrics (
+                    id SERIAL PRIMARY KEY,
+                    metric_name VARCHAR(255) NOT NULL,
+                    value DOUBLE PRECISION NOT NULL,
+                    labels JSONB DEFAULT '{}',
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                    metric_type VARCHAR(50) DEFAULT 'gauge'
+                );
+            """))
+            
+            session.execute(text("""
+                CREATE TABLE IF NOT EXISTS analytics_events (
+                    id SERIAL PRIMARY KEY,
+                    event_id VARCHAR(255) UNIQUE NOT NULL,
+                    event_type VARCHAR(100) NOT NULL,
+                    source VARCHAR(100) NOT NULL,
+                    data JSONB DEFAULT '{}',
+                    labels JSONB DEFAULT '{}',
+                    user_id VARCHAR(255),
+                    session_id VARCHAR(255),
+                    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+                );
+            """))
+            
+            session.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_analytics_metrics_name_timestamp 
+                ON analytics_metrics(metric_name, timestamp);
+            """))
+            
+            session.execute(text("""
+                CREATE INDEX IF NOT EXISTS idx_analytics_events_type_timestamp 
+                ON analytics_events(event_type, timestamp);
+            """))
+                
+            session.commit()
+            
+            self._initialized = True
+            logger.info("Analytics storage initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize analytics storage: {e}")
+            raise
         
     async def store_system_metrics(self, metrics: SystemMetrics):
         """Store system metrics as time-series data"""

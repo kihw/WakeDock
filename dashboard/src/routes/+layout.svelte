@@ -1,19 +1,51 @@
 <script lang="ts">
   import '../app.css';
   import '@fontsource/inter';
+  import '$lib/styles/responsive.css';
+  import '$lib/styles/mobile.css';
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Header from '$lib/components/Header.svelte';
+  import BottomNavigation from '$lib/components/mobile/BottomNavigation.svelte';
+  import MobileMenu from '$lib/components/mobile/MobileMenu.svelte';
   import { initializeConfig } from '$lib/config/loader.js';
   import { sidebarOpen, mounted, closeSidebarOnMobile, handleEscapeKey, handleResize } from '$lib/stores/layout.js';
   import { initializeTheme } from '$lib/utils/theme.js';
 
   export let data: any = {};
 
+  // Mobile menu state
+  let mobileMenuOpen = false;
+  
+  // Navigation items for mobile
+  const navigationItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', href: '/' },
+    { id: 'services', label: 'Services', icon: 'container', href: '/services' },
+    { id: 'monitoring', label: 'Monitor', icon: 'activity', href: '/monitoring' },
+    { id: 'logs', label: 'Logs', icon: 'file-text', href: '/logs' },
+    { id: 'backup', label: 'Backup', icon: 'download', href: '/backup', section: 'tools' },
+    { id: 'analytics', label: 'Analytics', icon: 'bar-chart', href: '/analytics', section: 'tools' },
+    { id: 'settings', label: 'Settings', icon: 'settings', href: '/settings', section: 'admin' },
+    { id: 'users', label: 'Users', icon: 'users', href: '/users', section: 'admin' },
+    { id: 'profile', label: 'Profile', icon: 'user', href: '/profile', section: 'account' }
+  ];
+
+  // Toggle mobile menu
+  function toggleMobileMenu() {
+    mobileMenuOpen = !mobileMenuOpen;
+  }
+  
+  // Handle mobile menu close
+  function handleMobileMenuClose() {
+    mobileMenuOpen = false;
+  }
+
   // Close sidebar on route change (mobile)
   $: if ($page.url.pathname && $mounted) {
     closeSidebarOnMobile();
+    // Also close mobile menu on route change
+    mobileMenuOpen = false;
   }
 
   onMount(async () => {
@@ -27,10 +59,14 @@
 
     mounted.set(true);
 
-    // Handle escape key for sidebar
+    // Handle escape key for sidebar and mobile menu
     function handleKeydown(event: KeyboardEvent) {
-      if (event.key === 'Escape' && $sidebarOpen) {
-        handleEscapeKey(event);
+      if (event.key === 'Escape') {
+        if (mobileMenuOpen) {
+          mobileMenuOpen = false;
+        } else if ($sidebarOpen) {
+          handleEscapeKey(event);
+        }
       }
     }
 
@@ -46,24 +82,31 @@
   });
 </script>
 
-<div class="app" class:sidebar-open={$sidebarOpen}>
-  <!-- Sidebar -->
+<div class="app" class:sidebar-open={$sidebarOpen} class:mobile-menu-open={mobileMenuOpen}>
+  <!-- Desktop Sidebar -->
   <Sidebar open={sidebarOpen} />
+
+  <!-- Mobile Menu -->
+  <MobileMenu 
+    bind:isOpen={mobileMenuOpen} 
+    menuItems={navigationItems}
+    on:close={handleMobileMenuClose}
+  />
 
   <!-- Main Content Area -->
   <div class="main-container">
     <!-- Header -->
-    <Header {sidebarOpen} />
+    <Header {sidebarOpen} {toggleMobileMenu} />
 
     <!-- Main Content -->
-    <main class="main-content">
-      <div class="content-wrapper">
+    <main class="main-content" class:mobile-content={true}>
+      <div class="content-wrapper safe-area-top">
         <slot />
       </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="app-footer">
+    <!-- Desktop Footer -->
+    <footer class="app-footer hidden-mobile">
       <div class="footer-content">
         <div class="footer-left">
           <p class="footer-text">© 2024 WakeDock. Made with ❤️ for Docker enthusiasts.</p>
@@ -82,6 +125,9 @@
       </div>
     </footer>
   </div>
+
+  <!-- Mobile Bottom Navigation -->
+  <BottomNavigation items={navigationItems.slice(0, 5)} />
 </div>
 
 <!-- Global Loading Indicator -->
@@ -110,7 +156,7 @@
 <style>
   .app {
     display: flex;
-    min-height: 100vh;
+    flex: 1;
     background: var(--color-background);
     position: relative;
   }
@@ -128,6 +174,7 @@
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow: hidden;
   }
 
@@ -137,8 +184,6 @@
     overflow-y: auto;
     position: relative;
     background: var(--color-background);
-    max-width: 1400px;
-    margin: 0 auto;
     width: 100%;
 
     /* Smooth scrolling */
@@ -180,8 +225,6 @@
   }
 
   .footer-content {
-    max-width: 1400px;
-    margin: 0 auto;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -300,8 +343,35 @@
 
   /* Mobile Layout */
   @media (max-width: 768px) {
+    .app {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .app.mobile-menu-open {
+      overflow: hidden;
+    }
+    
+    .main-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      margin-left: 0;
+    }
+    
+    .main-content.mobile-content {
+      padding-bottom: 70px; /* Space for bottom navigation */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    
     .content-wrapper {
       padding: var(--spacing-md);
+      flex: 1;
+    }
+    
+    .hidden-mobile {
+      display: none !important;
     }
 
     .footer-content {
@@ -313,7 +383,50 @@
     .footer-links {
       order: 1;
     }
-
+    
+    /* Mobile-specific app footer adjustments */
+    .app-footer {
+      padding: var(--spacing-md);
+    }
+    
+    .app-footer .footer-content {
+      padding: 0;
+    }
+  }
+  
+  /* Tablet adjustments */
+  @media (min-width: 576px) and (max-width: 768px) {
+    .content-wrapper {
+      padding: var(--spacing-lg);
+    }
+    
+    .main-content.mobile-content {
+      padding-bottom: 0; /* No bottom nav on tablet */
+    }
+  }
+  
+  /* Mobile-first responsive improvements */
+  @media (max-width: 575px) {
+    .content-wrapper {
+      padding: var(--spacing-sm);
+    }
+    
+    /* Adjust scroll-to-top button for mobile */
+    .scroll-to-top {
+      bottom: 80px; /* Above bottom navigation */
+      right: var(--spacing-md);
+      width: 48px;
+      height: 48px;
+    }
+    
+    /* Loading bar adjustments for mobile */
+    .loading-bar {
+      height: 2px;
+    }
+  }
+  
+  /* Additional mobile styles for footer */
+  @media (max-width: 575px) {
     .footer-version {
       order: 2;
     }
@@ -321,13 +434,32 @@
     .footer-left {
       order: 3;
     }
+  }
 
-    .scroll-to-top {
-      bottom: var(--spacing-lg);
-      right: var(--spacing-lg);
-      width: 44px;
-      height: 44px;
-    }
+  .scroll-to-top {
+    position: fixed;
+    bottom: var(--spacing-lg);
+    right: var(--spacing-lg);
+    width: 44px;
+    height: 44px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-normal);
+    z-index: var(--z-fixed);
+    opacity: 0;
+    visibility: hidden;
+  }
+  
+  .scroll-to-top.visible {
+    opacity: 1;
+    visibility: visible;
   }
 
   @media (max-width: 480px) {

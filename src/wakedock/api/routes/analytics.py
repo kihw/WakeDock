@@ -24,6 +24,8 @@ from wakedock.analytics.types import (
 from wakedock.analytics.collector import get_analytics_collector
 from wakedock.analytics.storage import get_analytics_storage
 from wakedock.analytics.reporter import get_analytics_reporter
+from wakedock.analytics.usage_collector import get_usage_analytics_collector
+from wakedock.analytics.visualizations import create_visualization_generator
 from wakedock.api.auth.dependencies import get_current_user
 from wakedock.database.models import UserRole
 
@@ -451,4 +453,267 @@ async def get_analytics_stats(
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve analytics statistics"
+        )
+
+
+@router.get("/dashboards/system", summary="System Analytics Dashboard")
+async def get_system_dashboard(
+    hours: int = Query(24, ge=1, le=168, description="Hours of data to include"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get comprehensive system analytics dashboard"""
+    try:
+        # Create visualization generator
+        storage = get_analytics_storage()
+        usage_collector = get_usage_analytics_collector()
+        viz_generator = create_visualization_generator(storage, usage_collector)
+        
+        # Generate system overview dashboard
+        dashboard = await viz_generator.generate_system_overview_dashboard(hours)
+        
+        return dashboard
+        
+    except Exception as e:
+        logger.error(f"Error generating system dashboard: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate system dashboard"
+        )
+
+
+@router.get("/dashboards/user", summary="User Analytics Dashboard")
+async def get_user_dashboard(
+    user_id: Optional[str] = Query(None, description="Specific user ID (admin only)"),
+    hours: int = Query(24, ge=1, le=168, description="Hours of data to include"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get user-focused analytics dashboard"""
+    
+    # Regular users can only see their own data
+    target_user_id = user_id
+    if current_user.role != UserRole.ADMIN:
+        target_user_id = str(current_user.id)
+    
+    try:
+        # Create visualization generator
+        storage = get_analytics_storage()
+        usage_collector = get_usage_analytics_collector()
+        viz_generator = create_visualization_generator(storage, usage_collector)
+        
+        # Generate user analytics dashboard
+        dashboard = await viz_generator.generate_user_analytics_dashboard(target_user_id, hours)
+        
+        return dashboard
+        
+    except Exception as e:
+        logger.error(f"Error generating user dashboard: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate user dashboard"
+        )
+
+
+@router.get("/dashboards/performance", summary="Performance Analytics Dashboard")
+async def get_performance_dashboard(
+    hours: int = Query(24, ge=1, le=168, description="Hours of data to include"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get performance-focused analytics dashboard"""
+    try:
+        # Create visualization generator
+        storage = get_analytics_storage()
+        usage_collector = get_usage_analytics_collector()
+        viz_generator = create_visualization_generator(storage, usage_collector)
+        
+        # Generate performance dashboard
+        dashboard = await viz_generator.generate_performance_dashboard(hours)
+        
+        return dashboard
+        
+    except Exception as e:
+        logger.error(f"Error generating performance dashboard: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate performance dashboard"
+        )
+
+
+@router.get("/usage/summary", summary="Usage Analytics Summary")
+async def get_usage_summary(
+    hours: int = Query(24, ge=1, le=168, description="Hours of data to include"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get comprehensive usage analytics summary"""
+    usage_collector = get_usage_analytics_collector()
+    
+    if not usage_collector:
+        raise HTTPException(
+            status_code=503,
+            detail="Usage analytics collector not available"
+        )
+    
+    try:
+        summary = usage_collector.get_usage_summary(hours)
+        return summary
+        
+    except Exception as e:
+        logger.error(f"Error getting usage summary: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve usage summary"
+        )
+
+
+@router.get("/usage/users/{user_id}/insights", summary="User Usage Insights")
+async def get_user_insights(
+    user_id: str,
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get detailed usage insights for a specific user"""
+    
+    # Regular users can only see their own insights
+    if current_user.role != UserRole.ADMIN and user_id != str(current_user.id):
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied: insufficient permissions"
+        )
+    
+    usage_collector = get_usage_analytics_collector()
+    
+    if not usage_collector:
+        raise HTTPException(
+            status_code=503,
+            detail="Usage analytics collector not available"
+        )
+    
+    try:
+        insights = usage_collector.get_user_insights(user_id)
+        return insights
+        
+    except Exception as e:
+        logger.error(f"Error getting user insights: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve user insights"
+        )
+
+
+@router.post("/visualizations/custom", summary="Generate Custom Visualization")
+async def generate_custom_visualization(
+    chart_config: Dict[str, Any],
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Generate custom visualization based on configuration"""
+    
+    # Only allow admins to create custom visualizations
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required for custom visualizations"
+        )
+    
+    try:
+        # Create visualization generator
+        storage = get_analytics_storage()
+        usage_collector = get_usage_analytics_collector()
+        viz_generator = create_visualization_generator(storage, usage_collector)
+        
+        # Generate custom chart
+        chart = await viz_generator.generate_custom_chart(chart_config)
+        
+        return chart
+        
+    except Exception as e:
+        logger.error(f"Error generating custom visualization: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate custom visualization"
+        )
+
+
+@router.get("/trends/analysis", summary="Trend Analysis")
+async def get_trend_analysis(
+    metric_name: str = Query(..., description="Metric to analyze"),
+    days: int = Query(7, ge=1, le=30, description="Number of days to analyze"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get trend analysis for a specific metric"""
+    try:
+        # Placeholder for trend analysis
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(days=days)
+        
+        # Generate sample trend data
+        trend_data = {
+            "metric_name": metric_name,
+            "period": f"Last {days} days",
+            "trend_direction": "increasing",  # increasing, decreasing, stable
+            "trend_percentage": 15.7,
+            "confidence": 0.85,
+            "data_points": [
+                {"date": (start_time + timedelta(days=i)).strftime("%Y-%m-%d"), 
+                 "value": 100 + (i * 5) + (i % 3) * 10}
+                for i in range(days)
+            ],
+            "statistics": {
+                "mean": 125.3,
+                "median": 123.0,
+                "std_deviation": 18.7,
+                "min_value": 98.2,
+                "max_value": 156.8
+            },
+            "generated_at": end_time.isoformat()
+        }
+        
+        return trend_data
+        
+    except Exception as e:
+        logger.error(f"Error generating trend analysis: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate trend analysis"
+        )
+
+
+@router.get("/forecasting/predictions", summary="Predictive Analytics")
+async def get_predictions(
+    metric_name: str = Query(..., description="Metric to predict"),
+    days_ahead: int = Query(7, ge=1, le=30, description="Days to predict ahead"),
+    current_user = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """Get predictive analytics for metrics"""
+    
+    # Only allow admins access to forecasting
+    if current_user.role != UserRole.ADMIN:
+        raise HTTPException(
+            status_code=403,
+            detail="Admin privileges required for predictive analytics"
+        )
+    
+    try:
+        # Placeholder for predictive analytics
+        predictions = {
+            "metric_name": metric_name,
+            "forecast_period": f"Next {days_ahead} days",
+            "confidence_interval": 0.95,
+            "predictions": [
+                {
+                    "date": (datetime.utcnow() + timedelta(days=i)).strftime("%Y-%m-%d"),
+                    "predicted_value": 120 + (i * 2.5),
+                    "lower_bound": 110 + (i * 2.0),
+                    "upper_bound": 130 + (i * 3.0)
+                }
+                for i in range(1, days_ahead + 1)
+            ],
+            "model_accuracy": 0.87,
+            "generated_at": datetime.utcnow().isoformat()
+        }
+        
+        return predictions
+        
+    except Exception as e:
+        logger.error(f"Error generating predictions: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate predictions"
         )

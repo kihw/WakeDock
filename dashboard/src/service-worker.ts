@@ -86,9 +86,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 // Simplified API request handling
 async function handleApiRequest(request: Request): Promise<Response> {
   const url = new URL(request.url);
-  
+
   // Cache-first for cacheable endpoints
-  const isCacheable = request.method === 'GET' && 
+  const isCacheable = request.method === 'GET' &&
     (url.pathname.includes('/services') || url.pathname.includes('/system') || url.pathname.includes('/health'));
 
   if (isCacheable) {
@@ -97,7 +97,7 @@ async function handleApiRequest(request: Request): Promise<Response> {
       // Update cache in background
       fetch(request)
         .then((response) => response.ok && caches.open(API_CACHE_NAME).then((cache) => cache.put(request, response.clone())))
-        .catch(() => {});
+        .catch(() => { });
       return cachedResponse;
     }
   }

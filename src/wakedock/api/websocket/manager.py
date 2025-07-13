@@ -18,6 +18,7 @@ from .types import (
     WebSocketMessage, ConnectionInfo, ConnectionStatus, 
     EventType, SubscriptionRequest, WebSocketError
 )
+from .batch_manager import batch_manager, WebSocketMessage as BatchWebSocketMessage, MessagePriority
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +46,9 @@ class WebSocketManager:
         
         # Task de nettoyage périodique
         self._cleanup_task = None
+        
+        # Initialize batch manager
+        batch_manager.set_websocket_manager(self)
     
     async def connect(
         self, 
@@ -153,7 +157,9 @@ class WebSocketManager:
     async def send_to_connection(
         self, 
         connection_id: str, 
-        message: WebSocketMessage
+        message: str | WebSocketMessage,
+        priority: MessagePriority = MessagePriority.NORMAL,
+        use_batching: bool = True
     ) -> bool:
         """Envoyer un message à une connexion spécifique"""
         try:
@@ -161,14 +167,30 @@ class WebSocketManager:
             if not websocket:
                 return False
             
+            # Handle string messages (from batch manager)
+            if isinstance(message, str):
+                await websocket.send_text(message)
+                self.total_messages_sent += 1
+                return True
+            
             # Mettre à jour l'activité
             conn_info = self.connection_info.get(connection_id)
             if conn_info:
                 conn_info.last_activity = datetime.utcnow()
             
-            # Envoyer le message
-            await websocket.send_text(message.json())
-            self.total_messages_sent += 1
+            # Convert to batch message format
+            batch_message = BatchWebSocketMessage(
+                type=message.type,
+                data=message.data,
+                priority=priority
+            )
+            
+            # Use batching for non-critical messages
+            if use_batching and priority != MessagePriority.CRITICAL:
+                await batch_manager.queue_message(connection_id, batch_message)
+            else:
+                # Send immediately for critical messages
+                await batch_manager.send_immediate(connection_id, batch_message)
             
             return True
             
@@ -209,18 +231,53 @@ class WebSocketManager:
     async def broadcast_to_subscribers(
         self, 
         event_type: str, 
-        message: WebSocketMessage
+        message: WebSocketMessage,
+        priority: MessagePriority = MessagePriority.NORMAL
     ) -> int:
         """Diffuser à tous les abonnés d'un type d'événement"""
         sent_count = 0
         subscribers = self.subscriptions.get(event_type, set())
         
         for connection_id in list(subscribers):
-            if await self.send_to_connection(connection_id, message):
+            if await self.send_to_connection(connection_id, message, priority=priority):
                 sent_count += 1
         
         logger.debug(f"Sent {event_type} message to {sent_count} subscribers")
         return sent_count
+    
+    async def send_high_priority(
+        self, 
+        connection_id: str, 
+        message: WebSocketMessage
+    ) -> bool:
+        """Send a high priority message (bypasses normal batching)"""
+        return await self.send_to_connection(
+            connection_id, 
+            message, 
+            priority=MessagePriority.HIGH,
+            use_batching=False
+        )
+    
+    async def send_critical(
+        self, 
+        connection_id: str, 
+        message: WebSocketMessage
+    ) -> bool:
+        """Send a critical message (immediate, no batching)"""
+        return await self.send_to_connection(
+            connection_id, 
+            message, 
+            priority=MessagePriority.CRITICAL,
+            use_batching=False
+        )
+    
+    async def flush_all_batches(self) -> None:
+        """Flush all pending batched messages"""
+        await batch_manager.flush_all_connections()
+    
+    def get_batching_stats(self) -> Dict[str, Any]:
+        """Get batching statistics"""
+        return batch_manager.get_stats()
     
     def get_connection_user(self, connection_id: str) -> Optional[User]:
         """Récupérer l'utilisateur associé à une connexion"""

@@ -7,7 +7,10 @@ This module provides the database layer for WakeDock, including:
 """
 
 from .database import DatabaseManager, get_db_session, get_async_db_session_context
-from .models import Base, Service, User, Configuration, ServiceStatus
+from .models import (
+    Base, Service, User, Configuration, ServiceStatus,
+    Organization, OrganizationUser, OrganizationInvitation, UsageRecord
+)
 
 __all__ = [
     "DatabaseManager",
@@ -17,5 +20,9 @@ __all__ = [
     "Service",
     "User", 
     "Configuration",
-    "ServiceStatus"
+    "ServiceStatus",
+    "Organization",
+    "OrganizationUser",
+    "OrganizationInvitation", 
+    "UsageRecord"
 ]

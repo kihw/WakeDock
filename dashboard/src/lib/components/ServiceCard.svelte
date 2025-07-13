@@ -232,7 +232,10 @@
                 <span
                   class="metric-value {getResourceStatus(service.resource_usage.cpu_percent).color}"
                 >
-                  {(typeof service.resource_usage.cpu_percent === 'number' ? service.resource_usage.cpu_percent : 0).toFixed(1)}%
+                  {(typeof service.resource_usage.cpu_percent === 'number'
+                    ? service.resource_usage.cpu_percent
+                    : 0
+                  ).toFixed(1)}%
                 </span>
               </div>
             </div>
@@ -747,13 +750,13 @@
   }
 
   /* Enhanced Responsive Design */
-  
+
   /* Large screens - better spacing and layout */
   @media (min-width: 1200px) {
     .service-card {
       min-height: 400px;
     }
-    
+
     .card-header {
       padding: var(--spacing-xl);
     }
@@ -765,11 +768,11 @@
     .card-footer {
       padding: var(--spacing-xl);
     }
-    
+
     .service-name {
       font-size: 1.25rem;
     }
-    
+
     .resource-grid {
       grid-template-columns: 1fr 1fr;
       gap: var(--spacing-lg);
@@ -781,7 +784,7 @@
     .action-buttons {
       gap: var(--spacing-xs);
     }
-    
+
     .action-buttons .btn {
       font-size: 0.75rem;
       padding: var(--spacing-xs) var(--spacing-sm);
@@ -793,21 +796,21 @@
     .service-header {
       gap: var(--spacing-sm);
     }
-    
+
     .service-icon {
       width: 40px;
       height: 40px;
     }
-    
+
     .service-name {
       font-size: 1rem;
     }
-    
+
     .action-buttons {
       flex-wrap: nowrap;
       gap: var(--spacing-xs);
     }
-    
+
     .action-buttons .btn {
       flex: 1;
       min-width: 0;

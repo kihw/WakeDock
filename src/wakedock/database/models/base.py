@@ -11,7 +11,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from .database import Base
+from ..database import Base
 
 
 class ServiceStatus(PyEnum):
@@ -52,6 +52,9 @@ class User(Base):
     
     # Relationships
     services = relationship("Service", back_populates="owner")
+    
+    # MFA relationships (will be available when security models are loaded)
+    # mfa_methods = relationship("MFAMethod", back_populates="user", cascade="all, delete-orphan")
     
     def __repr__(self) -> str:
         return f"<User(username='{self.username}', role='{self.role.value}')>"
@@ -101,9 +104,11 @@ class Service(Base):
     
     # Foreign keys
     owner_id = Column(Integer, ForeignKey("users.id"))
+    organization_id = Column(Integer, ForeignKey("organizations.id"), nullable=True)
     
     # Relationships
     owner = relationship("User", back_populates="services")
+    organization = relationship("Organization", back_populates="services")
     
     def __repr__(self) -> str:
         return f"<Service(name='{self.name}', status='{self.status.value}')>"

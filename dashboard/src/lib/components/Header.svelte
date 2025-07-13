@@ -22,6 +22,7 @@
 
   export let variant: 'default' | 'compact' | 'minimal' = 'default';
   export let sidebarOpen: Writable<boolean>;
+  export let toggleMobileMenu: (() => void) | undefined = undefined;
   export let user: User | null = null;
   export let unreadNotifications: number = 0;
 
@@ -155,8 +156,8 @@
         <!-- Mobile Menu Toggle -->
         <button
           type="button"
-          class="p-2 rounded-md text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 lg:hidden"
-          on:click={() => (isMobileMenuOpen = !isMobileMenuOpen)}
+          class="p-2 rounded-md text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500 lg:hidden mobile-haptic-feedback"
+          on:click={toggleMobileMenu || (() => (isMobileMenuOpen = !isMobileMenuOpen))}
           aria-label="Toggle mobile menu"
           aria-expanded={isMobileMenuOpen}
         >

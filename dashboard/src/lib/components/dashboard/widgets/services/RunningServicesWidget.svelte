@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { Play, Square, ExternalLink, MoreVertical } from 'lucide-svelte';
   import Widget from '../base/Widget.svelte';
-  
+
   interface Service {
     id: string;
     name: string;
@@ -25,27 +25,39 @@
     viewDetails: { serviceId: string };
   }>();
 
-  $: runningServices = services.filter(s => s.status === 'running').slice(0, 5);
+  $: runningServices = services.filter((s) => s.status === 'running').slice(0, 5);
 
   function getStatusColor(status: string): string {
     switch (status) {
-      case 'running': return 'text-green-600';
-      case 'stopped': return 'text-gray-600';
-      case 'error': return 'text-red-600';
-      case 'starting': return 'text-blue-600';
-      case 'stopping': return 'text-yellow-600';
-      default: return 'text-gray-600';
+      case 'running':
+        return 'text-green-600';
+      case 'stopped':
+        return 'text-gray-600';
+      case 'error':
+        return 'text-red-600';
+      case 'starting':
+        return 'text-blue-600';
+      case 'stopping':
+        return 'text-yellow-600';
+      default:
+        return 'text-gray-600';
     }
   }
 
   function getStatusDotColor(status: string): string {
     switch (status) {
-      case 'running': return 'bg-green-500';
-      case 'stopped': return 'bg-gray-500';
-      case 'error': return 'bg-red-500';
-      case 'starting': return 'bg-blue-500';
-      case 'stopping': return 'bg-yellow-500';
-      default: return 'bg-gray-500';
+      case 'running':
+        return 'bg-green-500';
+      case 'stopped':
+        return 'bg-gray-500';
+      case 'error':
+        return 'bg-red-500';
+      case 'starting':
+        return 'bg-blue-500';
+      case 'stopping':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-gray-500';
     }
   }
 </script>
@@ -89,16 +101,22 @@
                 </button>
               </div>
             </div>
-            
+
             <div class="service-details">
               <div class="service-url">{service.subdomain}</div>
               {#if service.resource_usage}
                 <div class="resource-usage">
                   <span class="usage-item">
-                    CPU: {(typeof service.resource_usage.cpu_usage === 'number' ? service.resource_usage.cpu_usage : 0).toFixed(1)}%
+                    CPU: {(typeof service.resource_usage.cpu_usage === 'number'
+                      ? service.resource_usage.cpu_usage
+                      : 0
+                    ).toFixed(1)}%
                   </span>
                   <span class="usage-item">
-                    RAM: {(typeof service.resource_usage.memory_usage === 'number' ? service.resource_usage.memory_usage : 0).toFixed(1)}%
+                    RAM: {(typeof service.resource_usage.memory_usage === 'number'
+                      ? service.resource_usage.memory_usage
+                      : 0
+                    ).toFixed(1)}%
                   </span>
                 </div>
               {/if}
@@ -110,9 +128,7 @@
 
     <!-- View All Link -->
     <div class="view-all">
-      <a href="/services" class="view-all-link">
-        View all services →
-      </a>
+      <a href="/services" class="view-all-link"> View all services → </a>
     </div>
   {:else}
     <div class="empty-state">
@@ -120,9 +136,7 @@
         <Play class="h-8 w-8 text-gray-400" />
       </div>
       <p class="empty-message">No running services</p>
-      <a href="/services/new" class="empty-action">
-        Deploy your first service
-      </a>
+      <a href="/services/new" class="empty-action"> Deploy your first service </a>
     </div>
   {/if}
 </Widget>

@@ -33,7 +33,8 @@
   <div class="metric" class:error={errorRate > 5}>
     <AlertTriangle class="w-4 h-4 {errorRate > 5 ? 'text-red-500' : 'text-gray-400'}" />
     <div class="metric-content">
-      <span class="metric-value">{(typeof errorRate === 'number' ? errorRate : 0).toFixed(1)}%</span>
+      <span class="metric-value">{(typeof errorRate === 'number' ? errorRate : 0).toFixed(1)}%</span
+      >
       <span class="metric-label">Error Rate</span>
     </div>
   </div>
@@ -44,7 +45,12 @@
       class="w-4 h-4 {metrics.averageResponseTime > 2000 ? 'text-yellow-500' : 'text-gray-400'}"
     />
     <div class="metric-content">
-      <span class="metric-value">{(typeof metrics.averageResponseTime === 'number' ? metrics.averageResponseTime : 0).toFixed(0)}ms</span>
+      <span class="metric-value"
+        >{(typeof metrics.averageResponseTime === 'number'
+          ? metrics.averageResponseTime
+          : 0
+        ).toFixed(0)}ms</span
+      >
       <span class="metric-label">Avg Response</span>
     </div>
   </div>

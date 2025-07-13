@@ -31,6 +31,11 @@
     docker:
       'M14.5 3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-12a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h12z M5 5v6 M9 5v6 M13 5v6',
     circle: 'M12 12m-10 0a10 10 0 1 0 20 0a10 10 0 1 0 -20 0',
+    
+    // Dashboard & Analytics
+    dashboard: 'M3 3h18v18H3z M9 9h6v6H9z M3 9h6 M15 9h6 M9 3v6 M9 15v6',
+    container: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
+    'bar-chart': 'M18 20V10 M12 20V4 M6 20v-6',
 
     // Actions
     play: 'M8 5v14l11-7z',

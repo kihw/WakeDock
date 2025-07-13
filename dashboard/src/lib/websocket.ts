@@ -6,6 +6,7 @@ import { writable, type Writable } from 'svelte/store';
 import { config, debugLog } from './config/environment.js';
 import { WS_ENDPOINTS, getWsUrl } from './config/api.js';
 import type { Service } from './api.js';
+import { WebSocketBatchManager, MessageCompressor, type WebSocketMessage as BatchMessage, type BatchedMessage } from './websocket-batch.js';
 
 export interface WebSocketMessage {
   type: string;
@@ -78,6 +79,10 @@ class WebSocketClient {
   private connectionStartTime = 0;
   private isReconnecting = false;
 
+  // Batching system
+  private batchManager: WebSocketBatchManager;
+  private batchingEnabled = true;
+
   // Stores
   public connectionState: Writable<ConnectionState> = writable(ConnectionState.DISCONNECTED);
   public serviceUpdates: Writable<ServiceUpdate[]> = writable([]);
@@ -100,6 +105,9 @@ class WebSocketClient {
   });
 
   constructor() {
+    // Initialize batch manager
+    this.batchManager = new WebSocketBatchManager();
+
     // Only initialize in browser environment if not on login page
     if (typeof window !== 'undefined' && !this.isOnLoginPage()) {
       this.connect();
@@ -251,12 +259,50 @@ class WebSocketClient {
   /**
    * Send message to WebSocket server
    */
-  private send(message: any): void {
+  private send(message: any, priority: 'low' | 'normal' | 'high' | 'critical' = 'normal'): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(message));
+      const batchMessage: BatchMessage = {
+        type: message.type,
+        data: message.data || message,
+        timestamp: message.timestamp || new Date().toISOString(),
+        priority
+      };
+
+      if (this.batchingEnabled && priority !== 'critical') {
+        // Use batching for non-critical messages
+        this.batchManager.queueMessage(batchMessage);
+      } else {
+        // Send immediately for critical messages or when batching disabled
+        this.batchManager.sendImmediate(batchMessage);
+      }
     } else {
       debugLog('WebSocket not connected, cannot send message:', message);
     }
+  }
+
+  /**
+   * Send message with high priority (bypasses normal batching)
+   */
+  sendHighPriority(message: any): void {
+    this.send(message, 'critical');
+  }
+
+  /**
+   * Enable or disable message batching
+   */
+  setBatchingEnabled(enabled: boolean): void {
+    this.batchingEnabled = enabled;
+    if (!enabled) {
+      // Flush any queued messages immediately
+      this.batchManager.flushAll();
+    }
+  }
+
+  /**
+   * Get batching statistics
+   */
+  getBatchingStats() {
+    return this.batchManager.getStats();
   }
 
   /**
@@ -270,6 +316,11 @@ class WebSocketClient {
       this.connectionState.set(ConnectionState.CONNECTED);
       this.reconnectAttempts = 0;
       this.lastError.set(null);
+
+      // Setup batch manager with the connected WebSocket
+      if (this.ws) {
+        this.batchManager.setWebSocket(this.ws);
+      }
 
       // Resubscribe to events
       this.subscriptions.forEach((eventType) => {
@@ -285,8 +336,30 @@ class WebSocketClient {
 
     this.ws.onmessage = (event) => {
       try {
-        const message: WebSocketMessage = JSON.parse(event.data);
-        this.handleMessage(message);
+        const data = event.data;
+        let message: WebSocketMessage | BatchedMessage;
+
+        // Check if message is compressed or batched
+        if (typeof data === 'string' && data.startsWith('batch:')) {
+          // Handle batched messages
+          const batchData = data.substring(6); // Remove 'batch:' prefix
+          message = MessageCompressor.decompress(batchData, true);
+
+          if (message.type === 'batch') {
+            // Process each message in the batch
+            (message as BatchedMessage).messages.forEach(msg => {
+              this.handleMessage({
+                ...msg,
+                timestamp: msg.timestamp || new Date().toISOString()
+              });
+            });
+            return;
+          }
+        } else {
+          message = JSON.parse(data);
+        }
+
+        this.handleMessage(message as WebSocketMessage);
       } catch (error) {
         console.error('Failed to parse WebSocket message:', error);
       }

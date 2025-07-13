@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { Cpu, HardDrive, MemoryStick, Clock } from 'lucide-svelte';
   import Widget from '../base/Widget.svelte';
-  
+
   export let data: {
     cpu_usage: number;
     memory_usage: number;
@@ -20,7 +20,7 @@
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    
+
     if (days > 0) return `${days}d ${hours}h`;
     if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
@@ -65,7 +65,7 @@
         </div>
         <div class="metric-bar">
           <div class="metric-bar-bg">
-            <div 
+            <div
               class="metric-bar-fill {getUsageBarColor(data.cpu_usage)}"
               style="width: {Math.min(data.cpu_usage, 100)}%"
             ></div>
@@ -88,7 +88,7 @@
         </div>
         <div class="metric-bar">
           <div class="metric-bar-bg">
-            <div 
+            <div
               class="metric-bar-fill {getUsageBarColor(data.memory_usage)}"
               style="width: {Math.min(data.memory_usage, 100)}%"
             ></div>
@@ -111,7 +111,7 @@
         </div>
         <div class="metric-bar">
           <div class="metric-bar-bg">
-            <div 
+            <div
               class="metric-bar-fill {getUsageBarColor(data.disk_usage)}"
               style="width: {Math.min(data.disk_usage, 100)}%"
             ></div>
@@ -138,10 +138,14 @@
     <!-- System Health Status -->
     <div class="system-status mt-6">
       <div class="status-indicator">
-        <div class="status-dot {data.cpu_usage < 80 && data.memory_usage < 80 && data.disk_usage < 90 ? 'healthy' : 'warning'}"></div>
+        <div
+          class="status-dot {data.cpu_usage < 80 && data.memory_usage < 80 && data.disk_usage < 90
+            ? 'healthy'
+            : 'warning'}"
+        ></div>
         <span class="status-text">
-          {data.cpu_usage < 80 && data.memory_usage < 80 && data.disk_usage < 90 
-            ? 'System Healthy' 
+          {data.cpu_usage < 80 && data.memory_usage < 80 && data.disk_usage < 90
+            ? 'System Healthy'
             : 'System Under Load'}
         </span>
       </div>

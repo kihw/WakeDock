@@ -19,6 +19,10 @@ from wakedock.infrastructure.caddy import caddy_manager
 from wakedock.monitoring.prometheus import init_prometheus_exporter
 from wakedock.core.monitoring import MonitoringService
 from wakedock.core.orchestrator import DockerOrchestrator
+from wakedock.analytics.storage import init_analytics_storage
+from wakedock.analytics.collector import AnalyticsCollector, init_analytics_collector
+from wakedock.analytics.usage_collector import initialize_usage_analytics_collector
+from wakedock.analytics.types import AnalyticsConfig
 
 logger = logging.getLogger(__name__)
 
@@ -127,6 +131,47 @@ async def init_monitoring_services() -> Tuple[Optional[Any], bool]:
     return monitoring_service, prometheus_success
 
 
+async def init_analytics_services() -> Optional[Any]:
+    """Initialize analytics services."""
+    try:
+        logger.info("Initializing analytics services...")
+        
+        # Initialize analytics storage
+        analytics_storage = await init_analytics_storage()
+        
+        # Initialize analytics collector
+        analytics_config = AnalyticsConfig(
+            enabled=True,
+            retention_days=30,
+            collection_interval=60,
+            storage_backend="postgres",
+            batch_size=1000
+        )
+        analytics_collector = init_analytics_collector(analytics_config)
+        
+        # Initialize usage analytics collector
+        usage_collector = initialize_usage_analytics_collector(analytics_storage)
+        
+        # Start analytics services
+        await analytics_collector.start()
+        await usage_collector.start_collection()
+        
+        logger.info("Analytics services initialized successfully")
+        logger.info("- Analytics Storage: ✓")
+        logger.info("- Metrics Collector: ✓")
+        logger.info("- Usage Analytics: ✓")
+        
+        return {
+            "storage": analytics_storage,
+            "collector": analytics_collector,
+            "usage_collector": usage_collector
+        }
+    except Exception as e:
+        logger.error(f"Analytics services initialization failed: {e}")
+        logger.warning("Application will continue but analytics features will be limited")
+        return None
+
+
 async def init_core_services() -> Tuple[bool, bool, bool, bool]:
     """Initialize core application services."""
     docker_events_success = False
@@ -232,6 +277,7 @@ def log_initialization_summary(
     caddy_success: bool,
     monitoring_success: bool,
     prometheus_success: bool,
+    analytics_success: bool,
     core_services_success: Tuple[bool, bool, bool, bool]
 ) -> None:
     """Log a summary of the initialization process."""
@@ -243,6 +289,7 @@ def log_initialization_summary(
     logger.info(f"Caddy Proxy: {'✓' if caddy_success else '✗'}")
     logger.info(f"Monitoring: {'✓' if monitoring_success else '✗'}")
     logger.info(f"Prometheus: {'✓' if prometheus_success else '✗'}")
+    logger.info(f"Analytics: {'✓' if analytics_success else '✗'}")
     
     docker_events, metrics, logs, notifications = core_services_success
     logger.info(f"Docker Events: {'✓' if docker_events else '✗'}")
@@ -266,6 +313,7 @@ async def initialize_all_services() -> Dict[str, Any]:
     cache_success = await init_cache_services()
     caddy_success = await init_caddy_service()
     monitoring_service, prometheus_success = await init_monitoring_services()
+    analytics_services = await init_analytics_services()
     core_services_success = await init_core_services()
     
     # Log summary
@@ -277,6 +325,7 @@ async def initialize_all_services() -> Dict[str, Any]:
         caddy_success=caddy_success,
         monitoring_success=monitoring_service is not None,
         prometheus_success=prometheus_success,
+        analytics_success=analytics_services is not None,
         core_services_success=core_services_success
     )
     
@@ -284,6 +333,7 @@ async def initialize_all_services() -> Dict[str, Any]:
         "security_services": security_services,
         "performance_manager": performance_manager,
         "monitoring_service": monitoring_service,
+        "analytics_services": analytics_services,
         "database_success": database_success,
         "cache_success": cache_success,
         "caddy_success": caddy_success,

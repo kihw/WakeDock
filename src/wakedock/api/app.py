@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 import logging
 import asyncio
 
-from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit, config
+from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit, config, backup, organizations, advanced_security
 from wakedock.api.websocket import websocket_ping_task, websocket_router
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
@@ -19,7 +19,17 @@ from wakedock.core.orchestrator import DockerOrchestrator
 from wakedock.core.monitoring import MonitoringService
 from wakedock.infrastructure.cache.service import get_cache_service
 from wakedock.infrastructure.vault.service import get_vault_service
+from wakedock.backup import (
+    initialize_backup_automation, initialize_disaster_recovery,
+    initialize_backup_monitoring, initialize_backup_scheduler,
+    BackupConfig
+)
+from wakedock.tenancy import (
+    initialize_tenancy_service, initialize_quota_manager
+)
+from wakedock.tenancy.middleware import TenantMiddleware
 from wakedock.security.middleware import SecurityAuditMiddleware, RequestTimingMiddleware
+from wakedock.security.advanced.middleware import AdvancedSecurityMiddleware
 from wakedock.performance.api.middleware import (
     PerformanceMiddleware,
     CacheMiddleware,
@@ -75,6 +85,16 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     app.add_middleware(CacheMiddleware)
     app.add_middleware(ResponseOptimizationMiddleware)
     app.add_middleware(ConnectionPoolMiddleware)
+    
+    # Add advanced security middleware
+    app.add_middleware(AdvancedSecurityMiddleware, 
+                      enable_ip_filtering=True,
+                      enable_geo_blocking=True,
+                      enable_threat_scanning=True,
+                      enable_rate_limiting=True)
+    
+    # Add tenant middleware
+    app.add_middleware(TenantMiddleware)
     
     # Add proxy middleware
     app.add_middleware(ProxyMiddleware, orchestrator=orchestrator)
@@ -159,6 +179,24 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         tags=["config"]
     )
     
+    app.include_router(
+        backup.router,
+        prefix="/api/v1/backup",
+        tags=["backup"]
+    )
+    
+    app.include_router(
+        organizations.router,
+        prefix="/api/v1/organizations",
+        tags=["organizations"]
+    )
+    
+    app.include_router(
+        advanced_security.router,
+        prefix="/api/v1/security",
+        tags=["advanced-security"]
+    )
+    
     # WebSocket router - no prefix to match client expectations
     app.include_router(
         websocket_router,
@@ -186,6 +224,64 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         # Cache service initialization temporarily disabled due to recursion issues
         logger.info("Cache service initialization temporarily disabled in app startup")
         logger.info("Performance cache system is available and operational")
+        
+        # Initialize backup system
+        try:
+            backup_config = BackupConfig(
+                enabled=True,
+                backup_path="/var/lib/wakedock/backups",
+                retention_days=30,
+                max_backups=100
+            )
+            
+            # Initialize backup components
+            backup_automation = initialize_backup_automation(backup_config)
+            disaster_recovery = initialize_disaster_recovery(backup_automation, backup_config)
+            backup_monitoring = initialize_backup_monitoring(backup_automation, backup_config)
+            backup_scheduler = initialize_backup_scheduler(backup_automation, backup_config)
+            
+            # Start monitoring and scheduler
+            await backup_monitoring.start_monitoring()
+            await backup_scheduler.start_scheduler()
+            
+            logger.info("Backup & Recovery system initialized and started")
+            
+        except Exception as e:
+            logger.warning(f"Backup system initialization failed: {e}")
+            logger.info("Application will continue without backup functionality")
+        
+        # Initialize tenancy services
+        try:
+            tenancy_service = initialize_tenancy_service()
+            quota_manager = initialize_quota_manager()
+            
+            # Start quota monitoring
+            await quota_manager.start_monitoring()
+            
+            logger.info("Multi-tenancy system initialized successfully")
+            
+        except Exception as e:
+            logger.warning(f"Tenancy system initialization failed: {e}")
+            logger.info("Application will continue without multi-tenancy features")
+        
+        # Initialize advanced security services
+        try:
+            from wakedock.security.advanced import (
+                initialize_ip_whitelist_manager, initialize_geo_blocking_manager,
+                initialize_mfa_manager, initialize_security_scanner
+            )
+            
+            # Initialize security managers
+            await initialize_ip_whitelist_manager()
+            await initialize_geo_blocking_manager()
+            await initialize_mfa_manager()
+            await initialize_security_scanner()
+            
+            logger.info("Advanced security system initialized successfully")
+            
+        except Exception as e:
+            logger.warning(f"Advanced security system initialization failed: {e}")
+            logger.info("Application will continue with basic security features")
         
         # Initialize Vault service if enabled
         if hasattr(app.state, 'vault_service') and app.state.vault_service:
@@ -227,6 +323,23 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
     @app.on_event("shutdown")
     async def shutdown_event():
         logger.info("WakeDock API shutting down")
+        
+        # Shutdown backup system
+        try:
+            from wakedock.backup import get_backup_monitoring, get_backup_scheduler
+            
+            monitoring = get_backup_monitoring()
+            if monitoring:
+                await monitoring.stop_monitoring()
+                logger.info("Backup monitoring stopped")
+            
+            scheduler = get_backup_scheduler()
+            if scheduler:
+                await scheduler.stop_scheduler()
+                logger.info("Backup scheduler stopped")
+                
+        except Exception as e:
+            logger.error(f"Backup system shutdown failed: {e}")
         
         # Shutdown Vault service if initialized
         if hasattr(app.state, 'vault_service') and app.state.vault_service:

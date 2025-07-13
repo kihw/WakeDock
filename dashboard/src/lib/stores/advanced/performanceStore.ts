@@ -38,11 +38,24 @@ const DEFAULT_LAZY_CONFIG: LazyLoadConfig = {
 
 // Component registry for lazy loading
 const componentRegistry = new Map<string, () => Promise<any>>();
+const componentCache = new Map<string, any>();
+const preloadQueue = new Set<string>();
+
+// Route-based preloading strategy
+const routeComponentMap = new Map<string, string[]>([
+    ['/services', ['ServiceList', 'ServiceCard', 'ServiceMetrics']],
+    ['/monitoring', ['MonitoringDashboard', 'MetricsChart', 'AlertPanel']],
+    ['/analytics', ['AnalyticsDashboard', 'ReportsChart', 'DataTable']],
+    ['/backup', ['BackupManager', 'BackupList', 'RestoreDialog']],
+    ['/users', ['UserManagement', 'UserList', 'RoleEditor']],
+    ['/settings', ['SettingsPanel', 'ConfigEditor', 'SystemInfo']]
+]);
 
 class PerformanceStore {
     private observer: IntersectionObserver | null = null;
     private loadingElements = new Map<Element, string>();
     private config: LazyLoadConfig = DEFAULT_LAZY_CONFIG;
+    private preloadTimer: number | null = null;
 
     constructor() {
         if (browser) {
@@ -131,8 +144,13 @@ class PerformanceStore {
         componentRegistry.set(name, importFn);
     }
 
-    // Load component dynamically
+    // Load component dynamically with caching
     async loadComponent(name: string, retryCount = 0): Promise<any> {
+        // Check cache first
+        if (componentCache.has(name)) {
+            return componentCache.get(name);
+        }
+
         const importFn = componentRegistry.get(name);
         if (!importFn) {
             throw new Error(`Component ${name} not registered`);
@@ -146,6 +164,9 @@ class PerformanceStore {
             const component = await importFn();
             const loadTime = performance.now() - startTime;
 
+            // Cache the component
+            componentCache.set(name, component);
+
             // Mark as loaded
             resourcesLoading.update(set => {
                 const newSet = new Set(set);
@@ -155,24 +176,26 @@ class PerformanceStore {
 
             resourcesLoaded.update(set => new Set([...set, name]));
 
+            // Update load time metrics
             console.log(`Component ${name} loaded in ${loadTime.toFixed(2)}ms`);
 
             return component;
         } catch (error) {
-            console.error(`Error loading component ${name}:`, error);
+            console.error(`Failed to load component ${name}:`, error);
 
-            // Mark as error
+            // Remove from loading
             resourcesLoading.update(set => {
                 const newSet = new Set(set);
                 newSet.delete(name);
                 return newSet;
             });
 
+            // Add to error set
             resourcesError.update(set => new Set([...set, name]));
 
             // Retry logic
             if (retryCount < this.config.retryAttempts) {
-                console.log(`Retrying load for ${name} (attempt ${retryCount + 1})`);
+                console.log(`Retrying component ${name} load (attempt ${retryCount + 1})`);
                 await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
                 return this.loadComponent(name, retryCount + 1);
             }
@@ -195,26 +218,74 @@ class PerformanceStore {
         await Promise.allSettled(promises);
     }
 
-    // Prefetch components based on user interaction
-    prefetchOnHover(componentNames: string[]): () => void {
-        const prefetchPromises = new Map<string, Promise<any>>();
-
-        const handleMouseEnter = (event: MouseEvent) => {
-            const target = event.target as HTMLElement;
-            const componentName = target.dataset.prefetch;
-
-            if (componentName && componentNames.includes(componentName)) {
-                if (!prefetchPromises.has(componentName)) {
-                    prefetchPromises.set(componentName, this.loadComponent(componentName));
+    // Preload components based on route
+    preloadForRoute(route: string): void {
+        const components = routeComponentMap.get(route);
+        if (components) {
+            components.forEach(componentName => {
+                if (!componentCache.has(componentName) && !preloadQueue.has(componentName)) {
+                    preloadQueue.add(componentName);
+                    // Delay preloading to not interfere with critical path
+                    this.schedulePreload(componentName);
                 }
+            });
+        }
+    }
+
+    // Schedule component preloading
+    private schedulePreload(componentName: string): void {
+        if (this.preloadTimer) {
+            clearTimeout(this.preloadTimer);
+        }
+
+        this.preloadTimer = window.setTimeout(async () => {
+            try {
+                await this.loadComponent(componentName);
+                preloadQueue.delete(componentName);
+                console.log(`Preloaded component: ${componentName}`);
+            } catch (error) {
+                console.warn(`Failed to preload component ${componentName}:`, error);
+                preloadQueue.delete(componentName);
             }
-        };
+        }, 100); // Small delay to not block main thread
+    }
 
-        document.addEventListener('mouseenter', handleMouseEnter, true);
+    // Preload components on hover (for immediate navigation)
+    preloadOnHover(componentNames: string[]): void {
+        componentNames.forEach(name => {
+            if (!componentCache.has(name)) {
+                this.schedulePreload(name);
+            }
+        });
+    }
 
-        // Cleanup
-        return () => {
-            document.removeEventListener('mouseenter', handleMouseEnter, true);
+    // Get component from cache or load it
+    async getComponent(name: string): Promise<any> {
+        if (componentCache.has(name)) {
+            return componentCache.get(name);
+        }
+        return this.loadComponent(name);
+    }
+
+    // Clear component cache (useful for development)
+    clearCache(): void {
+        componentCache.clear();
+        resourcesLoaded.set(new Set());
+        resourcesError.set(new Set());
+    }
+
+    // Get cache statistics
+    getCacheStats(): {
+        cached: number;
+        loading: number;
+        errors: number;
+        preloadQueue: number;
+    } {
+        return {
+            cached: componentCache.size,
+            loading: 0, // Will be updated by store subscription
+            errors: 0,  // Will be updated by store subscription
+            preloadQueue: preloadQueue.size
         };
     }
 
