@@ -5,7 +5,7 @@ declare global {
     interface Error {
       message: string;
       code?: string;
-      details?: any;
+      details?: Record<string, unknown>;
       timestamp?: string;
       requestId?: string;
     }
@@ -14,7 +14,7 @@ declare global {
       user: import('./lib/types/user').User | null;
       isAuthenticated: boolean;
       errorContext?: {
-        request: any;
+        request: Request;
         userAgent?: string;
         timestamp: string;
         userId?: number;
@@ -32,7 +32,7 @@ declare global {
     interface PageState {
       selected?: string;
       scrollY?: number;
-      filters?: Record<string, any>;
+      filters?: Record<string, unknown>;
     }
 
     interface Platform {
@@ -57,7 +57,7 @@ declare global {
 
   // Service Worker types
   interface ServiceWorkerGlobalScope {
-    clients: any;
+    clients: Clients;
     registration: ServiceWorkerRegistration;
     skipWaiting(): Promise<void>;
   }
@@ -68,7 +68,7 @@ declare global {
     icon?: string;
     badge?: string;
     image?: string;
-    data?: any;
+    data?: Record<string, unknown>;
     actions?: Array<{
       action: string;
       title: string;

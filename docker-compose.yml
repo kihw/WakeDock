@@ -43,7 +43,7 @@ services:
       - "${CADDY_HTTPS_PORT}:443"
       - "${CADDY_ADMIN_PORT}:2019"
     volumes:
-      - ./caddy/Caddyfile.compose:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
@@ -92,8 +92,8 @@ services:
       - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "${POSTGRES_PORT}:5432"
+    # ports:
+    #   - "${POSTGRES_PORT}:5432"  # Removed for security - PostgreSQL only accessible internally
     networks:
       - ${WAKEDOCK_NETWORK}
     healthcheck:
@@ -112,8 +112,8 @@ services:
     command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
-    ports:
-      - "${REDIS_PORT}:6379"
+    # ports:
+    #   - "${REDIS_PORT}:6379"    # Removed for security - Redis only accessible internally
     networks:
       - ${WAKEDOCK_NETWORK}
     healthcheck:

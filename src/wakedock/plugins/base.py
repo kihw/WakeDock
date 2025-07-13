@@ -100,8 +100,20 @@ class BasePlugin(ABC):
     def validate_config(self, config: Dict[str, Any]) -> bool:
         """Validate plugin configuration. Override for custom validation."""
         if self.metadata.config_schema:
-            # TODO: Implement JSON schema validation
-            pass
+            try:
+                import jsonschema
+                jsonschema.validate(config, self.metadata.config_schema)
+                logger.debug(f"Plugin {self.metadata.name} configuration validated successfully")
+                return True
+            except ImportError:
+                logger.warning("jsonschema library not available, skipping schema validation")
+                return True
+            except jsonschema.ValidationError as e:
+                logger.error(f"Plugin {self.metadata.name} configuration validation failed: {e}")
+                return False
+            except Exception as e:
+                logger.error(f"Unexpected error during config validation for plugin {self.metadata.name}: {e}")
+                return False
         return True
 
 

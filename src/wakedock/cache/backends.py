@@ -10,8 +10,8 @@ import time
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
-import weakref
-import pickle
+# Removed unused import: import weakref
+# Removed pickle import for security - using JSON-only serialization
 
 logger = logging.getLogger(__name__)
 
@@ -310,14 +310,13 @@ class RedisCache(CacheBackend):
                 self._stats["misses"] += 1
                 return None
             
-            # Try to deserialize JSON first, then pickle
+            # Deserialize as JSON only (secure deserialization)
             try:
                 result = json.loads(value)
             except (json.JSONDecodeError, TypeError):
-                try:
-                    result = pickle.loads(value.encode('latin1'))
-                except:
-                    result = value
+                # Fallback to plain string value if not valid JSON
+                logger.warning(f"Cache value is not valid JSON, returning as string: {key}")
+                result = value
             
             self._stats["hits"] += 1
             return result
@@ -332,14 +331,12 @@ class RedisCache(CacheBackend):
         try:
             redis = await self._get_redis()
             
-            # Try to serialize as JSON first, then pickle
+            # Serialize as JSON only (secure serialization)
             try:
-                serialized = json.dumps(value)
-            except (TypeError, ValueError):
-                try:
-                    serialized = pickle.dumps(value).decode('latin1')
-                except:
-                    serialized = str(value)
+                serialized = json.dumps(value, default=str)
+            except (TypeError, ValueError) as e:
+                logger.warning(f"Failed to serialize cache value as JSON: {e}, converting to string")
+                serialized = json.dumps(str(value))
             
             await redis.set(self._make_key(key), serialized, ex=ttl)
             self._stats["sets"] += 1

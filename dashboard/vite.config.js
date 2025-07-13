@@ -1,6 +1,6 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig } from 'vite';
 import { visualizer } from 'rollup-plugin-visualizer';
+import { defineConfig } from 'vite';
 
 export default defineConfig(({ mode }) => {
     const isProduction = mode === 'production';
@@ -42,41 +42,10 @@ export default defineConfig(({ mode }) => {
             cssCodeSplit: true,
             rollupOptions: {
                 output: {
-                    manualChunks: (id) => {
-                        // Vendor splitting - more granular
-                        if (id.includes('node_modules')) {
-                            if (id.includes('svelte')) return 'vendor-svelte';
-                            if (id.includes('lucide')) return 'vendor-icons';
-                            if (id.includes('chart') || id.includes('graph') || id.includes('plot')) return 'vendor-charts';
-                            if (id.includes('@floating-ui') || id.includes('tippy')) return 'vendor-floating';
-                            if (id.includes('date') || id.includes('time') || id.includes('moment')) return 'vendor-date';
-                            return 'vendor-core';
-                        }
-
-                        // Route-based splitting
-                        if (id.includes('/routes/services/')) return 'route-services';
-                        if (id.includes('/routes/monitoring/')) return 'route-monitoring';
-                        if (id.includes('/routes/analytics/')) return 'route-analytics';
-                        if (id.includes('/routes/backup/')) return 'route-backup';
-                        if (id.includes('/routes/users/')) return 'route-users';
-                        if (id.includes('/routes/settings/')) return 'route-settings';
-
-                        // Component-based splitting
-                        if (id.includes('/lib/components/charts/')) return 'components-charts';
-                        if (id.includes('/lib/components/ui/organisms/')) return 'components-organisms';
-                        if (id.includes('/lib/components/ui/molecules/')) return 'components-molecules';
-                        if (id.includes('/lib/components/auth/')) return 'components-auth';
-                        if (id.includes('/lib/components/mobile/')) return 'components-mobile';
-                        if (id.includes('/lib/components/')) return 'components-core';
-
-                        // Feature splitting
-                        if (id.includes('/lib/features/')) return 'features';
-                        if (id.includes('/lib/stores/')) return 'stores';
-                        if (id.includes('/lib/utils/')) return 'utils';
-                    },
+                    // Disable manual chunks to prevent stack overflow in SvelteKit analyzer
+                    manualChunks: undefined,
                     assetFileNames: (assetInfo) => {
                         const info = assetInfo.name.split('.');
-                        const extType = info[info.length - 1];
                         if (/\.(png|jpe?g|svg|gif|tiff|bmp|ico)$/i.test(assetInfo.name)) {
                             return `assets/images/[name]-[hash][extname]`;
                         }
@@ -92,12 +61,12 @@ export default defineConfig(({ mode }) => {
             },
             assetsInlineLimit: 4096,
             chunkSizeWarningLimit: 1000,
-            minify: 'terser',
-            terserOptions: {
+            minify: isProduction ? 'terser' : false,
+            terserOptions: isProduction ? {
                 compress: {
-                    drop_console: isProduction,
-                    drop_debugger: isProduction,
-                    pure_funcs: isProduction ? ['console.log', 'console.debug', 'console.info'] : [],
+                    drop_console: true,
+                    drop_debugger: true,
+                    pure_funcs: ['console.log', 'console.debug', 'console.info'],
                     passes: 2
                 },
                 mangle: {
@@ -106,7 +75,7 @@ export default defineConfig(({ mode }) => {
                 format: {
                     comments: false
                 }
-            },
+            } : undefined,
             reportCompressedSize: true,
             target: 'es2020',
         }

@@ -26,8 +26,8 @@ class LoggingSettings(BaseSettings):
 
 class WakeDockSettings(BaseSettings):
     domain: str = "localhost"
-    admin_password: str = "admin123"
-    secret_key: str = "change-this-secret-key-in-production"
+    admin_password: str = ""  # Must be set via environment variable
+    secret_key: str = ""     # Must be set via environment variable
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = False

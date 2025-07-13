@@ -22,8 +22,8 @@
     rateLimit: { attempts: number };
   }>();
 
-  let usernameOrEmail = 'admin'; // Pre-fill for development
-  let password = 'admin123'; // Pre-fill for development
+  let usernameOrEmail = '';
+  let password = '';
   let twoFactorCode = '';
   let rememberMe = false;
   let formRef: HTMLFormElement;

@@ -1,0 +1,58 @@
+{
+    admin 0.0.0.0:2019
+    # Disable automatic HTTPS for testing
+    auto_https off
+}
+
+# HTTP configuration for testing with IP address
+:80 {
+    # Dashboard API config endpoint (must be before /api/v1/*)
+    reverse_proxy /api/config wakedock-dashboard:3000
+    
+    # WakeDock API routes with enhanced timeout and error handling
+    reverse_proxy /api/v1/* wakedock-core:8000 {
+        # Timeout settings to prevent connection drops
+        transport http {
+            dial_timeout 15s
+            read_timeout 60s
+            write_timeout 60s
+        }
+        
+        # Headers pour debugging
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+    }
+    
+    # WebSocket support
+    reverse_proxy /ws wakedock-core:8000
+    
+    # Dashboard (default route)
+    reverse_proxy /* wakedock-dashboard:3000
+    
+    # Enable compression
+    encode gzip
+    
+    # Basic security headers for testing
+    header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        X-XSS-Protection "1; mode=block"
+        
+        # Debug headers
+        X-Debug-Server "wakedock-caddy-test"
+        X-Forwarded-Proto {scheme}
+        X-Real-IP {remote_host}
+    }
+    
+    # Logging with structured format
+    log {
+        output file /var/log/caddy/test.log {
+            roll_size 100MB
+            roll_keep 5
+            roll_keep_for 720h
+        }
+        format json
+        level INFO
+    }
+}

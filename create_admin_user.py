@@ -5,12 +5,20 @@ Script to create default admin user if no users exist
 import os
 import sys
 import time
+import secrets
+import string
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError
 
 # Add src to path
 sys.path.insert(0, '/app/src')
+
+def generate_secure_password(length: int = 16) -> str:
+    """Generate a secure random password."""
+    alphabet = string.ascii_letters + string.digits + "!@#$%^&*"
+    password = ''.join(secrets.choice(alphabet) for _ in range(length))
+    return password
 
 def wait_for_database(database_url: str, max_retries: int = 30):
     """Wait for database to be ready"""
@@ -56,8 +64,10 @@ def create_admin_user():
             
             print("🔧 No users found, creating default admin user...")
             
-            # Create admin user
-            hashed_password = hash_password('admin123')
+            # Generate secure random password
+            admin_password = generate_secure_password(20)
+            hashed_password = hash_password(admin_password)
+            
             admin_user = User(
                 username='admin',
                 email='admin@wakedock.local',
@@ -73,9 +83,10 @@ def create_admin_user():
             
             print("✅ Default admin user created successfully:")
             print("   Username: admin")
-            print("   Password: admin123")
+            print(f"   Password: {admin_password}")
             print("   Email: admin@wakedock.local")
             print("   Role: admin")
+            print("⚠️  IMPORTANT: Save this password securely! It won't be displayed again.")
             
             return True
             

@@ -3,7 +3,16 @@
   import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth';
   import { toast } from '$lib/stores/toastStore';
+  import { ApiClient } from '$lib/api/api-client';
   import SettingsPage from '$lib/components/settings/SettingsPage.svelte';
+
+  // Initialize API client
+  const api = new ApiClient();
+  
+  // Set token when auth changes
+  $: if ($auth.token) {
+    api.setToken($auth.token);
+  }
 
   // Check if current user is admin
   $: isAdmin = $auth.user?.role === 'admin';
@@ -115,11 +124,11 @@
   async function loadSettings() {
     try {
       loading = true;
-      // TODO: Replace with actual API call
-      // const response = await api.settings.get();
-      // settings = response;
+      const response = await api.system.getSettings();
+      settings = response;
       originalSettings = JSON.parse(JSON.stringify(settings));
     } catch (err) {
+      console.error('Failed to load settings:', err);
       toast.error('Failed to load settings');
     } finally {
       loading = false;
@@ -131,9 +140,7 @@
 
     try {
       saving = true;
-      // TODO: Replace with actual API call
-      // await api.settings.update(settings);
-
+      await api.system.updateSettings(settings);
       originalSettings = JSON.parse(JSON.stringify(settings));
       toast.success('Settings saved successfully');
     } catch (err) {

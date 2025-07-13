@@ -110,4 +110,24 @@ export class SystemApi extends BaseApiClient {
   async getResourceUsage(): Promise<any> {
     return this.request(`${API_ENDPOINTS.SYSTEM.BASE}/resources`);
   }
+
+  /**
+   * Get system settings
+   */
+  async getSettings(): Promise<any> {
+    return this.request(`${API_ENDPOINTS.SYSTEM.BASE}/settings`);
+  }
+
+  /**
+   * Update system settings
+   */
+  async updateSettings(settings: any): Promise<any> {
+    return this.request(`${API_ENDPOINTS.SYSTEM.BASE}/settings`, {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+  }
 }

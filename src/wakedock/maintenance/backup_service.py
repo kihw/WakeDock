@@ -26,6 +26,7 @@ class BackupService:
         self.settings = get_settings()
         self.backup_dir = Path("/app/backups")
         self.backup_dir.mkdir(exist_ok=True)
+        self._active_backups = set()  # Track active backup operations
     
     async def create_backup(
         self,
@@ -42,6 +43,9 @@ class BackupService:
         backup_name = f"wakedock_backup_{timestamp}_{backup_id[:8]}"
         
         temp_dir = Path(tempfile.mkdtemp(prefix="wakedock_backup_"))
+        
+        # Track active backup
+        self._active_backups.add(backup_id)
         
         try:
             backup_metadata = {
@@ -92,6 +96,8 @@ class BackupService:
             }
             
         finally:
+            # Remove from active backups
+            self._active_backups.discard(backup_id)
             # Cleanup temporary directory
             shutil.rmtree(temp_dir, ignore_errors=True)
     
@@ -440,3 +446,33 @@ class BackupService:
             "deleted_count": deleted_count,
             "cutoff_date": cutoff_date.isoformat()
         }
+    
+    async def get_status(self) -> str:
+        """Get current backup service status"""
+        try:
+            # Check if any backups are currently running
+            if self._active_backups:
+                return "running"
+            
+            # Check backup directory and recent backups
+            if not self.backup_dir.exists():
+                return "error"
+            
+            # Check for recent backups (within last 24 hours)
+            recent_backups = []
+            try:
+                for backup_file in self.backup_dir.glob("*.tar.gz"):
+                    stat = backup_file.stat()
+                    if (datetime.now() - datetime.fromtimestamp(stat.st_mtime)).days < 1:
+                        recent_backups.append(backup_file)
+            except Exception:
+                pass
+            
+            # Determine status based on recent backup activity
+            if recent_backups:
+                return "healthy"
+            else:
+                return "warning"  # No recent backups
+                
+        except Exception:
+            return "error"

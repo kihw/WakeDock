@@ -19,6 +19,8 @@ class DependenciesService:
     def __init__(self):
         self.settings = get_settings()
         self.app_root = Path("/app")
+        self._last_check = None
+        self._last_status = "unknown"
     
     async def check_dependencies(self) -> Dict[str, Any]:
         """Check all system dependencies"""
@@ -882,3 +884,62 @@ class DependenciesService:
             "error": f"Unknown dependency type: {dependency_type}",
             "available_types": list(full_status["categories"].keys())
         }
+    
+    async def get_status(self) -> str:
+        """Get current dependencies status"""
+        try:
+            # If we have a recent check (within last hour), use cached status
+            if (self._last_check and 
+                (datetime.now() - self._last_check).total_seconds() < 3600 and
+                self._last_status):
+                return self._last_status
+            
+            # Perform a quick dependency check
+            quick_check = await self._quick_dependency_check()
+            
+            # Update cache
+            self._last_check = datetime.now()
+            self._last_status = quick_check
+            
+            return quick_check
+            
+        except Exception:
+            return "error"
+    
+    async def _quick_dependency_check(self) -> str:
+        """Perform a quick dependency status check"""
+        try:
+            # Check if critical dependencies are accessible
+            issues = 0
+            
+            # Quick Docker check
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "--version",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await proc.communicate()
+                if proc.returncode != 0:
+                    issues += 1
+            except Exception:
+                issues += 1
+            
+            # Quick Python dependencies check
+            try:
+                import fastapi
+                import uvicorn
+                import docker
+            except ImportError:
+                issues += 1
+            
+            # Determine status based on issues
+            if issues == 0:
+                return "healthy"
+            elif issues <= 1:
+                return "warning"
+            else:
+                return "error"
+                
+        except Exception:
+            return "error"

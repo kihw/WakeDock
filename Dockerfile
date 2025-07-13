@@ -72,9 +72,9 @@ COPY --chown=root:root docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 # Create necessary directories with proper permissions
-RUN mkdir -p /app/data /app/logs && \
-    chown -R wakedock:wakedock /app/data /app/logs && \
-    chmod 755 /app/data /app/logs
+RUN mkdir -p /app/data /app/logs /app/backups /app/config_backups && \
+    chown -R wakedock:wakedock /app/data /app/logs /app/backups /app/config_backups && \
+    chmod 755 /app/data /app/logs /app/backups /app/config_backups
 
 # Security: Set environment variables
 ENV PYTHONPATH=/app/src \

@@ -27,7 +27,8 @@ aiohttp==3.9.1
 docker==6.1.3
 psutil==5.9.6
 
-# Configuration & Templates
+# Configuration & Validation
+jsonschema==4.20.0
 pyyaml==6.0.1
 jinja2==3.1.2
 python-dotenv==1.0.0

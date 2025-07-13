@@ -154,7 +154,7 @@ docker network inspect caddy_net
 **Goal**: Production-ready Docker Compose management platform with Caddy SSL automation.
 
 ## 📋 TASK MANAGEMENT
-- **Source**: All tasks in PROJECT_COMPLETION_PLAN.md
+- **Source**: All tasks in DESIGN_IMPROVEMENT_PLAN.md
 - **Workflow**: Select task → Develop → Mark complete → Deploy/Test
 - **Format**: TASK-XXX with file paths
 - **Priority**: CRITICAL → HIGH → MEDIUM → LOW

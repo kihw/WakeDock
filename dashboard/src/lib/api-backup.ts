@@ -19,7 +19,7 @@ import { apiMonitor } from './monitoring/api-monitor.js';
 export interface ApiError {
   message: string;
   code?: string;
-  details?: any;
+  details?: Record<string, unknown>;
 }
 
 export interface Service {
@@ -307,7 +307,7 @@ class ApiClient {
     return this.endpointTimeouts.default;
   }
 
-  private shouldRetry(error: any, attempt: number, endpoint: string): boolean {
+  private shouldRetry(error: unknown, attempt: number, endpoint: string): boolean {
     if (attempt >= this.maxRetries) return false;
 
     // Don't retry if circuit breaker is open
@@ -497,7 +497,7 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        let errorData: any = { message: 'An error occurred' };
+        let errorData: Record<string, unknown> = { message: 'An error occurred' };
 
         try {
           const responseText = await response.text();
@@ -534,7 +534,7 @@ class ApiClient {
         try {
           responseData = await response.json();
           console.error('✅ JSON parsed successfully:', responseData);
-        } catch (parseError: any) {
+        } catch (parseError: unknown) {
           console.error('❌ JSON parsing failed:', parseError);
           // If JSON parsing fails, try to get the raw text for debugging
           try {
@@ -579,7 +579,7 @@ class ApiClient {
 
         return {} as T;
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Record failure in circuit breaker
       this.circuitBreaker.recordFailure(path);
 
@@ -875,7 +875,7 @@ class ApiClient {
     }
   }
 
-  async post<T>(path: string, body?: any): Promise<{ ok: boolean; data?: T }> {
+  async post<T>(path: string, body?: unknown): Promise<{ ok: boolean; data?: T }> {
     try {
       const data = await this.request<T>(path, {
         method: 'POST',

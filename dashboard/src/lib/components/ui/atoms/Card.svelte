@@ -6,6 +6,7 @@
   import { scale, fly } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
   import { createEventDispatcher } from 'svelte';
+  import { variants } from '$lib/design-system/tokens';
 
   // Props
   export let variant: 'default' | 'elevated' | 'outlined' | 'filled' | 'ghost' = 'default';
@@ -16,7 +17,7 @@
   export let disabled = false;
   export let href: string | undefined = undefined;
   export let target: string | undefined = undefined;
-  export let padding: 'none' | 'sm' | 'md' | 'lg' = 'md';
+  export let padding: 'none' | 'sm' | 'md' | 'lg' | boolean = 'md';
   export let header: string | undefined = undefined;
   export let footer: string | undefined = undefined;
   export let divider = false;
@@ -27,6 +28,15 @@
   export let overflow: 'visible' | 'hidden' | 'scroll' | 'auto' = 'visible';
   export let ariaLabel: string | undefined = undefined;
   export let testId: string | undefined = undefined;
+
+  // Legacy compatibility props for migration from simple Card component
+  export let title: string | undefined = undefined;
+  export let subtitle: string | undefined = undefined;
+  export let className: string = '';
+
+  // Allow `class` prop as well for compatibility
+  let cssClass = '';
+  export { cssClass as class };
 
   // Events
   const dispatch = createEventDispatcher<{
@@ -44,42 +54,49 @@
   let isPressed = false;
 
   // Computed
-  $: hasHeader = header || $$slots.header;
-  $: hasFooter = footer || $$slots.footer;
+  $: effectiveHeader = title || header;
+  $: effectiveFooter = subtitle || footer;
+  $: hasHeader = effectiveHeader || $$slots.header;
+  $: hasFooter = effectiveFooter || $$slots.footer;
   $: hasContent = $$slots.default;
   $: isInteractive = interactive || href || focusable;
   $: isLink = href !== undefined;
   $: isDisabled = disabled || loading;
 
+  // Handle legacy boolean padding
+  $: effectivePadding = typeof padding === 'boolean' 
+    ? (padding ? 'md' : 'none') 
+    : padding;
+
   // Base classes
   const baseClasses = ['block', 'transition-all duration-200 ease-in-out', 'relative'];
 
-  // Variant classes
+  // Variant classes from design tokens
   const variantClasses = {
     default: {
-      base: 'bg-white border border-gray-200 shadow-sm',
+      base: variants.card.base,
       hover: 'hover:shadow-md',
-      focus: 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+      focus: 'focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
     },
     elevated: {
-      base: 'bg-white shadow-lg border border-gray-100',
+      base: variants.card.elevated,
       hover: 'hover:shadow-xl',
-      focus: 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+      focus: 'focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
     },
     outlined: {
-      base: 'bg-white border-2 border-gray-300',
-      hover: 'hover:border-gray-400',
-      focus: 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:border-blue-500',
+      base: variants.card.outlined,
+      hover: 'hover:border-secondary-400',
+      focus: 'focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 focus:border-primary-500',
     },
     filled: {
-      base: 'bg-gray-50 border border-gray-200',
-      hover: 'hover:bg-gray-100',
-      focus: 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+      base: variants.card.filled,
+      hover: 'hover:bg-secondary-100',
+      focus: 'focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
     },
     ghost: {
       base: 'bg-transparent border border-transparent',
-      hover: 'hover:bg-gray-50',
-      focus: 'focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
+      hover: 'hover:bg-secondary-50',
+      focus: 'focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
     },
   };
 
@@ -122,6 +139,8 @@
     isInteractive && !isDisabled && focusable ? 'focus:outline-none' : '',
     isPressed && isInteractive ? 'scale-[0.98] transition-transform duration-100' : '',
     isDisabled ? 'opacity-50 cursor-not-allowed' : '',
+    className, // Legacy className support
+    cssClass, // Legacy class support
   ]
     .filter(Boolean)
     .join(' ');
@@ -140,7 +159,7 @@
     .join(' ');
 
   $: contentClasses = [
-    paddingClasses[padding],
+    paddingClasses[effectivePadding],
     hasHeader && hasFooter ? 'flex-1' : '',
     overflow !== 'visible' ? `overflow-${overflow}` : '',
   ]
@@ -247,8 +266,8 @@
     <div class={containerClasses}>
       {#if hasHeader}
         <div class={headerClasses}>
-          {#if header}
-            {header}
+          {#if effectiveHeader}
+            {effectiveHeader}
           {:else}
             <slot name="header" />
           {/if}
@@ -269,8 +288,8 @@
 
       {#if hasFooter}
         <div class={footerClasses}>
-          {#if footer}
-            {footer}
+          {#if effectiveFooter}
+            {effectiveFooter}
           {:else}
             <slot name="footer" />
           {/if}
@@ -298,8 +317,8 @@
     <div class={containerClasses}>
       {#if hasHeader}
         <div class={headerClasses}>
-          {#if header}
-            {header}
+          {#if effectiveHeader}
+            {effectiveHeader}
           {:else}
             <slot name="header" />
           {/if}
@@ -320,8 +339,8 @@
 
       {#if hasFooter}
         <div class={footerClasses}>
-          {#if footer}
-            {footer}
+          {#if effectiveFooter}
+            {effectiveFooter}
           {:else}
             <slot name="footer" />
           {/if}

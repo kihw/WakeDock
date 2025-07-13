@@ -10,6 +10,7 @@ from wakedock.core.orchestrator import DockerOrchestrator
 from wakedock.core.monitoring import MonitoringService
 from wakedock.infrastructure.cache.service import CacheService
 from wakedock.database.database import get_db_session
+from wakedock.maintenance import BackupService, DependenciesService, CleanupService, ConfigService
 
 
 def get_orchestrator(request: Request) -> DockerOrchestrator:
@@ -63,3 +64,43 @@ def get_cache_service_dep(request: Request) -> CacheService:
 def get_optional_cache_service(request: Request) -> Optional[CacheService]:
     """Dependency to get cache service that may be None"""
     return getattr(request.app.state, 'cache_service', None)
+
+
+def get_backup_service(orchestrator: DockerOrchestrator = Depends(get_orchestrator)) -> BackupService:
+    """Dependency to get backup service instance"""
+    return BackupService(orchestrator=orchestrator)
+
+
+def get_optional_backup_service(request: Request) -> Optional[BackupService]:
+    """Dependency to get backup service that may be None"""
+    return getattr(request.app.state, 'backup_service', None)
+
+
+def get_dependencies_service() -> DependenciesService:
+    """Dependency to get dependencies service instance"""
+    return DependenciesService()
+
+
+def get_optional_dependencies_service(request: Request) -> Optional[DependenciesService]:
+    """Dependency to get dependencies service that may be None"""
+    return getattr(request.app.state, 'dependencies_service', None)
+
+
+def get_cleanup_service(orchestrator: DockerOrchestrator = Depends(get_orchestrator)) -> CleanupService:
+    """Dependency to get cleanup service instance"""
+    return CleanupService(orchestrator=orchestrator)
+
+
+def get_optional_cleanup_service(request: Request) -> Optional[CleanupService]:
+    """Dependency to get cleanup service that may be None"""
+    return getattr(request.app.state, 'cleanup_service', None)
+
+
+def get_config_service() -> ConfigService:
+    """Dependency to get configuration service instance"""
+    return ConfigService()
+
+
+def get_optional_config_service(request: Request) -> Optional[ConfigService]:
+    """Dependency to get config service that may be None"""
+    return getattr(request.app.state, 'config_service', None)

@@ -111,13 +111,13 @@ export interface LogEntry {
     message: string;
     timestamp: string;
     source: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
 }
 
 // WebSocket Messages
 export interface WebSocketMessage {
     type: 'service_update' | 'service_removed' | 'metrics_update' | 'log_entry' | 'notification' | 'error' | 'ping' | 'pong' | 'auth' | 'subscribe' | 'unsubscribe';
-    data?: any;
+    data?: unknown;
     channel?: string;
     timestamp?: string;
     token?: string;
@@ -210,14 +210,14 @@ export interface ActivityEntry {
 }
 
 // API Response types
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
     success: boolean;
     data?: T;
     error?: string;
     message?: string;
 }
 
-export interface PaginatedResponse<T = any> {
+export interface PaginatedResponse<T = unknown> {
     data: T[];
     pagination: {
         page: number;
@@ -239,12 +239,12 @@ export interface FormField {
         min?: number;
         max?: number;
         pattern?: string;
-        custom?: (value: any) => string | null;
+        custom?: (value: unknown) => string | null;
     };
 }
 
 export interface FormData {
-    [key: string]: any;
+    [key: string]: unknown;
 }
 
 export interface FormErrors {
@@ -262,7 +262,7 @@ export interface ThemeConfig {
 }
 
 // Cache
-export interface CacheEntry<T = any> {
+export interface CacheEntry<T = unknown> {
     data: T;
     timestamp: number;
     expiresAt: number;

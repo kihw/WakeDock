@@ -270,8 +270,21 @@ def validate_config(config_file: Optional[str]):
                 else:
                     config_data = json.load(f)
             
-            # TODO: Add proper validation using Pydantic model
-            click.echo(f"✅ Configuration file {config_file} is valid.")
+            # Validate using Pydantic model
+            try:
+                from ..config import Settings
+                Settings(**config_data)
+                click.echo(f"✅ Configuration file {config_file} is valid.")
+            except ImportError:
+                # Fallback to basic validation
+                if isinstance(config_data, dict):
+                    click.echo(f"✅ Configuration file {config_file} has valid syntax.")
+                else:
+                    click.echo(f"❌ Configuration file {config_file} is invalid: not a valid dict", err=True)
+                    sys.exit(1)
+            except Exception as e:
+                click.echo(f"❌ Configuration file {config_file} validation failed: {e}", err=True)
+                sys.exit(1)
         else:
             # Validate current configuration
             settings = get_settings()
@@ -375,8 +388,24 @@ def health_check():
             
             for service in services:
                 if service.get('status') == 'running':
-                    # TODO: Add actual health check logic
-                    pass
+                    # Check service health using Docker health check
+                    try:
+                        container_id = service.get('id')
+                        if container_id:
+                            container = orchestrator.client.containers.get(container_id)
+                            health_state = container.attrs.get('State', {}).get('Health', {})
+                            
+                            if health_state:
+                                health_status = health_state.get('Status', 'unknown')
+                                if health_status not in ['healthy', 'starting']:
+                                    unhealthy_services.append(service)
+                                    click.echo(f"⚠️ Service {service.get('name', 'unknown')} is {health_status}")
+                            else:
+                                # No health check configured, assume healthy if running
+                                click.echo(f"ℹ️ Service {service.get('name', 'unknown')} running (no health check configured)")
+                    except Exception as e:
+                        click.echo(f"⚠️ Could not check health for service {service.get('name', 'unknown')}: {e}")
+                        unhealthy_services.append(service)
             
             if unhealthy_services:
                 click.echo(f"⚠️ {len(unhealthy_services)} unhealthy services found")

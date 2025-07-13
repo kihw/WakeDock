@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import Card from '$lib/components/Card.svelte';
+  import { Card } from '$lib/components/ui/atoms';
   import Input from '$lib/components/ui/atoms/Input.svelte';
   import Select from '$lib/components/ui/molecules/Select.svelte';
 

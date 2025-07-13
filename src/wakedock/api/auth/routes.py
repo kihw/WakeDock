@@ -1,5 +1,6 @@
 """Authentication routes for WakeDock API."""
 
+import logging
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Request
@@ -23,6 +24,7 @@ from wakedock.security.jwt_rotation import get_jwt_rotation_service, get_jwt_rot
 from wakedock.security.session_timeout import get_session_timeout_service
 from wakedock.security.ids_middleware import get_security_dashboard
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
@@ -72,29 +74,29 @@ async def login_user_debug(
     """DEBUG endpoint to see raw request."""
     try:
         body = await request.body()
-        print(f"[DEBUG] Raw body bytes: {body}")
-        print(f"[DEBUG] Headers: {dict(request.headers)}")
-        print(f"[DEBUG] Method: {request.method}")
-        print(f"[DEBUG] URL: {request.url}")
+        logger.debug(f"Raw body bytes: {body}")
+        logger.debug(f"Headers: {dict(request.headers)}")
+        logger.debug(f"Method: {request.method}")
+        logger.debug(f"URL: {request.url}")
         
         import json
         data = json.loads(body.decode('utf-8'))
-        print(f"[DEBUG] Raw JSON received: {data}")
-        print(f"[DEBUG] Keys in data: {list(data.keys())}")
-        print(f"[DEBUG] Data types: {[(k, type(v)) for k, v in data.items()]}")
+        logger.debug(f"Raw JSON received: {data}")
+        logger.debug(f"Keys in data: {list(data.keys())}")
+        logger.debug(f"Data types: {[(k, type(v)) for k, v in data.items()]}")
         
         # Test parsing with UserLogin model
         try:
             from .models import UserLogin
             parsed = UserLogin(**data)
-            print(f"[DEBUG] UserLogin parsing SUCCESS: {parsed}")
-            print(f"[DEBUG] UserLogin dict: {parsed.dict()}")
+            logger.debug(f"UserLogin parsing SUCCESS: {parsed}")
+            logger.debug(f"UserLogin dict: {parsed.dict()}")
         except Exception as parse_error:
-            print(f"[DEBUG] UserLogin parsing FAILED: {parse_error}")
+            logger.debug(f"UserLogin parsing FAILED: {parse_error}")
             
         return {"debug": "ok", "received": data}
     except Exception as e:
-        print(f"[DEBUG] Error parsing body: {e}")
+        logger.debug(f"Error parsing body: {e}")
         return {"debug": "error", "message": str(e)}
 
 
@@ -109,8 +111,8 @@ async def login_user(
         body = await request.body()
         import json
         raw_data = json.loads(body.decode('utf-8'))
-        print(f"[LOGIN_DEBUG] Raw data received: {raw_data}")
-        print(f"[LOGIN_DEBUG] Keys in data: {list(raw_data.keys())}")
+        logger.debug(f"Raw data received: {raw_data}")
+        logger.debug(f"Keys in data: {list(raw_data.keys())}")
         
         # Extract username/email and password from various possible formats
         username = None
@@ -119,41 +121,41 @@ async def login_user(
         # Try different field names for username
         if 'usernameOrEmail' in raw_data:
             username = raw_data['usernameOrEmail']
-            print(f"[LOGIN_DEBUG] Found usernameOrEmail: {username}")
+            logger.debug(f"Found usernameOrEmail: {username}")
         elif 'username' in raw_data:
             username = raw_data['username']
-            print(f"[LOGIN_DEBUG] Found username: {username}")
+            logger.debug(f"Found username: {username}")
         elif 'email' in raw_data:
             username = raw_data['email']
-            print(f"[LOGIN_DEBUG] Found email: {username}")
+            logger.debug(f"Found email: {username}")
         
         if not username or not password:
-            print(f"[LOGIN_DEBUG] Missing credentials - username: {bool(username)}, password: {bool(password)}")
+            logger.debug(f"Missing credentials - username: {bool(username)}, password: {bool(password)}")
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Username/email and password are required"
             )
         
-        print(f"[LOGIN_DEBUG] Processing login for user: {username}")
+        logger.debug(f"Processing login for user: {username}")
         
     except json.JSONDecodeError as e:
-        print(f"[LOGIN_DEBUG] JSON decode error: {e}")
+        logger.error(f"JSON decode error: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid JSON format"
         )
     except Exception as e:
-        print(f"[LOGIN_DEBUG] Error parsing request: {e}")
+        logger.error(f"Error parsing request: {e}")
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Request parsing error: {str(e)}"
         )
     
-    print(f"[LOGIN_DEBUG] Received login request with username: {username}")
-    print(f"[LOGIN_DEBUG] Raw headers: {dict(request.headers)}")
-    print(f"[LOGIN_DEBUG] Content-Type: {request.headers.get('content-type')}")
-    print(f"[LOGIN_DEBUG] User-Agent: {request.headers.get('user-agent')}")
-    print(f"[LOGIN_DEBUG] Origin: {request.headers.get('origin')}")
+    logger.debug(f"Received login request with username: {username}")
+    logger.debug(f"Raw headers: {dict(request.headers)}")
+    logger.debug(f"Content-Type: {request.headers.get('content-type')}")
+    logger.debug(f"User-Agent: {request.headers.get('user-agent')}")
+    logger.debug(f"Origin: {request.headers.get('origin')}")
     
     # Find user by username or email
     user = db.query(User).filter(
@@ -162,7 +164,7 @@ async def login_user(
     ).first()
     
     if not user or not verify_password(password, user.hashed_password):
-        print(f"[LOGIN_DEBUG] Auth failed - user found: {bool(user)}")
+        logger.debug(f"Auth failed - user found: {bool(user)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
@@ -197,7 +199,7 @@ async def login_user(
         db.commit()
         user_data["last_login"] = datetime.utcnow()
     except Exception as e:
-        print(f"[LOGIN_DEBUG] Failed to update last_login: {e}")
+        logger.error(f"Failed to update last_login: {e}")
         db.rollback()
     
     # Create access token using stored data to avoid ObjectDeletedError
@@ -770,18 +772,18 @@ async def login_raw_debug(request: Request):
         headers = dict(request.headers)
         body = await request.body()
         
-        print(f"[RAW_DEBUG] === REQUÊTE {method} VERS /login_raw_debug ===")
-        print(f"[RAW_DEBUG] Headers: {headers}")
-        print(f"[RAW_DEBUG] Body raw: {body}")
+        logger.debug(f"=== REQUÊTE {method} VERS /login_raw_debug ===")
+        logger.debug(f"Headers: {headers}")
+        logger.debug(f"Body raw: {body}")
         
         if body:
             try:
                 import json
                 parsed_body = json.loads(body.decode('utf-8'))
-                print(f"[RAW_DEBUG] Body parsed: {parsed_body}")
-                print(f"[RAW_DEBUG] Keys in body: {list(parsed_body.keys())}")
+                logger.debug(f"Body parsed: {parsed_body}")
+                logger.debug(f"Keys in body: {list(parsed_body.keys())}")
             except Exception as parse_error:
-                print(f"[RAW_DEBUG] Impossible de parser le body JSON: {parse_error}")
+                logger.debug(f"Impossible de parser le body JSON: {parse_error}")
         
         return {
             "debug": "raw_intercepted",
@@ -790,7 +792,7 @@ async def login_raw_debug(request: Request):
             "headers": headers
         }
     except Exception as e:
-        print(f"[RAW_DEBUG] Erreur dans le debug: {e}")
+        logger.error(f"Erreur dans le debug: {e}")
         return {"debug": "error", "message": str(e)}
 
 

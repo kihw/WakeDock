@@ -1,14 +1,13 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { createEventDispatcher } from 'svelte';
-  import { RefreshCw, Settings } from 'lucide-svelte';
   import { goto } from '$app/navigation';
-  
+  import { RefreshCw, Settings } from 'lucide-svelte';
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
+
   import GridLayout from './layouts/GridLayout.svelte';
-  import SystemOverviewWidget from './widgets/system/SystemOverviewWidget.svelte';
-  import ServicesOverviewWidget from './widgets/services/ServicesOverviewWidget.svelte';
-  import RunningServicesWidget from './widgets/services/RunningServicesWidget.svelte';
   import QuickActionsWidget from './widgets/quick-actions/QuickActionsWidget.svelte';
+  import RunningServicesWidget from './widgets/services/RunningServicesWidget.svelte';
+  import ServicesOverviewWidget from './widgets/services/ServicesOverviewWidget.svelte';
+  import SystemOverviewWidget from './widgets/system/SystemOverviewWidget.svelte';
 
   interface DashboardData {
     system: {
@@ -47,34 +46,34 @@
 
   // Default widget layout
   const defaultLayout: WidgetConfig[] = [
-    { 
-      id: 'system-overview', 
-      component: SystemOverviewWidget, 
-      size: 'large', 
+    {
+      id: 'system-overview',
+      component: SystemOverviewWidget,
+      size: 'large',
       position: { x: 0, y: 0 },
-      props: {}
+      props: {},
     },
-    { 
-      id: 'services-overview', 
-      component: ServicesOverviewWidget, 
-      size: 'medium', 
+    {
+      id: 'services-overview',
+      component: ServicesOverviewWidget,
+      size: 'medium',
       position: { x: 3, y: 0 },
-      props: {}
+      props: {},
     },
-    { 
-      id: 'running-services', 
-      component: RunningServicesWidget, 
-      size: 'medium', 
+    {
+      id: 'running-services',
+      component: RunningServicesWidget,
+      size: 'medium',
       position: { x: 0, y: 2 },
-      props: {}
+      props: {},
     },
-    { 
-      id: 'quick-actions', 
-      component: QuickActionsWidget, 
-      size: 'small', 
+    {
+      id: 'quick-actions',
+      component: QuickActionsWidget,
+      size: 'small',
       position: { x: 2, y: 2 },
-      props: {}
-    }
+      props: {},
+    },
   ];
 
   $: widgetConfig = userPreferences?.dashboardLayout || defaultLayout;
@@ -123,35 +122,47 @@
     goto('/monitoring');
   }
 
+  function handleOpenMaintenance() {
+    goto('/maintenance');
+  }
+
   function openCustomizeModal() {
     // TODO: Implement dashboard customization modal
     console.log('Open customize modal');
   }
 
   // Transform data for widgets
-  $: transformedWidgets = widgetConfig.map(widget => ({
+  $: transformedWidgets = widgetConfig.map((widget) => ({
     ...widget,
     props: {
       ...widget.props,
       // Pass relevant data to each widget
-      ...(widget.id === 'system-overview' && dashboardData ? { 
-        data: dashboardData.system,
-        loading: isLoading
-      } : {}),
-      ...(widget.id === 'services-overview' && dashboardData ? { 
-        data: dashboardData.services,
-        loading: isLoading
-      } : {}),
-      ...(widget.id === 'running-services' && dashboardData ? { 
-        services: dashboardData.servicesList || [],
-        loading: isLoading
-      } : {}),
-      ...(widget.id === 'quick-actions' ? { 
-        loading: isLoading,
-        canStartAll,
-        canStopAll
-      } : {})
-    }
+      ...(widget.id === 'system-overview' && dashboardData
+        ? {
+            data: dashboardData.system,
+            loading: isLoading,
+          }
+        : {}),
+      ...(widget.id === 'services-overview' && dashboardData
+        ? {
+            data: dashboardData.services,
+            loading: isLoading,
+          }
+        : {}),
+      ...(widget.id === 'running-services' && dashboardData
+        ? {
+            services: dashboardData.servicesList || [],
+            loading: isLoading,
+          }
+        : {}),
+      ...(widget.id === 'quick-actions'
+        ? {
+            loading: isLoading,
+            canStartAll,
+            canStopAll,
+          }
+        : {}),
+    },
   }));
 </script>
 
@@ -161,15 +172,13 @@
     <div class="header-content">
       <div class="title-section">
         <h1 class="dashboard-title">Dashboard</h1>
-        <p class="dashboard-subtitle">
-          System overview and service management
-        </p>
+        <p class="dashboard-subtitle">System overview and service management</p>
       </div>
-      
+
       <div class="header-actions">
-        <button 
+        <button
           type="button"
-          class="action-btn secondary" 
+          class="action-btn secondary"
           on:click={handleRefresh}
           disabled={isLoading}
           aria-label="Refresh dashboard"
@@ -177,10 +186,10 @@
           <RefreshCw class="h-4 w-4 {isLoading ? 'animate-spin' : ''}" />
           Refresh
         </button>
-        
-        <button 
+
+        <button
           type="button"
-          class="action-btn primary" 
+          class="action-btn primary"
           on:click={openCustomizeModal}
           aria-label="Customize dashboard"
         >
@@ -201,8 +210,8 @@
         {/each}
       </div>
     {:else}
-      <GridLayout 
-        widgets={transformedWidgets} 
+      <GridLayout
+        widgets={transformedWidgets}
         {dashboardData}
         on:refresh={handleRefresh}
         on:widgetMoved
@@ -213,12 +222,13 @@
 </div>
 
 <!-- Event handlers for widget actions -->
-<svelte:window 
+<svelte:window
   on:deployService={handleDeployService}
-  on:startAll={handleStartAll}  
+  on:startAll={handleStartAll}
   on:stopAll={handleStopAll}
   on:openSettings={handleOpenSettings}
   on:openMonitoring={handleOpenMonitoring}
+  on:openMaintenance={handleOpenMaintenance}
 />
 
 <style>

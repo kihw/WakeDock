@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { Monitor, Play, Plus, RefreshCw, Settings, Square, Wrench } from 'lucide-svelte';
   import { createEventDispatcher } from 'svelte';
-  import { Plus, Play, Square, RefreshCw, Settings, Monitor } from 'lucide-svelte';
   import Widget from '../base/Widget.svelte';
-  
+
   export let loading: boolean = false;
   export let error: string = '';
   export let canStartAll: boolean = false;
@@ -15,6 +15,7 @@
     refresh: void;
     openSettings: void;
     openMonitoring: void;
+    openMaintenance: void;
   }>();
 
   const quickActions = [
@@ -23,7 +24,7 @@
       label: 'Deploy Service',
       icon: Plus,
       color: 'bg-green-600 hover:bg-green-700',
-      action: () => dispatch('deployService')
+      action: () => dispatch('deployService'),
     },
     {
       id: 'start-all',
@@ -31,7 +32,7 @@
       icon: Play,
       color: 'bg-blue-600 hover:bg-blue-700',
       disabled: !canStartAll,
-      action: () => dispatch('startAll')
+      action: () => dispatch('startAll'),
     },
     {
       id: 'stop-all',
@@ -39,39 +40,40 @@
       icon: Square,
       color: 'bg-red-600 hover:bg-red-700',
       disabled: !canStopAll,
-      action: () => dispatch('stopAll')
+      action: () => dispatch('stopAll'),
     },
     {
       id: 'refresh',
       label: 'Refresh All',
       icon: RefreshCw,
       color: 'bg-gray-600 hover:bg-gray-700',
-      action: () => dispatch('refresh')
+      action: () => dispatch('refresh'),
+    },
+    {
+      id: 'maintenance',
+      label: 'Maintenance',
+      icon: Wrench,
+      color: 'bg-orange-600 hover:bg-orange-700',
+      action: () => dispatch('openMaintenance'),
     },
     {
       id: 'monitoring',
       label: 'Monitoring',
       icon: Monitor,
       color: 'bg-purple-600 hover:bg-purple-700',
-      action: () => dispatch('openMonitoring')
+      action: () => dispatch('openMonitoring'),
     },
     {
       id: 'settings',
       label: 'Settings',
       icon: Settings,
       color: 'bg-gray-600 hover:bg-gray-700',
-      action: () => dispatch('openSettings')
-    }
+      action: () => dispatch('openSettings'),
+    },
   ];
 </script>
 
-<Widget
-  title="Quick Actions"
-  subtitle="Common management tasks"
-  {loading}
-  {error}
-  size="small"
->
+<Widget title="Quick Actions" subtitle="Common management tasks" {loading} {error} size="small">
   <div class="quick-actions-grid">
     {#each quickActions as action}
       <button
@@ -90,30 +92,46 @@
 
 <style>
   .quick-actions-grid {
-    @apply grid grid-cols-2 gap-3;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .quick-action-btn {
-    @apply flex flex-col items-center justify-center p-4 rounded-lg text-white;
-    @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
-    @apply min-h-[80px] space-y-2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    color: white;
+    transition: all 0.2s ease;
+    min-height: 80px;
+    border: none;
+    cursor: pointer;
   }
 
   .quick-action-btn:focus {
-    @apply ring-white ring-opacity-50;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
   }
 
   .quick-action-btn:disabled {
-    @apply opacity-50 cursor-not-allowed;
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 
   .action-label {
-    @apply text-xs font-medium text-center leading-tight;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.25;
+    margin-top: 0.5rem;
   }
 
   @media (max-width: 768px) {
     .quick-actions-grid {
-      @apply grid-cols-1;
+      grid-template-columns: 1fr;
     }
   }
 </style>

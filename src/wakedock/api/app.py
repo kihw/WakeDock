@@ -11,7 +11,7 @@ from fastapi.templating import Jinja2Templates
 import logging
 import asyncio
 
-from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit, config, backup, organizations, advanced_security
+from wakedock.api.routes import services, health, proxy, system, security, cache, vault, analytics, audit, config, backup, organizations, advanced_security, maintenance
 from wakedock.api.websocket import websocket_ping_task, websocket_router
 from wakedock.api.auth.routes import router as auth_router
 from wakedock.api.middleware import ProxyMiddleware
@@ -195,6 +195,12 @@ def create_app(orchestrator: Optional[DockerOrchestrator] = None, monitoring: Op
         advanced_security.router,
         prefix="/api/v1/security",
         tags=["advanced-security"]
+    )
+    
+    app.include_router(
+        maintenance.router,
+        prefix="/api/v1/maintenance",
+        tags=["maintenance"]
     )
     
     # WebSocket router - no prefix to match client expectations

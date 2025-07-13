@@ -7,12 +7,15 @@ import json
 import pickle
 import hashlib
 import asyncio
+import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, Callable, Union
 from dataclasses import dataclass
 from enum import Enum
 
 import redis.asyncio as redis
+
+logger = logging.getLogger(__name__)
 from redis.asyncio import Redis
 
 class CacheStrategy(Enum):
@@ -114,10 +117,10 @@ class RedisCache:
             
             # Test connection
             await self.redis.ping()
-            print(f"Redis cache connected: {self.redis_url}")
+            logger.info(f"Redis cache connected: {self.redis_url}")
             
         except Exception as e:
-            print(f"Failed to connect to Redis: {e}")
+            logger.error(f"Failed to connect to Redis: {e}")
             self.redis = None
             raise
     
@@ -185,7 +188,7 @@ class RedisCache:
             return self._deserialize_value(data)
             
         except Exception as e:
-            print(f"Cache get error for key {key}: {e}")
+            logger.error(f"Cache get error for key {key}: {e}")
             self.stats['errors'] += 1
             return None
     

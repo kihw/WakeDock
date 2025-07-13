@@ -6,6 +6,17 @@ from typing import Optional, List, Dict, Any
 from urllib.parse import urlparse
 import validators
 
+# Import centralized security validation functions
+try:
+    from ..security.validation.functions import (
+        validate_service_name as _security_validate_service_name,
+        validate_docker_image as _security_validate_docker_image,
+        validate_email as _security_validate_email
+    )
+    SECURITY_VALIDATION_AVAILABLE = True
+except ImportError:
+    SECURITY_VALIDATION_AVAILABLE = False
+
 
 def validate_service_name(name: str) -> bool:
     """Validate service name format.
@@ -15,6 +26,11 @@ def validate_service_name(name: str) -> bool:
     - Contain only alphanumeric characters, hyphens, and underscores
     - Start and end with alphanumeric characters
     """
+    # Use centralized security validation if available
+    if SECURITY_VALIDATION_AVAILABLE:
+        return _security_validate_service_name(name)
+    
+    # Fallback to local validation
     if not name or len(name) < 3 or len(name) > 50:
         return False
     
@@ -49,6 +65,11 @@ def validate_image_name(image: str) -> bool:
     - nginx:latest
     - registry.example.com/nginx:1.21
     """
+    # Use centralized security validation if available
+    if SECURITY_VALIDATION_AVAILABLE:
+        return _security_validate_docker_image(image)
+    
+    # Fallback to local validation
     if not image:
         return False
     
@@ -59,6 +80,11 @@ def validate_image_name(image: str) -> bool:
 
 def validate_email(email: str) -> bool:
     """Validate email address format."""
+    # Use centralized security validation if available
+    if SECURITY_VALIDATION_AVAILABLE:
+        return _security_validate_email(email)
+    
+    # Fallback to local validation
     if not email:
         return False
     

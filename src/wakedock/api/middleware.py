@@ -5,7 +5,7 @@ Proxy middleware for handling service wake-up and routing
 import asyncio
 import logging
 from typing import Callable, Optional
-from urllib.parse import urlparse
+# Removed unused import: from urllib.parse import urlparse
 
 from fastapi import Request, Response
 from fastapi.responses import HTMLResponse

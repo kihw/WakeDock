@@ -3,7 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { websocketClient as websocket } from '$lib/websocket';
   import { uiLogger } from '$lib/utils/logger';
-  import Card from '$lib/components/Card.svelte';
+  import { Card } from '$lib/components/ui/atoms';
   import Button from '$lib/components/ui/atoms/Button.svelte';
   import ResourceChart from '$lib/components/ui/organisms/charts/ResourceChart.svelte';
 
