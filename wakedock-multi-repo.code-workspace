@@ -1,0 +1,250 @@
+{
+    "folders": [
+        {
+            "name": "🎛️ WakeDock (Orchestration)",
+            "path": "."
+        },
+        {
+            "name": "🚀 Backend (wakedock-backend)",
+            "path": "./wakedock-backend"
+        },
+        {
+            "name": "🎨 Frontend (wakedock-frontend)",
+            "path": "./wakedock-frontend"
+        }
+    ],
+    "settings": {
+        // Multi-repo workspace settings
+        "workbench.editor.enablePreview": false,
+        "files.associations": {
+            "docker-compose*.yml": "dockercompose",
+            "Dockerfile*": "dockerfile"
+        },
+        // Python settings for backend
+        "python.defaultInterpreterPath": "./wakedock-backend/venv/bin/python",
+        "python.analysis.autoSearchPaths": true,
+        "python.analysis.extraPaths": [
+            "./wakedock-backend",
+            "./wakedock-backend/src"
+        ],
+        // Node.js settings for frontend
+        "typescript.preferences.importModuleSpecifier": "relative",
+        "typescript.workspaceSymbols.scope": "allOpenProjects",
+        // Docker multi-repo
+        "docker.dockerComposeBuild": true,
+        "docker.dockerComposeDetached": true,
+        // Multi-repo specific exclusions
+        "files.exclude": {
+            "**/wakedock-backend/.git": true,
+            "**/wakedock-frontend/.git": true,
+            "**/data/postgres": true,
+            "**/data/redis": true
+        }
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "🚀 Deploy Multi-Repo",
+                "type": "shell",
+                "command": "./deploy-multi-repo.sh",
+                "args": [
+                    "deploy"
+                ],
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "⏹️ Stop Multi-Repo",
+                "type": "shell",
+                "command": "./deploy-multi-repo.sh",
+                "args": [
+                    "stop"
+                ],
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "📊 Status Multi-Repo",
+                "type": "shell",
+                "command": "./deploy-multi-repo.sh",
+                "args": [
+                    "status"
+                ],
+                "group": "test",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "📋 Logs Multi-Repo",
+                "type": "shell",
+                "command": "./deploy-multi-repo.sh",
+                "args": [
+                    "logs"
+                ],
+                "group": "test",
+                "isBackground": true,
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "dedicated"
+                }
+            },
+            {
+                "label": "🔄 Update Repositories",
+                "type": "shell",
+                "command": "./deploy-multi-repo.sh",
+                "args": [
+                    "update"
+                ],
+                "group": "build",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "🛠️ Backend Dev Server",
+                "type": "shell",
+                "command": "python",
+                "args": [
+                    "-m",
+                    "wakedock.main",
+                    "--reload"
+                ],
+                "options": {
+                    "cwd": "./wakedock-backend"
+                },
+                "group": "build",
+                "isBackground": true,
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "dedicated"
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "🎨 Frontend Dev Server",
+                "type": "shell",
+                "command": "npm",
+                "args": [
+                    "run",
+                    "dev"
+                ],
+                "options": {
+                    "cwd": "./wakedock-frontend"
+                },
+                "group": "build",
+                "isBackground": true,
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "dedicated"
+                },
+                "problemMatcher": []
+            },
+            {
+                "label": "🧪 Test Backend",
+                "type": "shell",
+                "command": "python",
+                "args": [
+                    "-m",
+                    "pytest",
+                    "tests/",
+                    "-v"
+                ],
+                "options": {
+                    "cwd": "./wakedock-backend"
+                },
+                "group": "test",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            },
+            {
+                "label": "🧪 Test Frontend",
+                "type": "shell",
+                "command": "npm",
+                "args": [
+                    "test"
+                ],
+                "options": {
+                    "cwd": "./wakedock-frontend"
+                },
+                "group": "test",
+                "presentation": {
+                    "echo": true,
+                    "reveal": "always",
+                    "focus": false,
+                    "panel": "shared"
+                }
+            }
+        ]
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "🚀 Debug Backend",
+                "type": "debugpy",
+                "request": "launch",
+                "program": "./wakedock-backend/wakedock/main.py",
+                "cwd": "./wakedock-backend",
+                "env": {
+                    "WAKEDOCK_ENV": "development",
+                    "PYTHONPATH": "./wakedock-backend"
+                },
+                "console": "integratedTerminal"
+            },
+            {
+                "name": "🎨 Debug Frontend",
+                "type": "node",
+                "request": "launch",
+                "program": "./wakedock-frontend/src/app.js",
+                "cwd": "./wakedock-frontend",
+                "env": {
+                    "NODE_ENV": "development"
+                },
+                "console": "integratedTerminal"
+            }
+        ]
+    },
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-python.pylance",
+            "svelte.svelte-vscode",
+            "bradlc.vscode-tailwindcss",
+            "ms-azuretools.vscode-docker",
+            "ms-vscode.vscode-json",
+            "redhat.vscode-yaml",
+            "ms-vscode.makefile-tools",
+            "GitHub.copilot",
+            "GitHub.copilot-chat"
+        ]
+    }
+}
