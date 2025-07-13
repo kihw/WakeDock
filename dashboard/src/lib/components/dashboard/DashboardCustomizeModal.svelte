@@ -1,8 +1,8 @@
 <script lang="ts">
+  import { Eye, EyeOff, RotateCcw } from 'lucide-svelte';
   import { createEventDispatcher } from 'svelte';
-  import { X, Grid, Eye, EyeOff, Move, RotateCcw } from 'lucide-svelte';
-  import Modal from '../ui/organisms/Modal.svelte';
   import Button from '../ui/atoms/Button.svelte';
+  import Modal from '../ui/organisms/Modal.svelte';
 
   interface WidgetConfig {
     id: string;
@@ -56,9 +56,9 @@
   let workingLayout = [...currentLayout];
 
   // Add visible property if not present
-  workingLayout = workingLayout.map(widget => ({
+  workingLayout = workingLayout.map((widget) => ({
     ...widget,
-    visible: widget.visible !== false
+    visible: widget.visible !== false,
   }));
 
   // Default layout for reset
@@ -94,18 +94,14 @@
   ];
 
   function toggleWidgetVisibility(widgetId: string) {
-    workingLayout = workingLayout.map(widget => 
-      widget.id === widgetId 
-        ? { ...widget, visible: !widget.visible }
-        : widget
+    workingLayout = workingLayout.map((widget) =>
+      widget.id === widgetId ? { ...widget, visible: !widget.visible } : widget
     );
   }
 
   function changeWidgetSize(widgetId: string, newSize: 'small' | 'medium' | 'large') {
-    workingLayout = workingLayout.map(widget => 
-      widget.id === widgetId 
-        ? { ...widget, size: newSize }
-        : widget
+    workingLayout = workingLayout.map((widget) =>
+      widget.id === widgetId ? { ...widget, size: newSize } : widget
     );
   }
 
@@ -125,7 +121,7 @@
 
   // Get widget info by id
   function getWidgetInfo(widgetId: string) {
-    return availableWidgets.find(w => w.id === widgetId);
+    return availableWidgets.find((w) => w.id === widgetId);
   }
 </script>
 
@@ -134,20 +130,13 @@
     <!-- Header -->
     <div class="customize-header">
       <div class="header-info">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          Dashboard Layout
-        </h3>
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Dashboard Layout</h3>
         <p class="text-sm text-gray-500 dark:text-gray-400">
           Customize which widgets to show and how they're arranged
         </p>
       </div>
-      
-      <Button
-        variant="outline"
-        size="sm"
-        on:click={resetToDefault}
-        class="flex items-center gap-2"
-      >
+
+      <Button variant="outline" size="sm" on:click={resetToDefault} class="flex items-center gap-2">
         <RotateCcw class="h-4 w-4" />
         Reset to Default
       </Button>
@@ -156,7 +145,7 @@
     <!-- Widget Configuration -->
     <div class="widget-config">
       <h4 class="section-title">Widgets</h4>
-      
+
       <div class="widget-list">
         {#each workingLayout as widget (widget.id)}
           {@const info = getWidgetInfo(widget.id)}
@@ -216,12 +205,16 @@
       <h4 class="section-title">Layout Preview</h4>
       <div class="layout-preview">
         <div class="preview-grid">
-          {#each workingLayout.filter(w => w.visible) as widget}
+          {#each workingLayout.filter((w) => w.visible) as widget}
             {@const info = getWidgetInfo(widget.id)}
             {#if info}
-              <div 
+              <div
                 class="preview-widget {widget.size}"
-                style="grid-column: span {widget.size === 'large' ? '3' : widget.size === 'medium' ? '2' : '1'};"
+                style="grid-column: span {widget.size === 'large'
+                  ? '3'
+                  : widget.size === 'medium'
+                    ? '2'
+                    : '1'};"
               >
                 <div class="preview-widget-content">
                   <span class="preview-icon">{info.icon}</span>
@@ -237,12 +230,8 @@
 
   <!-- Modal Actions -->
   <svelte:fragment slot="actions">
-    <Button variant="outline" on:click={handleCancel}>
-      Cancel
-    </Button>
-    <Button variant="primary" on:click={handleSave}>
-      Save Layout
-    </Button>
+    <Button variant="outline" on:click={handleCancel}>Cancel</Button>
+    <Button variant="primary" on:click={handleSave}>Save Layout</Button>
   </svelte:fragment>
 </Modal>
 

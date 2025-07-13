@@ -39,7 +39,7 @@ const config: StorybookConfig = {
       '$lib': '/src/lib',
       '$app': '/src/app'
     };
-    
+
     return config;
   }
 };

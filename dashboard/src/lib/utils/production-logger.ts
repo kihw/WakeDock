@@ -15,11 +15,14 @@ interface LogEntry {
 }
 
 class ProductionLogger {
-  private isProduction = typeof window !== 'undefined' 
+  private isProduction = typeof window !== 'undefined'
     ? window.location.hostname !== 'localhost'
     : process.env.NODE_ENV === 'production';
 
   private isDevelopment = !this.isProduction;
+  private remoteEndpoint?: string;
+  private buffer: LogEntry[] = [];
+  private maxBufferSize = 100;
 
   /**
    * Log debug information (development only)
@@ -55,10 +58,10 @@ class ProductionLogger {
    * Internal logging method
    */
   private log(
-    level: LogLevel, 
-    message: string, 
-    context?: string, 
-    metadata?: Record<string, any>, 
+    level: LogLevel,
+    message: string,
+    context?: string,
+    metadata?: Record<string, any>,
     error?: Error
   ): void {
     const logEntry: LogEntry = {
@@ -96,6 +99,33 @@ class ProductionLogger {
     } else {
       // In production, send to logging service or suppress
       this.sendToLoggingService(logEntry);
+    }
+  }
+
+  /**
+   * Configure remote logging endpoint
+   */
+  setRemoteEndpoint(endpoint: string): void {
+    this.remoteEndpoint = endpoint;
+  }
+
+  /**
+   * Send logs to remote endpoint
+   */
+  private async sendToRemote(entry: LogEntry): Promise<void> {
+    if (!this.remoteEndpoint || !this.isProduction) return;
+
+    try {
+      await fetch(this.remoteEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(entry)
+      });
+    } catch (error) {
+      // Fallback to console in case of remote logging failure
+      console.error('Failed to send log to remote endpoint:', error);
     }
   }
 

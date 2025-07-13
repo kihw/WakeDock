@@ -3,12 +3,12 @@
   import { RefreshCw, Settings } from 'lucide-svelte';
   import { createEventDispatcher, onDestroy, onMount } from 'svelte';
 
+  import DashboardCustomizeModal from './DashboardCustomizeModal.svelte';
   import GridLayout from './layouts/GridLayout.svelte';
   import QuickActionsWidget from './widgets/quick-actions/QuickActionsWidget.svelte';
   import RunningServicesWidget from './widgets/services/RunningServicesWidget.svelte';
   import ServicesOverviewWidget from './widgets/services/ServicesOverviewWidget.svelte';
   import SystemOverviewWidget from './widgets/system/SystemOverviewWidget.svelte';
-  import DashboardCustomizeModal from './DashboardCustomizeModal.svelte';
 
   interface DashboardData {
     system: {

@@ -3,21 +3,21 @@
  * Provides consistent animations and transitions across the application
  */
 
-import { cubicOut, cubicInOut, quartOut, quintOut } from 'svelte/easing';
+import { cubicInOut, cubicOut, quartOut, quintOut } from 'svelte/easing';
 
 /**
  * Check if user prefers reduced motion
  */
 export function prefersReducedMotion(): boolean {
-  if (typeof window === 'undefined') return false;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 /**
  * Get animation duration respecting user preferences
  */
 export function getAnimationDuration(duration: number): number {
-  return prefersReducedMotion() ? 0 : duration;
+    return prefersReducedMotion() ? 0 : duration;
 }
 
 // Animation duration constants
@@ -373,9 +373,9 @@ export function accessibleFade(node: Element, params: {
         easing = EASINGS.ease,
         delay = 0
     } = params;
-    
+
     const actualDuration = getAnimationDuration(duration);
-    
+
     return {
         duration: actualDuration,
         delay,
@@ -401,23 +401,23 @@ export function accessibleSlide(node: Element, params: {
         delay = 0,
         distance = 20
     } = params;
-    
+
     const actualDuration = getAnimationDuration(duration);
-    
+
     if (actualDuration === 0) {
         return {
             duration: 0,
             css: () => ''
         };
     }
-    
+
     const transforms = {
         up: (t: number) => `translateY(${(1 - t) * distance}px)`,
         down: (t: number) => `translateY(${(1 - t) * -distance}px)`,
         left: (t: number) => `translateX(${(1 - t) * distance}px)`,
         right: (t: number) => `translateX(${(1 - t) * -distance}px)`
     };
-    
+
     return {
         duration: actualDuration,
         delay,
@@ -450,10 +450,10 @@ export const REDUCED_MOTION_CSS = `
  */
 export function applyReducedMotionCSS() {
     if (typeof document === 'undefined') return;
-    
+
     const styleId = 'wakedock-reduced-motion';
     let existingStyle = document.getElementById(styleId);
-    
+
     if (!existingStyle) {
         const style = document.createElement('style');
         style.id = styleId;
