@@ -61,3 +61,6 @@ backup-*
 # Config files (keep templates)
 config/config.yml
 !config/config.example.yml
+
+wakedock-backend/
+wakedock-frontend/
