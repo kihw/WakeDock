@@ -51,7 +51,7 @@ services:
     environment:
       - NODE_ENV=${NODE_ENV}
       - WAKEDOCK_API_URL=http://wakedock-backend:5000
-      - VITE_API_BASE_URL=/api/v1
+      - NEXT_PUBLIC_API_BASE_URL=/api/v1
       - PUBLIC_API_URL=${PUBLIC_API_URL}
       - PUBLIC_WS_URL=/ws
     networks:
@@ -68,7 +68,7 @@ services:
       - "${CADDY_HTTPS_PORT}:443"
       - "${CADDY_ADMIN_PORT}:2019"
     volumes:
-      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile.compose:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
