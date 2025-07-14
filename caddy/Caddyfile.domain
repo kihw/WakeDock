@@ -1,8 +1,7 @@
 {
     admin 0.0.0.0:2019
     email admin@mtool.ovh
-    # Automatic HTTPS with Let's Encrypt
-    auto_https on
+    # Automatic HTTPS is enabled by default for domains
 }
 
 # Production domain with HTTPS
