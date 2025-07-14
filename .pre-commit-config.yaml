@@ -104,7 +104,7 @@ repos:
     rev: v3.0.1
     hooks:
       - id: prettier
-        files: \.(js|ts|json|yaml|yml|md|html|css|scss|vue|svelte)$
+        files: \.(js|ts|tsx|jsx|json|yaml|yml|md|html|css|scss)$
         exclude: \.min\.(js|css)$
 
   # Markdown hooks
@@ -162,7 +162,7 @@ repos:
         language: system
         pass_filenames: false
         always_run: false
-        files: ^dashboard/.*\.(js|ts|vue|svelte)$
+        files: ^wakedock-frontend/.*\.(js|ts|tsx|jsx)$
 
       # Security audit
       - id: security-audit
