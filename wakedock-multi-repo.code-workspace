@@ -6,11 +6,11 @@
         },
         {
             "name": "🚀 Backend (wakedock-backend)",
-            "path": "./wakedock-backend"
+            "path": "../wakedock-backend"
         },
         {
             "name": "🎨 Frontend (wakedock-frontend)",
-            "path": "./wakedock-frontend"
+            "path": "../wakedock-frontend"
         }
     ],
     "settings": {
@@ -21,11 +21,11 @@
             "Dockerfile*": "dockerfile"
         },
         // Python settings for backend
-        "python.defaultInterpreterPath": "./wakedock-backend/venv/bin/python",
+        "python.defaultInterpreterPath": "../wakedock-backend/venv/bin/python",
         "python.analysis.autoSearchPaths": true,
         "python.analysis.extraPaths": [
-            "./wakedock-backend",
-            "./wakedock-backend/src"
+            "../wakedock-backend",
+            "../wakedock-backend/src"
         ],
         // Node.js settings for frontend
         "typescript.preferences.importModuleSpecifier": "relative",
@@ -131,7 +131,7 @@
                     "--reload"
                 ],
                 "options": {
-                    "cwd": "./wakedock-backend"
+                    "cwd": "../wakedock-backend"
                 },
                 "group": "build",
                 "isBackground": true,
@@ -152,7 +152,7 @@
                     "dev"
                 ],
                 "options": {
-                    "cwd": "./wakedock-frontend"
+                    "cwd": "../wakedock-frontend"
                 },
                 "group": "build",
                 "isBackground": true,
@@ -175,7 +175,7 @@
                     "-v"
                 ],
                 "options": {
-                    "cwd": "./wakedock-backend"
+                    "cwd": "../wakedock-backend"
                 },
                 "group": "test",
                 "presentation": {
@@ -193,7 +193,7 @@
                     "test"
                 ],
                 "options": {
-                    "cwd": "./wakedock-frontend"
+                    "cwd": "../wakedock-frontend"
                 },
                 "group": "test",
                 "presentation": {
@@ -212,11 +212,11 @@
                 "name": "🚀 Debug Backend",
                 "type": "debugpy",
                 "request": "launch",
-                "program": "./wakedock-backend/wakedock/main.py",
-                "cwd": "./wakedock-backend",
+                "program": "../wakedock-backend/wakedock/main.py",
+                "cwd": "../wakedock-backend",
                 "env": {
                     "WAKEDOCK_ENV": "development",
-                    "PYTHONPATH": "./wakedock-backend"
+                    "PYTHONPATH": "../wakedock-backend"
                 },
                 "console": "integratedTerminal"
             },
@@ -224,8 +224,8 @@
                 "name": "🎨 Debug Frontend",
                 "type": "node",
                 "request": "launch",
-                "program": "./wakedock-frontend/src/app.js",
-                "cwd": "./wakedock-frontend",
+                "program": "../wakedock-frontend/src/app.js",
+                "cwd": "../wakedock-frontend",
                 "env": {
                     "NODE_ENV": "development"
                 },
