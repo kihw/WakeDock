@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.0.1] - 2025-07-14
+
+### Added
+- Version bump to 0.0.1
+- Automated release process
+- Updated configuration files
+
+### Changed
+- All version references updated across repositories
+- Build configurations synchronized
+
+### Fixed
+- Version consistency across all components
+
+
+
 All notable changes to WakeDock will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
