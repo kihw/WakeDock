@@ -96,7 +96,7 @@ LABEL \
     org.opencontainers.image.title="WakeDock" \
     org.opencontainers.image.description="Docker service wake-up and management system" \
     org.opencontainers.image.vendor="WakeDock" \
-    org.opencontainers.image.version="1.0.0" \
+    org.opencontainers.image.version="0.0.1" \
     security.non-root="true" \
     security.dockerfile.hardened="true"
 
