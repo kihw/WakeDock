@@ -1,12 +1,12 @@
 {
     admin 0.0.0.0:2019
     email admin@mtool.ovh
-    # Enable automatic HTTPS for production
+    # Automatic HTTPS with Let's Encrypt
     auto_https on
 }
 
-# Production: HTTPS with automatic SSL certificates
-admin.mtool.ovh {
+# Production domain with HTTPS
+mtool.ovh {
     # Dashboard API config endpoint (must be before /api/v1/*)
     reverse_proxy /api/config wakedock-dashboard:3000 {
         header_up Host {host}
@@ -16,13 +16,13 @@ admin.mtool.ovh {
     }
     
     # WakeDock API routes
-    reverse_proxy /api/v1/* wakedock-core:8000 {
+    reverse_proxy /api/v1/* wakedock-core:5000 {
         header_up Host {host}
         header_up X-Real-IP {remote}
         header_up X-Forwarded-For {remote}
         header_up X-Forwarded-Proto {scheme}
         
-        # Timeout settings to prevent connection drops
+        # Timeout settings
         transport http {
             dial_timeout 10s
             read_timeout 30s
@@ -31,7 +31,7 @@ admin.mtool.ovh {
     }
     
     # WebSocket support
-    reverse_proxy /ws wakedock-core:8000 {
+    reverse_proxy /ws wakedock-core:5000 {
         header_up Host {host}
         header_up X-Real-IP {remote}
         header_up X-Forwarded-For {remote}
@@ -51,7 +51,7 @@ admin.mtool.ovh {
     # Enable compression
     encode gzip
     
-    # Enhanced security headers for production
+    # Security headers
     header {
         X-Content-Type-Options nosniff
         X-Frame-Options DENY
@@ -62,28 +62,9 @@ admin.mtool.ovh {
         Permissions-Policy "camera=(), microphone=(), geolocation=()"
     }
     
-    # Rate limiting
-    rate_limit {
-        zone static {
-            key {remote}
-            events 100
-            window 1m
-        }
-        zone api {
-            key {remote}
-            events 50
-            window 1m
-        }
-    }
-    
-    # Apply rate limiting
-    @api path /api/v1/*
-    rate_limit @api api
-    rate_limit static
-    
-    # Logging with structured format
+    # Structured logging
     log {
-        output file /var/log/caddy/admin.mtool.ovh.log {
+        output file /var/log/caddy/{$DOMAIN}.log {
             roll_size 100MB
             roll_keep 5
             roll_keep_for 720h
@@ -94,6 +75,6 @@ admin.mtool.ovh {
 }
 
 # Redirect HTTP to HTTPS
-http://admin.mtool.ovh {
-    redir https://admin.mtool.ovh{uri} permanent
+http://mtool.ovh {
+    redir https://mtool.ovh{uri} permanent
 }
