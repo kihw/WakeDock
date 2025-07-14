@@ -11,7 +11,7 @@ services:
       - "5000:5000"
     volumes:
       - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
-      - ${WAKEDOCK_CONFIG_DIR:-./WakeDock/config}:/app/config
+      - ${WAKEDOCK_CONFIG_DIR:-./config}:/app/config
       - wakedock_data:/app/data
       - caddy_config_shared:/etc/caddy:z
     environment:
@@ -68,7 +68,7 @@ services:
       - "${CADDY_HTTPS_PORT:-443}:443"
       - "${CADDY_ADMIN_PORT:-2019}:2019"
     volumes:
-      - ./WakeDock/caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
