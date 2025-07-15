@@ -10,7 +10,7 @@
     reverse_proxy /api/config wakedock-dashboard:3000
     
     # WakeDock API routes with enhanced timeout and error handling
-    reverse_proxy /api/v1/* b3cff0f9cbf2_wakedock-core:5000 {
+    reverse_proxy /api/v1/* wakedock-core:5000 {
         # Timeout settings to prevent connection drops
         transport http {
             dial_timeout 15s
@@ -25,7 +25,7 @@
     }
     
     # WebSocket support
-    reverse_proxy /ws b3cff0f9cbf2_wakedock-core:5000
+    reverse_proxy /ws wakedock-core:5000
     
     # Dashboard (default route)
     reverse_proxy /* wakedock-dashboard:3000
