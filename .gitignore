@@ -1,0 +1,413 @@
+# WakeDock .gitignore - Comprehensive file exclusion
+# Version: 1.0.0
+# Project: WakeDock Docker Management Platform
+
+# ==============================================================================
+# RUNTIME AND TEMPORARY FILES
+# ==============================================================================
+
+# Temporary files and directories
+*.tmp
+*.temp
+.tmp/
+.temp/
+temp/
+tmp/
+
+# Cache files
+.cache/
+cache/
+*.cache
+
+# Swap files
+*.swp
+*.swo
+*~
+
+# System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ==============================================================================
+# DOCKER RUNTIME FILES
+# ==============================================================================
+
+# Docker volumes and data directories
+/data/
+/logs/
+/reports/
+/config/secrets.yml
+/config/local.yml
+/config/production.yml
+
+# Docker-specific runtime files
+.dockerignore.bak
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.*.local.yml
+
+# Docker build cache
+.build_cache/
+build_cache/
+
+# Docker volumes data
+/data/postgres/
+/data/redis/
+/data/caddy/
+/data/caddy-config/
+/data/dashboard/
+/data/uploads/
+/data/backups/
+
+# ==============================================================================
+# LOGS AND MONITORING
+# ==============================================================================
+
+# All log files
+*.log
+*.log.*
+logs/
+/logs/
+*.out
+*.err
+
+# Monitoring and metrics data
+/metrics/
+/traces/
+/monitoring/
+*.metrics
+*.trace
+
+# Performance reports
+/reports/
+/performance/
+*.report
+*.perf
+
+# ==============================================================================
+# ENVIRONMENT AND CONFIGURATION
+# ==============================================================================
+
+# Environment files
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+.env.backup
+
+# Configuration files with secrets
+config/secrets.yml
+config/local.yml
+config/production.yml
+config/*.local.yml
+config/*.secret.yml
+
+# SSL certificates and keys
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+ssl/
+certificates/
+certs/
+
+# ==============================================================================
+# DEVELOPMENT TOOLS
+# ==============================================================================
+
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.project
+.settings/
+.metadata/
+
+# JetBrains IDEs
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# ==============================================================================
+# BACKUP AND ARCHIVES
+# ==============================================================================
+
+# Backup files
+*.backup
+*.bak
+*.old
+*.orig
+*.save
+backup/
+backups/
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tgz
+*.rar
+*.7z
+
+# ==============================================================================
+# DEPENDENCY DIRECTORIES
+# ==============================================================================
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+.ENV/
+.env/
+
+# ==============================================================================
+# BUILD ARTIFACTS
+# ==============================================================================
+
+# Build outputs
+/build/
+/dist/
+/out/
+/target/
+*.build
+
+# Compiled files
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# ==============================================================================
+# DATABASE AND STORAGE
+# ==============================================================================
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Database dumps
+*.sql
+*.dump
+*.backup.sql
+dumps/
+
+# ==============================================================================
+# SECURITY AND SECRETS
+# ==============================================================================
+
+# API keys and secrets
+*.secret
+secrets.json
+secrets.yml
+.secrets/
+credentials.json
+service-account.json
+
+# Authentication tokens
+*.token
+.token
+auth-token
+access-token
+
+# Private keys
+private_key*
+*.private
+id_rsa*
+id_ed25519*
+*.pem
+*.key
+
+# ==============================================================================
+# CADDY SPECIFIC
+# ==============================================================================
+
+# Caddy data and config
+/data/caddy/
+/config/caddy/autosave.json
+Caddyfile.local
+Caddyfile.*.local
+
+# ==============================================================================
+# DOCKER COMPOSE SPECIFIC
+# ==============================================================================
+
+# Local docker-compose overrides
+docker-compose.override.yml
+docker-compose.local.yml
+docker-compose.development.yml
+docker-compose.testing.yml
+docker-compose.*.local.yml
+
+# ==============================================================================
+# FRONTEND SPECIFIC (Next.js)
+# ==============================================================================
+
+# Next.js build output
+.next/
+out/
+build/
+
+# Next.js cache
+.next/cache/
+
+# Static files
+/static/
+/public/uploads/
+
+# ==============================================================================
+# BACKEND SPECIFIC (Python/FastAPI)
+# ==============================================================================
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# ==============================================================================
+# TESTING AND COVERAGE
+# ==============================================================================
+
+# Test results
+test-results/
+coverage/
+.nyc_output/
+junit.xml
+coverage.xml
+
+# ==============================================================================
+# RUNTIME LOCKS AND PIDS
+# ==============================================================================
+
+# Process IDs
+*.pid
+*.lock
+.lock
+
+# ==============================================================================
+# CUSTOM WAKEDOCK EXCLUSIONS
+# ==============================================================================
+
+# WakeDock specific runtime files
+.wakedock/
+wakedock.state
+wakedock.lock
+
+# Deployment artifacts
+.deploy/
+deploy.log
+deployment-*.log
+
+# Container runtime files
+container-*.log
+service-*.log
+
+# Health check files
+.health
+health-*.json
+
+# Monitoring data
+monitoring-*.json
+metrics-*.json
+
+# ==============================================================================
+# FINAL CATCH-ALL PATTERNS
+# ==============================================================================
+
+# Any file starting with a dot that might be created by tools
+.*
+
+# But allow specific dotfiles that should be tracked
+!.gitignore
+!.gitmodules
+!.github/
+!.pre-commit-config.yaml
+!.dockerignore
+!.editorconfig
+
+# Exclude any local or private files
+*.local
+*.private
+*local*
+*private*
+*secret*
+*credential*
+
+# Exclude any files ending with these extensions
+*.log
+*.tmp
+*.temp
+*.cache
+*.backup
+*.old
+*.orig
+*.save
