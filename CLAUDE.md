@@ -9,8 +9,7 @@
 /Docker/code/wakedock-env/
 ├── WakeDock/                      # 🎯 Main orchestration repository
 │   ├── docker-compose*.yml       # Docker Compose configurations
-│   ├── deploy-compose.sh          # Legacy deployment script
-│   ├── deploy-multi-repo.sh       # 🚀 Multi-repo deployment script (USE THIS)
+│   ├── deploy.sh                  # 🚀 UNIFIED deployment script (USE THIS)
 │   ├── Makefile                   # Build automation and tasks
 │   ├── .env                       # Environment variables with mtool.ovh config
 │   ├── CLAUDE.md                  # This file - project instructions
@@ -128,14 +127,20 @@
 
 ## 🛡️ MANDATORY RULES
 
-### 1. 🐳 Deploy via Multi-Repo Script ONLY
+### 1. 🐳 Deploy via Unified Script ONLY
 ```bash
-# ✅ CORRECT - ALWAYS use deploy-multi-repo.sh from WakeDock/ directory
+# ✅ CORRECT - ALWAYS use deploy.sh from WakeDock/ directory
 cd /Docker/code/wakedock-env/WakeDock/
-./deploy-multi-repo.sh
+
+# Production deployment (from GitHub)
+./deploy.sh
+
+# Development deployment (from local files)
+./deploy.sh --dev
 
 # Clean deployment (rebuild everything)
-./deploy-multi-repo.sh --clean
+./deploy.sh --clean
+./deploy.sh --dev --clean
 
 # ❌ NEVER use compose directly
 docker-compose up -d
@@ -168,20 +173,26 @@ curl "http://YOUR_PUBLIC_IP:80/api/v1/health"
 curl "http://localhost:8000/health"
 ```
 
-### 4. 🔄 Multi-Repo Deployment Workflow (MANDATORY)
+### 4. 🔄 Unified Deployment Workflow (MANDATORY)
 ```bash
 # ALWAYS execute after ANY change from WakeDock/ directory
 cd /Docker/code/wakedock-env/WakeDock/
-./deploy-multi-repo.sh
+
+# Production deployment (from GitHub)
+./deploy.sh
+
+# Development deployment (from local files)
+./deploy.sh --dev
 
 # Clean deployment (rebuild everything)
-./deploy-multi-repo.sh --clean
+./deploy.sh --clean
+./deploy.sh --dev --clean
 
 # Check service status
-docker-compose -f docker-compose-local-multi-repo.yml ps
+./deploy.sh --status
 
 # View logs
-docker-compose -f docker-compose-local-multi-repo.yml logs -f
+./deploy.sh --logs
 ```
 
 ## 🔧 Code Standards
@@ -211,7 +222,12 @@ export PUBLIC_IP=$(curl -s -4 ifconfig.me)
 
 # Deploy first from WakeDock/ directory
 cd /Docker/code/wakedock-env/WakeDock/
-./deploy-multi-repo.sh
+
+# Production deployment (from GitHub)
+./deploy.sh
+
+# OR development deployment (from local files)
+./deploy.sh --dev
 
 # Wait for services to be ready
 sleep 60
@@ -269,12 +285,12 @@ docker exec wakedock-caddy cat /etc/caddy/Caddyfile
 - **Caddy SSL automation working in production**
 
 ## 🚨 NON-NEGOTIABLE
-1. 🐳 **ALWAYS use deploy-multi-repo.sh** - Never direct docker-compose commands
+1. 🐳 **ALWAYS use deploy.sh** - Never direct docker-compose commands
 2. 🔍 **NEVER debug locally** - Container logs only
 3. 🌐 **ALWAYS test via domain (mtool.ovh) or public IP** - Never localhost
-4. 🔄 **ALWAYS use deploy-multi-repo.sh** after ANY change
+4. 🔄 **ALWAYS use deploy.sh** after ANY change
 5. 📊 **ALWAYS check service logs** after deployment
-6. 🧪 **NEVER commit without multi-repo tests**
+6. 🧪 **NEVER commit without deployment tests**
 7. 🔒 **ALWAYS verify SSL in production** - Caddy auto-HTTPS must work for mtool.ovh
 8. 📁 **ALWAYS work from /Docker/code/wakedock-env/WakeDock/** directory
 
@@ -288,8 +304,41 @@ docker exec wakedock-caddy cat /etc/caddy/Caddyfile
 - **🔌 WebSocket**: wss://mtool.ovh/ws
 - **📊 Admin Caddy**: http://IP:2019 (non-public)
 
+## 🚀 Unified Deployment Script
+The new `deploy.sh` script provides intelligent deployment with two modes:
+
+### 🌐 Production Mode (Default)
+```bash
+./deploy.sh                    # Build from GitHub repositories
+./deploy.sh --force           # Force complete rebuild
+./deploy.sh --clean           # Clean build with container removal
+```
+- Uses GitHub API to detect commit changes
+- Builds from `docker-compose-multi-repo.yml`
+- SSL enabled with Caddy for mtool.ovh
+- Intelligent caching prevents unnecessary rebuilds
+
+### 🛠️ Development Mode
+```bash
+./deploy.sh --dev             # Build from local files
+./deploy.sh --dev --force     # Force complete rebuild
+./deploy.sh --dev --clean     # Clean development build
+```
+- Uses MD5 hashing to detect local file changes
+- Builds from `docker-compose-local-multi-repo.yml`
+- HTTP configuration for local testing
+- Selective building (only changed services)
+
+### 📊 Utilities
+```bash
+./deploy.sh --status          # Show services status
+./deploy.sh --logs            # View real-time logs
+./deploy.sh --help            # Show help
+```
+
 ## 🔧 Configuration Multi-Repo
-- **Fichier principal**: `docker-compose-local-multi-repo.yml`
+- **Production**: `docker-compose-multi-repo.yml`
+- **Development**: `docker-compose-local-multi-repo.yml`
 - **Configuration Caddy**: `caddy/Caddyfile.domain` (HTTPS avec SSL automatique)
 - **Volumes persistants**: `/Docker/code/wakedock-env/WakeDock/data/`
 - **Logs**: `/Docker/code/wakedock-env/WakeDock/logs/`
