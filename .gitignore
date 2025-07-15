@@ -411,3 +411,5 @@ metrics-*.json
 *.old
 *.orig
 *.save
+
+.build_cache/

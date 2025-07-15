@@ -1,7 +1,7 @@
 services:
   wakedock-backend:
     build:
-      context: ./wakedock-backend
+      context: ../wakedock-backend
       dockerfile: Dockerfile
     container_name: wakedock-core
     restart: ${RESTART_POLICY:-unless-stopped}
@@ -38,7 +38,7 @@ services:
 
   wakedock-frontend:
     build:
-      context: ./wakedock-frontend
+      context: ../wakedock-frontend
       dockerfile: Dockerfile
     container_name: wakedock-dashboard
     restart: ${RESTART_POLICY:-unless-stopped}

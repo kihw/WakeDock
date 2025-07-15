@@ -337,7 +337,7 @@ deploy_production() {
     
     # Stop services if rebuild needed
     if [ "$rebuild_backend" = "true" ] || [ "$rebuild_frontend" = "true" ] || [ "$CLEAN_BUILD" = "true" ]; then
-        print_status "🛑 Stopping services..."
+        print_status "\u2705 Stopping services..."
         if command -v docker-compose &> /dev/null; then
             docker-compose -f "$compose_file" down --remove-orphans
         else
@@ -415,8 +415,8 @@ deploy_development() {
     
     # Calculate local file hashes
     print_status "📊 Analyzing local changes..."
-    local backend_hash=$(calculate_directory_hash "wakedock-backend" "node_modules,.git,__pycache__,.pytest_cache,*.pyc,.venv,dist,build")
-    local frontend_hash=$(calculate_directory_hash "wakedock-frontend" "node_modules,.git,.next,dist,build,.svelte-kit,*.log")
+    local backend_hash=$(calculate_directory_hash "/Docker/code/wakedock-env/wakedock-backend" "node_modules,.git,__pycache__,.pytest_cache,*.pyc,.venv,dist,build")
+    local frontend_hash=$(calculate_directory_hash "/Docker/code/wakedock-env/wakedock-frontend" "node_modules,.git,.next,dist,build,.svelte-kit,*.log")
     
     # Check what needs to be rebuilt
     local rebuild_backend=false
