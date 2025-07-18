@@ -1,6 +1,6 @@
 {
   "name": "wakedock",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "WakeDock - Déploiement automatique de containers",
   "devDependencies": {
     "@tanstack/react-query-devtools": "^5.83.0"
