@@ -31,6 +31,7 @@ FORCE_REBUILD=false
 CLEAN_BUILD=false
 SKIP_TESTS=false
 SKIP_CACHE_CHECK=false
+DEBUG_MODE=false
 
 # GitHub repositories
 BACKEND_REPO="https://github.com/kihw/wakedock-backend.git"
@@ -78,8 +79,10 @@ OPTIONS:
   --clean                Clean build (remove containers and volumes)
   --skip-tests           Skip endpoint testing
   --skip-cache           Skip cache checking
+  --debug                Enable debug mode (verbose output)
   --status               Show services status
   --logs                 Show logs in real-time
+  --debug-docker         Run comprehensive Docker debugging
   --help, -h             Show this help
 
 EXAMPLES:
@@ -87,6 +90,8 @@ EXAMPLES:
   $0 --dev               # Development deployment from local files
   $0 --force             # Force rebuild in production
   $0 --dev --clean       # Clean development build
+  $0 --debug             # Enable debug mode
+  $0 --debug-docker      # Run Docker diagnostics
   $0 --status            # Show current services status
   $0 --logs              # Show logs
 
@@ -130,12 +135,20 @@ parse_arguments() {
                 SKIP_CACHE_CHECK=true
                 shift
                 ;;
+            --debug)
+                DEBUG_MODE=true
+                shift
+                ;;
             --status)
                 show_status
                 exit 0
                 ;;
             --logs)
                 show_logs
+                exit 0
+                ;;
+            --debug-docker)
+                run_debug_docker
                 exit 0
                 ;;
             --help|-h)
@@ -672,6 +685,78 @@ show_summary() {
     echo "  🔨 Force rebuild: $0 --force $([ "$MODE" = "development" ] && echo "--dev")"
 }
 
+# Debug functions - v0.6.5 enhancements
+debug_print() {
+    if [ "$DEBUG_MODE" = true ]; then
+        echo -e "${PURPLE}[DEBUG]${NC} $1"
+    fi
+}
+
+# Run comprehensive Docker debugging
+run_debug_docker() {
+    print_status "🐛 Running comprehensive Docker debugging..."
+    
+    if [ -f "./scripts/debug-docker.sh" ]; then
+        ./scripts/debug-docker.sh --mode=full
+    else
+        print_error "Debug script not found. Please ensure scripts/debug-docker.sh exists."
+        exit 1
+    fi
+}
+
+# Enhanced error handling with rollback option
+handle_deployment_error() {
+    local error_line="$1"
+    print_error "💥 Deployment failed at line ${error_line}"
+    
+    if [ -f "./scripts/rollback.sh" ]; then
+        print_warning "🔄 Rollback option available. Run: ./scripts/rollback.sh auto"
+        
+        read -p "Would you like to rollback automatically? (y/N): " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            print_status "🚨 Initiating automatic rollback..."
+            ./scripts/rollback.sh auto
+        fi
+    fi
+    
+    print_status "💡 For detailed debugging, run: $0 --debug-docker"
+    exit 1
+}
+
+# Enhanced deployment with debug mode
+enhanced_deploy() {
+    debug_print "Starting enhanced deployment process"
+    
+    # Create backup before deployment if rollback script exists
+    if [ -f "./scripts/rollback.sh" ]; then
+        debug_print "Creating pre-deployment backup"
+        ./scripts/rollback.sh create >/dev/null 2>&1 || true
+    fi
+    
+    # Original deployment logic
+    check_dependencies
+    create_build_cache
+    load_environment
+    setup_infrastructure
+    
+    if [ "$MODE" = "production" ]; then
+        debug_print "Deploying production mode"
+        deploy_production
+    else
+        debug_print "Deploying development mode"
+        deploy_development
+    fi
+    
+    debug_print "Waiting for services to be ready"
+    wait_for_services
+    
+    debug_print "Testing endpoints"
+    test_endpoints
+    
+    debug_print "Deployment completed successfully"
+}
+
 # Main execution
 main() {
     echo "🐳 WakeDock Unified Deployment"
@@ -688,25 +773,17 @@ main() {
         print_mode_info "🛠️ Development mode - building from local files"
     fi
     
-    # Execute deployment
-    check_dependencies
-    create_build_cache
-    load_environment
-    setup_infrastructure
-    
-    if [ "$MODE" = "production" ]; then
-        deploy_production
-    else
-        deploy_development
+    if [ "$DEBUG_MODE" = true ]; then
+        print_mode_info "🐛 Debug mode enabled - verbose output"
     fi
     
-    wait_for_services
-    test_endpoints
+    # Execute enhanced deployment
+    enhanced_deploy
     show_summary
 }
 
-# Error handling
-trap 'print_error "Deployment failed at line ${LINENO}. Check logs with: $0 --logs"' ERR
+# Error handling - Enhanced for v0.6.5
+trap 'handle_deployment_error ${LINENO}' ERR
 
 # Run main function
 main "$@"
