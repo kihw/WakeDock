@@ -9,6 +9,7 @@ Welcome to the WakeDock documentation. This documentation is automatically gener
 - [Architecture Guide](architecture/)
 - [Operations Runbook](operations/)
 - [Developer Guide](developer/)
+- [Monitoring, Analytics & Logs](operations/monitoring_analytics_logs.md)
 
 ## Quick Start
 
