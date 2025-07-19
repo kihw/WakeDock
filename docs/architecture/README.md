@@ -254,3 +254,8 @@ See [API Documentation](../api/README.md) for detailed endpoint documentation.
 ## Contributing
 
 See [Development Guide](../development/SETUP.md) for development setup and contribution guidelines.
+
+## Plans
+
+See [services and stacks integration plan](services_stacks_integration_plan.md) for the proposed fusion of services and stacks.
+

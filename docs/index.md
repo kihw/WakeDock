@@ -8,6 +8,7 @@ Welcome to the WakeDock documentation. This documentation is automatically gener
 - [Frontend Documentation](frontend/)
 - [Architecture Guide](architecture/)
 - [Operations Runbook](operations/)
+- [Services & Stacks Integration Plan](architecture/services_stacks_integration_plan.md)
 - [Developer Guide](developer/)
 
 ## Quick Start
