@@ -29,6 +29,14 @@ mtool.ovh {
         }
     }
     
+    # Error reporting endpoint
+    reverse_proxy /api/error-report wakedock-core:5000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
     # WebSocket support
     reverse_proxy /ws wakedock-core:5000 {
         header_up Host {host}
