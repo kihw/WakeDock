@@ -22,6 +22,8 @@ services:
       - CADDY_CONFIG_VOLUME_PATH=${CADDY_CONFIG_VOLUME:-/etc/caddy}
       - DATABASE_URL=postgresql://${POSTGRES_USER:-wakedock}:${POSTGRES_PASSWORD:-wakedock123}@postgres:5432/${POSTGRES_DB:-wakedock}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-redis123}@redis:6379/0
+      - USE_AUTH_APP=${USE_AUTH_APP:-false}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-your-secret-key-change-in-production}
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:5000/api/v1/health" ]
       interval: 15s
@@ -68,7 +70,7 @@ services:
       - "${CADDY_HTTPS_PORT:-443}:443"
       - "${CADDY_ADMIN_PORT:-2019}:2019"
     volumes:
-      - ./caddy/Caddyfile.test:/etc/caddy/Caddyfile:ro
+      - ./caddy/Caddyfile.domain:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
